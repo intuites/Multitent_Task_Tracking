@@ -1,0 +1,55 @@
+services:
+  # React app + /api handlers on one Node server (server.ts)
+  - type: web
+    name: taskify
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build && npm run build:server
+    startCommand: node dist-server/server.mjs
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # browser-safe; also needed at build time because Vite inlines them
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      # server only
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+      - key: EMAIL_PROVIDER_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+
+  # Hourly reminders, recurring tasks and email sending (idempotent, safe to retry)
+  - type: cron
+    name: taskify-tick
+    runtime: node
+    plan: starter
+    schedule: "0 * * * *"
+    buildCommand: echo "no build needed"
+    startCommand: >-
+      node -e "fetch('http://' + process.env.APP_HOSTPORT + '/api/cron/tick', { headers: { authorization: 'Bearer ' + process.env.CRON_SECRET } })
+      .then(async (r) => { console.log(r.status, await r.text()); if (!r.ok) process.exit(1); })
+      .catch((e) => { console.error(e); process.exit(1); })"
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: APP_HOSTPORT
+        fromService:
+          type: web
+          name: taskify
+          property: hostport
+      - key: CRON_SECRET
+        fromService:
+          type: web
+          name: taskify
+          envVarKey: CRON_SECRET

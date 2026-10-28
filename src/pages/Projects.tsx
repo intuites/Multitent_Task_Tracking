@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { logActivity } from '../lib/activity';
 import { Badge, fmtDay, label } from '../lib/ui';
+import { ListSkeleton } from '../components/Skeleton';
 
 export const PROJECT_STATUSES = ['planning', 'not_started', 'in_progress', 'on_hold', 'in_review', 'completed', 'cancelled', 'archived'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -67,7 +68,7 @@ export default function Projects() {
       )}
       <div className="row filters"><input aria-label="Search projects" placeholder="Search projects" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       {error && <p role="alert">{error}</p>}
-      {loading ? <p>Loading…</p> : shown.length === 0 ? <p>No projects found.{canWrite && ' Use “New project” to add one.'}</p> : (
+      {loading ? <ListSkeleton /> : shown.length === 0 ? <p>No projects found.{canWrite && ' Use “New project” to add one.'}</p> : (
         <table>
           <thead><tr><th>Name</th><th>Client</th><th>Status</th><th>Priority</th><th>Due</th></tr></thead>
           <tbody>{shown.map((p) => (

@@ -7,6 +7,7 @@ import { can } from '../../api/_lib/permissions';
 import { Badge, fmt, fmtDay, fmtTime, label, rpc, usePeople } from '../lib/ui';
 import { initials } from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
+import { DashSkeleton } from '../components/Skeleton';
 
 const OPEN = '(completed,cancelled)';
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -125,7 +126,7 @@ export default function Dashboard() {
   }, [orgId, uid]);
 
   if (error) return <div className="card"><p role="alert">{error}</p></div>;
-  if (!d) return <div className="card" aria-busy="true">Loading dashboard…</div>;
+  if (!d) return <DashSkeleton />;
   const st = d.sum.by_status as Record<string, number>;
 
   return (

@@ -8,6 +8,7 @@ import Notifications from './Notifications';
 import { Bell, FileText, House, MessageSquarePlus, UserCircle } from 'lucide-react';
 import Frame from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
+import { ListSkeleton } from '../components/Skeleton';
 
 type Tab = 'home' | 'request' | 'documents' | 'notifications' | 'profile';
 // internal escalations must not be visible to clients: show them as In Progress
@@ -150,7 +151,7 @@ export default function Portal() {
         </section>)}
       {tab === 'documents' && (
         <section className="card"><h2 className="page-title">Documents</h2>
-          {orgId ? <FilePanel orgId={orgId} userId={uid} entityType="client" entityId={portal!.client_id} canUpload={false} canDelete={false} portal /> : <p>Loading…</p>}
+          {orgId ? <FilePanel orgId={orgId} userId={uid} entityType="client" entityId={portal!.client_id} canUpload={false} canDelete={false} portal /> : <ListSkeleton rows={3} />}
         </section>)}
       {tab === 'notifications' && <Notifications />}
       {tab === 'profile' && contact && (

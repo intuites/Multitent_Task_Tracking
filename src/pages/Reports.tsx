@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { projectProgress } from '../../api/_lib/progress';
 import { download, isOpen, isOverdue, label, usePeople } from '../lib/ui';
+import { ListSkeleton } from '../components/Skeleton';
 
 type Row = Record<string, string | number>;
 const REPORTS = ['task_completion', 'overdue_work', 'status_distribution', 'employee_workload', 'project_progress', 'client_activity', 'escalations', 'recurring_tasks'];
@@ -107,7 +108,7 @@ export default function Reports() {
         <select aria-label="Filter by escalation severity" value={sev} onChange={(e) => setSev(e.target.value)}><option value="">Any escalation severity</option>{['low', 'medium', 'high', 'critical'].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
       </div>
       {error && <p role="alert">{error}</p>}
-      {!data ? <p>Loading…</p> : rows.length === 0 ? <p>No data for these filters.</p> : (
+      {!data ? <ListSkeleton /> : rows.length === 0 ? <p>No data for these filters.</p> : (
         <table><thead><tr>{cols.map((c) => <th key={c}>{c}</th>)}</tr></thead>
           <tbody>{rows.map((r, i) => <tr key={i}>{cols.map((c) => <td key={c}>{r[c]}</td>)}</tr>)}</tbody></table>)}
       <small>Based on up to 5,000 most recent records per table. Dates use the browser time zone.</small>

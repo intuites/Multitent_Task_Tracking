@@ -8,6 +8,7 @@ import { logActivity } from '../lib/activity';
 import { PROJECT_STATUSES } from './Projects';
 import { ask } from '../components/Dialog';
 import { fmtDay, label } from '../lib/ui';
+import { PageSkeleton } from '../components/Skeleton';
 
 export default function ProjectDetail() {
   const { id } = useParams();
@@ -59,7 +60,7 @@ export default function ProjectDetail() {
     load();
   }
 
-  if (loading) return <div className="card">Loading…</div>;
+  if (loading) return <PageSkeleton />;
   if (!p) return <div className="card">Project not found. <Link to="/projects">Back to projects</Link></div>;
 
   const progress = projectProgress(p.progress_mode as ProgressMode, p.manual_progress, ms, tasks);

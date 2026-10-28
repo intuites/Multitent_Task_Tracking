@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { Badge, fmt, fmtTime, label, rpc, usePeople } from '../lib/ui';
+import { ListSkeleton } from '../components/Skeleton';
 
 const NEXT = ['not_yet_started', 'in_progress', 'in_review', 'blocked', 'completed', 'cancelled'];
 
@@ -62,7 +63,7 @@ export default function Escalations() {
         <select aria-label="Filter by severity" value={sev} onChange={(e) => setSev(e.target.value)}><option value="">Any severity</option>{['low', 'medium', 'high', 'critical'].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
       </div>
       {error && <p role="alert">{error}</p>}
-      {loading ? <p>Loading…</p> : rows.length === 0 ? <p>No escalations. Raise one from a task’s detail page.</p> : (
+      {loading ? <ListSkeleton /> : rows.length === 0 ? <p>No escalations. Raise one from a task’s detail page.</p> : (
         <table>
           <thead><tr><th><span className="sr-only">Details</span></th><th>Task</th><th>Severity</th><th>State</th><th>Owner</th><th>Target</th><th>Raised</th></tr></thead>
           <tbody>{rows.map((r) => (

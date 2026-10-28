@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
 import { Badge, Due, dateToTs, label, rpc, usePeople } from '../lib/ui';
+import { ListSkeleton } from '../components/Skeleton';
 
 export type Mode = 'all' | 'mine' | 'team';
 const PAGE = 25;
@@ -165,7 +166,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
         </div>
       )}
       {error && <p role="alert">{error}</p>}
-      {loading ? <p>Loading…</p> : rows.length === 0 ? <p>No tasks match.{canWrite && ' Use “New task” to create one.'}</p> : (
+      {loading ? <ListSkeleton /> : rows.length === 0 ? <p>No tasks match.{canWrite && ' Use “New task” to create one.'}</p> : (
         <table>
           <thead><tr>{canWrite && <th />}<th>Title</th><th>Status</th><th>Priority</th><th>Assignees</th><th>Client / Project</th><th>Due</th></tr></thead>
           <tbody>{rows.map((t) => (

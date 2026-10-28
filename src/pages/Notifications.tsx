@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
+import { ListSkeleton } from '../components/Skeleton';
 
 type Tone = 'brand' | 'warn' | 'bad' | 'ok';
 interface TypeInfo { label: string; hint: string; icon: LucideIcon; tone: Tone }
@@ -130,7 +131,7 @@ export default function Notifications() {
 
       <div className={orgId ? 'notif-layout' : ''}>
         <section className="card inbox" aria-label="Notifications">
-          {rows === null ? <p className="muted" aria-busy="true">Loading…</p> : shown.length === 0 ? (
+          {rows === null ? <ListSkeleton rows={5} /> : shown.length === 0 ? (
             <div className="inbox-empty">
               <span className="empty-ico"><BellOff size={22} aria-hidden="true" /></span>
               <b>{filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}</b>

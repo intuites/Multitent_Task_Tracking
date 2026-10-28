@@ -9,6 +9,7 @@ import FilePanel from '../components/FilePanel';
 import { Tabs, panelProps } from '../components/Tabs';
 import { ask } from '../components/Dialog';
 import { Badge, label } from '../lib/ui';
+import { PageSkeleton } from '../components/Skeleton';
 
 type Tab = 'overview' | 'contacts' | 'projects' | 'tasks' | 'documents' | 'notes' | 'activity';
 
@@ -100,7 +101,7 @@ export default function ClientProfile() {
     form.reset(); load();
   }
 
-  if (loading) return <div className="card">Loading…</div>;
+  if (loading) return <PageSkeleton />;
   if (!client) return <div className="card">Client not found. <Link to="/clients">Back to clients</Link></div>;
 
   return (

@@ -538,3 +538,27 @@ tbody tr, .inbox-item, .plist li, .team li { transition: background-color .25s v
   .side-flow, .side-link svg, .kpi, a.kpi:hover, .pill-btn, button { transition: none !important; transform: none !important; }
   .pill-btn::before, button[type=submit]::before, .kpi::before { display: none; }
 }
+
+/* ---------- loading: shimmer skeletons and boot splash ---------- */
+.sk { display: block; border-radius: 8px; background: linear-gradient(90deg, var(--surface-2) 0%, #e6ebe8 40%, var(--surface-2) 80%) 0 0 / 300% 100%;
+  animation: sk-sheen 1.6s var(--ease) infinite; }
+.sk-fill { flex: 1; width: 100%; border-radius: 12px; }
+.sk-list { display: flex; flex-direction: column; }
+.sk-row { display: grid; grid-template-columns: 2.2fr 1.2fr 1fr .8fr; gap: 24px; align-items: center; padding: 16px 10px; border-bottom: 1px solid var(--line);
+  animation: fade .5s var(--ease) both; }
+.sk-row:last-child { border-bottom: 0; }
+.sk-card { display: flex; flex-direction: column; justify-content: space-between; gap: 14px; padding: 20px; border-radius: var(--r-card); background: var(--surface); }
+@keyframes sk-sheen { from { background-position: 100% 0; } to { background-position: -50% 0; } }
+
+.boot { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 22px; background: var(--bg); animation: fade .4s var(--ease) both; }
+.boot-mark { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: var(--brand-deep); color: #fff;
+  font-weight: 800; font-size: 26px; box-shadow: 0 10px 30px rgb(20 73 46 / .25); animation: boot-breathe 1.8s var(--ease) infinite alternate; }
+.boot-track { width: 140px; height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.boot-track i { display: block; width: 40%; height: 100%; border-radius: inherit; background: var(--brand); animation: boot-run 1.2s var(--ease) infinite; }
+@keyframes boot-breathe { to { transform: scale(1.06); box-shadow: 0 14px 40px rgb(20 73 46 / .32); } }
+@keyframes boot-run { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sk, .sk-row, .boot, .boot-mark, .boot-track i { animation: none !important; }
+  .boot-track i { width: 100%; opacity: .5; }
+}

@@ -7,6 +7,7 @@ import { canTransition, TASK_STATUSES, type TaskStatus } from '../../api/_lib/ta
 import { Badge, dateToTs, fmt, fmtTime, isOverdue, label, rpc, usePeople } from '../lib/ui';
 import FilePanel from '../components/FilePanel';
 import { ask } from '../components/Dialog';
+import { PageSkeleton } from '../components/Skeleton';
 
 const toDateInput = (d?: string | null) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
@@ -63,7 +64,7 @@ export default function TaskDetail() {
   }
   const must = async (p: PromiseLike<{ error: { message: string } | null }>) => { const { error } = await p; if (error) throw new Error(error.message); };
 
-  if (loading) return <div className="card">Loading…</div>;
+  if (loading) return <PageSkeleton />;
   if (!t) return <div className="card">Task not found. <Link to="/tasks">Back to tasks</Link></div>;
 
   const isAssignee = d.assignees.some((a: any) => a.user_id === uid);

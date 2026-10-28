@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { logActivity } from '../lib/activity';
 import { Badge, label } from '../lib/ui';
+import { ListSkeleton } from '../components/Skeleton';
 
 export const CLIENT_STATUSES = ['lead', 'prospect', 'active', 'on_hold', 'inactive', 'archived'];
 const PAGE = 20;
@@ -83,7 +84,7 @@ export default function Clients() {
         </select>
       </div>
       {error && <p role="alert">{error}</p>}
-      {loading ? <p>Loading…</p> : rows.length === 0 ? <p>No clients found.{canWrite && ' Use “New client” to add one.'}</p> : (
+      {loading ? <ListSkeleton /> : rows.length === 0 ? <p>No clients found.{canWrite && ' Use “New client” to add one.'}</p> : (
         <table>
           <thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Email</th><th>Phone</th></tr></thead>
           <tbody>{rows.map((c) => (

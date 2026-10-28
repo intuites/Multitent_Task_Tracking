@@ -32,6 +32,7 @@ const misc = (k: 'ActivityLogs' | 'Contacts' | 'Platform' | 'Profile' | 'Setting
 const ActivityLogs = misc('ActivityLogs'), Contacts = misc('Contacts'), Platform = misc('Platform'), Profile = misc('Profile'), Settings = misc('Settings');
 import '@fontsource-variable/plus-jakarta-sans';
 import './styles.css';
+import { Boot, PageSkeleton } from './components/Skeleton';
 
 function Shell() {
   const { membership, session, platformAdmin, signOut } = useAuth();
@@ -83,7 +84,7 @@ function Shell() {
           {can(membership!.role, 'members:manage') ? <Link to="/employees" className="pill-btn light">Invite teammates</Link> : <Link to="/profile" className="pill-btn light">Your profile</Link>}
         </div>
       )}>
-      <Outlet />
+      <Suspense fallback={<PageSkeleton />}><Outlet /></Suspense>
     </Frame>
   );
 }
@@ -97,13 +98,13 @@ const Guard = ({ need, children }: { need: Parameters<typeof can>[1]; children: 
 function Gate() {
   const { session, membership, portal, platformAdmin, loading, passwordSetup } = useAuth();
   if (!configured) return <div className="card">Set the Supabase variables in <code>.env.local</code>, then restart <code>npm run dev</code>.</div>;
-  if (loading) return <div className="card">Loading…</div>;
+  if (loading) return <Boot />;
   if (!session) return <Login />;
   if (passwordSetup) return <SetPassword />;
-  if (portal) return <Suspense fallback={<div className="card">Loading…</div>}><Portal /></Suspense>;
+  if (portal) return <Suspense fallback={<Boot />}><Portal /></Suspense>;
   if (!membership) return <Onboarding />;
   return (
-    <Suspense fallback={<div className="card">Loading…</div>}>
+    <Suspense fallback={<Boot />}>
     <Routes>
       <Route element={<Shell />}>
         <Route path="/" element={<Dashboard />} />

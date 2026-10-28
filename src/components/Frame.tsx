@@ -48,10 +48,10 @@ function NotificationBell({ userId, unread, onChanged, allTo, onAll }: BellProps
 
   async function markAll() {
     await supabase.from('tt_notifications').update({ read_at: new Date().toISOString() }).eq('user_id', userId).is('read_at', null);
-    load(); onChanged();
+    load(); onChanged(); window.dispatchEvent(new Event('tt-notifications'));
   }
   async function openOne(n: any) {
-    if (!n.read_at) { await supabase.from('tt_notifications').update({ read_at: new Date().toISOString() }).eq('id', n.id); onChanged(); }
+    if (!n.read_at) { await supabase.from('tt_notifications').update({ read_at: new Date().toISOString() }).eq('id', n.id); onChanged(); window.dispatchEvent(new Event('tt-notifications')); }
     close();
     if (n.link) navigate(n.link);
   }

@@ -87,7 +87,11 @@ export default function Portal() {
     setProjects((p.data ?? []).map((x) => ({ ...x, progress: projectProgress(x.progress_mode === 'tasks' ? 'milestones' : x.progress_mode, x.manual_progress, (ms.data ?? []).filter((m) => m.project_id === x.id), []) })));
     setTasks(t.data ?? []); setContact(ct.data); setPendingApprovals(ap.count ?? 0); setUnread(un.count ?? 0);
   }, [portal, uid]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    window.addEventListener('tt-notifications', load);
+    return () => window.removeEventListener('tt-notifications', load);
+  }, [load]);
 
   async function submitRequest(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

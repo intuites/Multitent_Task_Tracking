@@ -53,7 +53,8 @@ function Shell() {
   useEffect(() => {
     refresh();
     const h = setInterval(refresh, 60000);
-    return () => clearInterval(h);
+    window.addEventListener('tt-notifications', refresh);
+    return () => { clearInterval(h); window.removeEventListener('tt-notifications', refresh); };
   }, [refresh, pathname]);
 
   const groups: FrameGroup[] = ['Menu', 'CRM', 'Team', 'General'].map((g) => ({

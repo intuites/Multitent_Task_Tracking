@@ -11,7 +11,10 @@ export interface BellProps { userId: string; unread: number; onChanged: () => vo
 
 export const initials = (s: string) => s.split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
 
-const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
+// Greeting and date follow New York time; Intl switches EST/EDT on its own, so daylight saving needs no code.
+const TZ = 'America/New_York';
+const nyHour = (d: Date) => Number(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', hourCycle: 'h23' }).format(d));
+const greeting = (d: Date) => { const h = nyHour(d); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
 const ago = (d: string) => {
   const m = Math.round((Date.now() - new Date(d).getTime()) / 60000);
   return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`;
@@ -156,7 +159,10 @@ export default function Frame({ brand, groups, footer, title, search, action, be
   const marker = useLiquidMarker(navRef, closeKey);
   usePointerLight();
   const first = user.name.includes('@') ? '' : user.name.split(' ')[0];
-  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  // re-render each minute so the greeting rolls over (morning → afternoon) without a reload
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(t); }, []);
+  const today = now.toLocaleDateString(undefined, { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <div className="app">
@@ -181,7 +187,7 @@ export default function Frame({ brand, groups, footer, title, search, action, be
             {open ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}<span className="sr-only">Menu</span>
           </button>
           <h1 className="sr-only">{title}</h1>
-          <div className="hello"><b>{greeting()}{first && `, ${first}`}</b><small>{today}</small></div>
+          <div className="hello"><b>{greeting(now)}{first && `, ${first}`}</b><small>{today}</small></div>
           {search ?? <span className="grow" />}
           <div className="top-actions">
             {action}

@@ -395,3 +395,55 @@ dialog .actions { display: flex; gap: var(--space-2); justify-content: flex-end;
 @media (prefers-reduced-motion: reduce) { .switch, .switch span { transition: none; } }
 @media (max-width: 1100px) { .notif-layout { grid-template-columns: 1fr; } .prefs { position: static; } }
 @media (max-width: 640px) { .inbox-body { white-space: normal; } .page-actions { width: 100%; } }
+
+/* ---------- modern base controls (apply to every page) ---------- */
+:root { --ring: 0 0 0 3px rgb(46 125 79 / .18); --control-border: #c4ccc7; }
+input, select, textarea { border: 1px solid var(--control-border); border-radius: 12px; background: var(--surface); transition: border-color .15s ease-out, box-shadow .15s ease-out; }
+input:hover, select:hover, textarea:hover { border-color: var(--control-line); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--brand-2); box-shadow: var(--ring); }
+input::placeholder, textarea::placeholder { color: #8b958f; }
+select { appearance: none; padding-right: 36px; cursor: pointer;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2366726b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 12px center / 16px; }
+
+input[type=checkbox] { appearance: none; flex: none; width: 20px; height: 20px; min-height: 0; padding: 0; margin: 0; border: 1.5px solid var(--control-line); border-radius: 6px;
+  background: var(--surface) center / 14px no-repeat; cursor: pointer; vertical-align: middle; }
+input[type=checkbox]:checked { border-color: var(--brand); background-color: var(--brand);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E"); }
+input[type=checkbox]:focus-visible { box-shadow: var(--ring); }
+input[type=checkbox]:disabled { opacity: .5; cursor: not-allowed; }
+
+input[type=file] { padding: 6px; border-style: dashed; cursor: pointer; }
+input[type=file]::file-selector-button { margin-right: 12px; padding: 7px 16px; border: 0; border-radius: var(--r-pill); background: var(--client-tint); color: var(--brand-deep); font: inherit; font-weight: 600; cursor: pointer; }
+
+progress { appearance: none; height: 10px; width: 160px; border: 0; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; vertical-align: middle; }
+progress::-webkit-progress-bar { background: var(--surface-2); border-radius: var(--r-pill); }
+progress::-webkit-progress-value { background: var(--brand-grad); border-radius: var(--r-pill); }
+progress::-moz-progress-bar { background: var(--brand-2); border-radius: var(--r-pill); }
+
+/* text actions become soft pill buttons instead of underlined links */
+button.link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; min-height: 32px; border-radius: var(--r-pill); color: var(--brand); font-weight: 600; text-decoration: none; }
+button.link:hover:not(:disabled) { filter: none; background: var(--client-tint); }
+button.danger:hover:not(:disabled) { filter: brightness(1.08); }
+button { transition: filter .15s ease-out, background-color .15s ease-out, box-shadow .15s ease-out; }
+button:active:not(:disabled) { transform: translateY(1px); }
+.chip button.link { min-height: 24px; padding: 0 6px; }
+
+/* toolbars and filter rows */
+.filters { gap: 10px; }
+.filters input:not([type=checkbox]), .filters select { min-width: 170px; }
+.row > span { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+label.inline { font-weight: 500; cursor: pointer; }
+
+/* tables: tinted header band, softer rows */
+table { border-collapse: separate; border-spacing: 0; }
+thead th { background: var(--surface-2); border-bottom: 0; }
+thead th:first-child { border-radius: 10px 0 0 10px; }
+thead th:last-child { border-radius: 0 10px 10px 0; }
+tbody td { border-bottom: 1px solid var(--line); }
+tbody tr:last-child td { border-bottom: 0; }
+
+fieldset { padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+legend { padding: 0 6px; font-weight: 600; font-size: 13px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { input, select, textarea, button { transition: none; } button:active:not(:disabled) { transform: none; } }
+td a { text-decoration: none; }
+td a:hover { text-decoration: underline; }

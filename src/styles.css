@@ -42,7 +42,6 @@ h4 { margin: var(--space-3) 0 var(--space-1); font-weight: 650; }
 .side-link:hover { color: var(--text); background: var(--surface-2); filter: none; }
 .side-link.active { color: var(--text); font-weight: 700; }
 .side-link.active svg { color: var(--brand); }
-.side-link.active::before { content: ''; position: absolute; left: -14px; top: 7px; bottom: 7px; width: 4px; border-radius: 0 4px 4px 0; background: var(--brand); }
 .side-link .count { margin-left: auto; padding: 1px 7px; border-radius: var(--r-pill); background: var(--brand-deep); color: #fff; font-size: 11px; font-weight: 700; }
 .side-card { margin-top: auto; padding: 18px; border-radius: var(--r-card); color: #fff;
   background: radial-gradient(120% 90% at 100% 0%, rgb(92 184 134 / .35), transparent 60%), radial-gradient(90% 80% at 0% 100%, rgb(255 255 255 / .08), transparent 70%), #0d2f1e; }
@@ -77,7 +76,6 @@ h4 { margin: var(--space-3) 0 var(--space-1); font-weight: 650; }
 .pop-wrap { position: relative; }
 .pop { position: absolute; right: 0; top: calc(100% + 10px); z-index: 30; width: 340px; max-width: calc(100vw - 24px); background: var(--surface);
   border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--pop-shadow); overflow: hidden; animation: pop-in .14s ease-out; }
-@keyframes pop-in { from { opacity: 0; transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .pop { animation: none; } }
 .pop-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 10px; }
 .pop-head button.link { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; }
@@ -447,27 +445,96 @@ legend { padding: 0 6px; font-weight: 600; font-size: 13px; color: var(--muted);
 .content a:not([class]):hover { color: var(--brand-deep); background: var(--client-tint); box-shadow: 0 0 0 4px var(--client-tint); }
 .plist a, .team .who a { color: var(--text); }
 
-/* ---------- liquid effects ---------- */
-/* drifting waves inside the green stat card and the escalations card */
-.kpi.feature, .esc-card { position: relative; overflow: hidden; isolation: isolate; }
-.kpi.feature > *, .esc-card > * { position: relative; z-index: 1; }
-.kpi.feature::before, .kpi.feature::after, .esc-card::before, .esc-card::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 46%; z-index: 0; pointer-events: none;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 40' preserveAspectRatio='none'%3E%3Cpath d='M0 20 Q25 4 50 20 T100 20 T150 20 T200 20 V40 H0Z' fill='white'/%3E%3C/svg%3E") repeat-x 0 0 / 220px 100%;
-  opacity: .1; animation: tt-wave 9s linear infinite; }
-.kpi.feature::after, .esc-card::after { height: 36%; opacity: .08; background-size: 300px 100%; animation-duration: 13s; animation-direction: reverse; }
-@keyframes tt-wave { to { background-position-x: 660px; } }
 
-/* liquid sheen across primary buttons on hover */
-.pill-btn:not(.ghost):not(.light) { position: relative; overflow: hidden; isolation: isolate; }
-.pill-btn:not(.ghost):not(.light)::after { content: ''; position: absolute; top: -30%; bottom: -30%; left: -60%; width: 55%; z-index: -1; pointer-events: none;
-  background: radial-gradient(closest-side, rgb(255 255 255 / .38), transparent); transition: transform .7s cubic-bezier(.22, 1, .36, 1); }
-.pill-btn:not(.ghost):not(.light):hover::after { transform: translateX(330%); }
+/* ================= motion system =================
+   One curve for movement (--ease), one spring for things that settle (--spring). Everything is off under reduced motion. */
+:root { --ease: cubic-bezier(.22, 1, .36, 1); --spring: cubic-bezier(.34, 1.56, .64, 1); }
 
-/* frosted, glassy top bar */
-.topbar { background: rgb(255 255 255 / .72); backdrop-filter: saturate(1.6) blur(14px); box-shadow: inset 0 1px 0 rgb(255 255 255 / .8), 0 4px 18px rgb(18 26 22 / .05); }
+/* liquid metaballs inside hero cards */
+.liquid { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.liquid-a { fill: #fff; opacity: .13; }
+.liquid-b { fill: #9fe3bd; opacity: .2; }
+.liquid-deep .liquid-a { opacity: .09; }
+.liquid-deep .liquid-b { fill: #5cb886; opacity: .28; }
+.drop { transform-box: fill-box; transform-origin: center; animation: drift 16s var(--ease) infinite alternate; }
+.d2 { animation-duration: 12s; animation-name: drift-2; }
+.d3 { animation-duration: 19s; animation-name: drift-3; }
+.d4 { animation-duration: 14s; animation-name: drift-2; animation-direction: alternate-reverse; }
+.d5 { animation-duration: 10s; animation-name: drift-3; }
+@keyframes drift   { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-70px, -26px) scale(1.18); } 100% { transform: translate(-20px, 18px) scale(.92); } }
+@keyframes drift-2 { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-90px, 40px) scale(.85); } 100% { transform: translate(-30px, -20px) scale(1.12); } }
+@keyframes drift-3 { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(60px, -46px) scale(1.25); } 100% { transform: translate(110px, -10px) scale(.95); } }
+.kpi.feature, .card.esc-card { position: relative; overflow: hidden; isolation: isolate; }
+.kpi.feature > :not(.liquid), .card.esc-card > :not(.liquid) { position: relative; z-index: 1; }
+
+/* flowing sidebar marker */
+.side nav { position: relative; }
+.side-flow { position: absolute; left: -14px; top: 0; width: 4px; border-radius: 0 4px 4px 0; background: var(--brand); pointer-events: none;
+  transition: transform .5s var(--spring), height .5s var(--spring), opacity .2s; }
+.side-flow.stretch { transition: transform .16s var(--ease), height .16s var(--ease); }
+.side-link { transition: color .25s var(--ease), background-color .25s var(--ease); }
+.side-link svg { transition: transform .35s var(--spring), color .25s; }
+.side-link:hover svg { transform: translateX(2px); }
+
+/* pointer light on buttons and stat cards */
+.pill-btn:not(.ghost):not(.light), button[type=submit] { position: relative; overflow: hidden; isolation: isolate; }
+.pill-btn:not(.ghost):not(.light)::before, button[type=submit]::before, .kpi::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .35s var(--ease);
+  background: radial-gradient(140px circle at var(--mx, 50%) var(--my, 50%), rgb(255 255 255 / .32), transparent 65%); }
+.kpi { position: relative; isolation: isolate; transition: transform .45s var(--ease), box-shadow .45s var(--ease); }
+.kpi::before { z-index: 0; border-radius: inherit; background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgb(46 125 79 / .09), transparent 70%); }
+.kpi.feature::before { z-index: 1; background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgb(255 255 255 / .16), transparent 70%); }
+.pill-btn:hover::before, button[type=submit]:hover::before, .kpi:hover::before { opacity: 1; }
+a.kpi:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgb(18 26 22 / .10); }
+.pill-btn, button { transition: filter .2s var(--ease), background-color .2s var(--ease), box-shadow .3s var(--ease), transform .2s var(--ease); }
+.pill-btn:not(.ghost):not(.light):hover, button[type=submit]:hover { box-shadow: 0 8px 22px rgb(20 73 46 / .28); }
+
+/* page enter */
+.page { animation: page-in .55s var(--ease) both; }
+@keyframes page-in { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } }
+
+/* data draws in */
+.bar { transform-origin: bottom; animation: bar-grow .9s var(--spring) both; animation-delay: calc(var(--i, 0) * 70ms + .1s); }
+.bar-col { --i: 0; }
+@keyframes bar-grow { from { transform: scaleY(0); } }
+.bar-tip { animation: fade-up .5s var(--ease) .7s both; }
+@keyframes fade-up { from { opacity: 0; transform: translate(-50%, 6px); } }
+.gauge path + path { animation: arc-draw 1.2s var(--ease) .15s both; }
+@keyframes arc-draw { from { stroke-dasharray: 0 100; } }
+.meter i { animation: meter-fill 1s var(--ease) .2s both; transform-origin: left; }
+@keyframes meter-fill { from { transform: scaleX(0); } }
+
+/* dialogs and popovers */
+dialog[open] { animation: dlg-in .32s var(--spring); }
+dialog[open]::backdrop { animation: fade .3s var(--ease); }
+@keyframes dlg-in { from { opacity: 0; transform: translateY(8px) scale(.96); } }
+@keyframes fade { from { opacity: 0; } }
+.pop { animation: pop-in .26s var(--spring); transform-origin: top right; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-6px) scale(.97); } }
+
+/* rows and list items respond softly */
+tbody tr, .inbox-item, .plist li, .team li { transition: background-color .25s var(--ease); }
+
+/* scrolling: smooth anchors, cards rise into view, top bar firms up as you scroll */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+  @supports (animation-timeline: view()) {
+    .content .card, .content .kpi { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 40%; }
+    .topbar { animation: bar-solid linear both; animation-timeline: scroll(root); animation-range: 0 140px; }
+  }
+}
+@keyframes rise { from { opacity: 0; transform: translateY(28px) scale(.985); } }
+@keyframes bar-solid { to { background: rgb(255 255 255 / .94); box-shadow: inset 0 1px 0 rgb(255 255 255 / .8), 0 12px 32px rgb(18 26 22 / .10); } }
+.topbar { background: rgb(255 255 255 / .7); backdrop-filter: saturate(1.6) blur(16px); box-shadow: inset 0 1px 0 rgb(255 255 255 / .8); }
+
+/* slim scrollbars that match the palette */
+* { scrollbar-width: thin; scrollbar-color: #c7cfca transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #c7cfca; border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background-color: #9aa69f; }
 
 @media (prefers-reduced-motion: reduce) {
-  .kpi.feature::before, .kpi.feature::after, .esc-card::before, .esc-card::after { animation: none; }
-  .pill-btn:not(.ghost):not(.light)::after { transition: none; }
+  .drop, .page, .bar, .bar-tip, .gauge path + path, .meter i, dialog[open], dialog[open]::backdrop, .pop { animation: none !important; }
+  .side-flow, .side-link svg, .kpi, a.kpi:hover, .pill-btn, button { transition: none !important; transform: none !important; }
+  .pill-btn::before, button[type=submit]::before, .kpi::before { display: none; }
 }

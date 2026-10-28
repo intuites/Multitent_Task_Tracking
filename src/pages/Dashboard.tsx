@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { Badge, fmt, fmtDay, fmtTime, label, rpc, usePeople } from '../lib/ui';
 import { initials } from '../components/Frame';
+import { CountUp, LiquidBg } from '../components/Liquid';
 
 const OPEN = '(completed,cancelled)';
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -17,8 +18,9 @@ const tileColor = (s: string) => TILE[[...s].reduce((n, c) => n + c.charCodeAt(0
 function Kpi({ title, value, note, to, feature }: { title: string; value: number; note: string; to: string; feature?: boolean }) {
   return (
     <Link to={to} className={feature ? 'kpi feature' : 'kpi'}>
+      {feature && <LiquidBg />}
       <span className="kpi-head"><span>{title}</span><span className="go" aria-hidden="true"><ArrowUpRight size={16} /></span></span>
-      <b>{value}</b>
+      <b><CountUp value={value} /></b>
       <small>{note}</small>
     </Link>
   );
@@ -35,7 +37,7 @@ function WeekBars({ counts, today }: { counts: number[]; today: number }) {
         const future = i > today;
         const cls = future ? 'bar future' : i === today ? 'bar today' : c > 0 && i === best ? 'bar best' : 'bar';
         return (
-          <div key={i} className="bar-col">
+          <div key={i} className="bar-col" style={{ '--i': i } as React.CSSProperties}>
             <div className="bar-track">
               {i === today && <span className="bar-tip">{c}</span>}
               <span className={cls} style={{ height: future ? '100%' : `${Math.max(12, (c / max) * 100)}%` }} />
@@ -192,8 +194,9 @@ export default function Dashboard() {
         </section>
 
         <section className="card esc-card a-es" aria-labelledby="es-h">
+          <LiquidBg tone="deep" />
           <h3 id="es-h">Escalations</h3>
-          <b className="esc-num">{d.esc}</b>
+          <b className="esc-num"><CountUp value={d.esc} /></b>
           <p>{d.escCrit} critical · {d.escLate} past target</p>
           <Link to="/escalations" className="round-btn" aria-label="Open escalations"><ArrowUpRight size={20} aria-hidden="true" /></Link>
         </section>

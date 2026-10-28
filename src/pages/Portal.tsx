@@ -7,6 +7,7 @@ import FilePanel from '../components/FilePanel';
 import Notifications from './Notifications';
 import { Bell, FileText, House, MessageSquarePlus, UserCircle } from 'lucide-react';
 import Frame from '../components/Frame';
+import { CountUp, LiquidBg } from '../components/Liquid';
 
 type Tab = 'home' | 'request' | 'documents' | 'notifications' | 'profile';
 // internal escalations must not be visible to clients: show them as In Progress
@@ -109,7 +110,7 @@ export default function Portal() {
           <div className="page-actions"><button className="pill-btn" onClick={go('request')}><MessageSquarePlus size={16} aria-hidden="true" />New request</button></div>
         </div>
         <div className="dash">
-          <div className="a-k1 kpi feature"><span className="kpi-head"><span>Shared projects</span></span><b>{projects.length}</b><small>{projects.filter((p) => p.status === 'in_progress').length} in progress</small></div>
+          <div className="a-k1 kpi feature"><LiquidBg /><span className="kpi-head"><span>Shared projects</span></span><b><CountUp value={projects.length} /></b><small>{projects.filter((p) => p.status === 'in_progress').length} in progress</small></div>
           <div className="a-k2 kpi"><span className="kpi-head"><span>Open tasks</span></span><b>{open.length}</b><small>Being worked on for you</small></div>
           <div className="a-k3 kpi"><span className="kpi-head"><span>Due this week</span></span><b>{open.filter((t) => t.due_date && new Date(t.due_date).getTime() < Date.now() + 7 * 864e5).length}</b><small>Open tasks due in 7 days</small></div>
           <div className="a-k4 kpi"><span className="kpi-head"><span>Completed</span></span><b>{tasks.filter((t) => t.status === 'completed').length}</b><small>Delivered tasks</small></div>

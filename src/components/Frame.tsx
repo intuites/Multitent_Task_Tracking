@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { reducedMotion } from './Liquid';
 import { Bell, CheckCheck, ChevronDown, LogOut, Menu, X, type LucideIcon } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -26,6 +27,42 @@ function useDismiss(ref: RefObject<HTMLElement>, open: boolean, close: () => voi
     document.addEventListener('keydown', key);
     return () => { document.removeEventListener('mousedown', down); document.removeEventListener('keydown', key); };
   }, [open, close, ref]);
+}
+
+// Active-page marker that flows between sidebar items: it first stretches across the old and new item,
+// then contracts onto the new one with a spring, so it reads as a droplet moving rather than a jump.
+function useLiquidMarker(navRef: RefObject<HTMLElement>, key: string) {
+  const [pos, setPos] = useState({ top: 0, height: 0, on: false, phase: 'settle' as 'stretch' | 'settle' });
+  const prev = useRef<{ top: number; height: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = navRef.current?.querySelector<HTMLElement>('.side-link.active');
+    if (!el) { prev.current = null; setPos((p) => ({ ...p, on: false })); return; }
+    const next = { top: el.offsetTop + 8, height: el.offsetHeight - 16 };
+    const p = prev.current;
+    prev.current = next;
+    if (!p || p.top === next.top || reducedMotion()) { setPos({ ...next, on: true, phase: 'settle' }); return; }
+    const top = Math.min(p.top, next.top);
+    setPos({ top, height: Math.max(p.top + p.height, next.top + next.height) - top, on: true, phase: 'stretch' });
+    const t = setTimeout(() => setPos({ ...next, on: true, phase: 'settle' }), 160);
+    return () => clearTimeout(t);
+  }, [key, navRef]);
+  return pos;
+}
+
+// Soft light that follows the pointer on buttons and stat cards (CSS reads --mx / --my).
+function usePointerLight() {
+  useEffect(() => {
+    if (reducedMotion()) return;
+    const move = (e: PointerEvent) => {
+      const el = (e.target as Element | null)?.closest?.('.pill-btn, .kpi, button[type=submit]') as HTMLElement | null;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--mx', `${e.clientX - r.left}px`);
+      el.style.setProperty('--my', `${e.clientY - r.top}px`);
+    };
+    document.addEventListener('pointermove', move, { passive: true });
+    return () => document.removeEventListener('pointermove', move);
+  }, []);
 }
 
 function Item({ i }: { i: FrameItem }) {
@@ -115,6 +152,9 @@ export default function Frame({ brand, groups, footer, title, search, action, be
 }) {
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [closeKey]);
+  const navRef = useRef<HTMLElement>(null);
+  const marker = useLiquidMarker(navRef, closeKey);
+  usePointerLight();
   const first = user.name.includes('@') ? '' : user.name.split(' ')[0];
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -122,7 +162,9 @@ export default function Frame({ brand, groups, footer, title, search, action, be
     <div className="app">
       <aside id="side" className={open ? 'side open' : 'side'}>
         <div className="brand"><span className="mark" aria-hidden="true">{initials(brand).charAt(0)}</span><span>{brand}</span></div>
-        <nav aria-label="Main">
+        <nav aria-label="Main" ref={navRef}>
+          <span className={`side-flow ${marker.phase}`} aria-hidden="true"
+            style={{ transform: `translateY(${marker.top}px)`, height: marker.height, opacity: marker.on ? 1 : 0 }} />
           {groups.filter((g) => g.items.length).map((g) => (
             <div key={g.title} className="side-group">
               <p className="side-title">{g.title}</p>
@@ -148,7 +190,7 @@ export default function Frame({ brand, groups, footer, title, search, action, be
             <ProfileMenu user={user} menu={menu} onSignOut={onSignOut} />
           </div>
         </header>
-        <main className="content">{children}</main>
+        <main className="content"><div className="page" key={closeKey}>{children}</div></main>
       </div>
     </div>
   );

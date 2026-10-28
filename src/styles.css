@@ -447,8 +447,8 @@ legend { padding: 0 6px; font-weight: 600; font-size: 13px; color: var(--muted);
 
 
 /* ================= motion system =================
-   One curve for movement (--ease), one spring for things that settle (--spring). Everything is off under reduced motion. */
-:root { --ease: cubic-bezier(.22, 1, .36, 1); --spring: cubic-bezier(.16, 1, .3, 1); }
+   One curve for movement (--ease), one spring for things that settle (--settle). Everything is off under reduced motion. */
+:root { --ease: cubic-bezier(.22, 1, .36, 1); --settle: cubic-bezier(.16, 1, .3, 1); }
 
 /* liquid metaballs inside hero cards */
 .liquid { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
@@ -470,10 +470,10 @@ legend { padding: 0 6px; font-weight: 600; font-size: 13px; color: var(--muted);
 /* flowing sidebar marker */
 .side nav { position: relative; }
 .side-flow { position: absolute; left: -14px; top: 0; width: 4px; border-radius: 0 4px 4px 0; background: var(--brand); pointer-events: none;
-  transition: transform .5s var(--spring), height .5s var(--spring), opacity .2s; }
+  transition: transform .5s var(--settle), height .5s var(--settle), opacity .2s; }
 .side-flow.stretch { transition: transform .16s var(--ease), height .16s var(--ease); }
 .side-link { transition: color .25s var(--ease), background-color .25s var(--ease); }
-.side-link svg { transition: transform .35s var(--spring), color .25s; }
+.side-link svg { transition: transform .35s var(--settle), color .25s; }
 .side-link:hover svg { transform: translateX(2px); }
 
 /* pointer light on buttons and stat cards */
@@ -494,7 +494,7 @@ a.kpi:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgb(18 26 22 
 @keyframes page-in { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } }
 
 /* data draws in */
-.bar { transform-origin: bottom; animation: bar-grow .9s var(--spring) both; animation-delay: calc(var(--i, 0) * 70ms + .1s); }
+.bar { transform-origin: bottom; animation: bar-grow .9s var(--settle) both; animation-delay: calc(var(--i, 0) * 70ms + .1s); }
 .bar-col { --i: 0; }
 @keyframes bar-grow { from { transform: scaleY(0); } }
 .bar-tip { animation: fade-up .5s var(--ease) .7s both; }
@@ -505,11 +505,11 @@ a.kpi:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgb(18 26 22 
 @keyframes meter-fill { from { transform: scaleX(0); } }
 
 /* dialogs and popovers */
-dialog[open] { animation: dlg-in .32s var(--spring); }
+dialog[open] { animation: dlg-in .32s var(--settle); }
 dialog[open]::backdrop { animation: fade .3s var(--ease); }
 @keyframes dlg-in { from { opacity: 0; transform: translateY(8px) scale(.96); } }
 @keyframes fade { from { opacity: 0; } }
-.pop { animation: pop-in .26s var(--spring); transform-origin: top right; }
+.pop { animation: pop-in .26s var(--settle); transform-origin: top right; }
 @keyframes pop-in { from { opacity: 0; transform: translateY(-6px) scale(.97); } }
 
 /* rows and list items respond softly */

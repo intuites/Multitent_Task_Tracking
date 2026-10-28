@@ -562,3 +562,56 @@ tbody tr, .inbox-item, .plist li, .team li { transition: background-color .25s v
   .sk, .sk-row, .boot, .boot-mark, .boot-track i { animation: none !important; }
   .boot-track i { width: 100%; opacity: .5; }
 }
+
+/* ---------- sign in / sign up ---------- */
+.auth-art > :not(.liquid) { z-index: 1; }
+.auth-art .liquid { opacity: .9; }
+.auth-head { animation: auth-rise .8s var(--ease) .1s both; }
+.auth-copy li { animation: auth-rise .7s var(--ease) both; }
+.auth-copy li:nth-child(1) { animation-delay: .3s; } .auth-copy li:nth-child(2) { animation-delay: .4s; } .auth-copy li:nth-child(3) { animation-delay: .5s; }
+.auth-main .login { animation: auth-rise .7s var(--ease) .05s both; }
+@keyframes auth-rise { from { opacity: 0; transform: translateY(14px); filter: blur(3px); } }
+
+.auth-swap { display: grid; gap: var(--space-3); animation: auth-swap .45s var(--ease) both; }
+@keyframes auth-swap { from { opacity: 0; transform: translateX(12px); } }
+
+.auth .login input { min-height: 46px; border-radius: 12px; transition: border-color .2s var(--ease), box-shadow .2s var(--ease), background-color .2s; }
+.auth .login input:focus-visible { outline: none; border-color: var(--brand-2); box-shadow: 0 0 0 4px rgb(46 125 79 / .14); }
+.auth .login input[aria-invalid=true] { border-color: var(--danger); background: #fffafa; }
+.auth .login input[aria-invalid=true]:focus-visible { box-shadow: 0 0 0 4px rgb(179 50 31 / .12); }
+
+.pw { position: relative; display: block; }
+.pw input { width: 100%; padding-right: 46px; }
+.pw-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); min-height: 0; width: 36px; height: 36px; padding: 0; display: grid; place-items: center;
+  border-radius: 10px; background: none; color: var(--muted); }
+.pw-eye:hover { background: var(--surface-2); color: var(--text); filter: none; }
+
+.auth-msg { display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 12px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.45; font-weight: 500;
+  border: 1px solid; animation: msg-in .4s var(--ease) both; }
+.auth-msg svg { flex: none; margin-top: 1px; }
+.auth-msg.error { background: #fdf1ef; border-color: #f2c9c1; color: #8c2615; }
+.auth-msg.ok { background: var(--ok-bg); border-color: var(--ok-line); color: var(--ok-fg); }
+@keyframes msg-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+
+/* two identical keyframes, alternated by class, so every new error replays the shake */
+.login.shake-0 { animation: shake-a .45s var(--ease); } .login.shake-1 { animation: shake-b .45s var(--ease); }
+@keyframes shake-a { 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
+@keyframes shake-b { 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
+
+.auth-submit { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; margin-top: 4px; border-radius: var(--r-pill);
+  transition: transform .2s var(--ease), box-shadow .3s var(--ease), filter .2s; }
+.auth-submit:hover:not(:disabled) { transform: translateY(-1px); }
+.auth-submit:active:not(:disabled) { transform: translateY(0) scale(.99); }
+.auth-submit:disabled { cursor: progress; opacity: .85; }
+.spin { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.auth-links { display: flex; justify-content: center; margin-top: 2px; }
+.field { display: grid; gap: var(--space-1); }
+.field-head { display: flex; justify-content: space-between; align-items: center; }
+.field-head label { font-weight: 550; font-size: 13.5px; }
+.field-head button.link { min-height: 0; padding: 2px 8px; margin-right: -8px; font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-head, .auth-copy li, .auth-main .login, .auth-swap, .auth-msg, .login.shake-0, .login.shake-1, .spin { animation: none !important; }
+  .auth-submit { transition: none; }
+}

@@ -74,11 +74,11 @@ export default function Portal() {
 
   const load = useCallback(async () => {
     const [c, p, t, ms, ct, ap, un] = await Promise.all([
-      supabase.from('clients').select('org_id').eq('id', portal!.client_id).maybeSingle(),
-      supabase.from('projects').select('id, name, status, due_date, progress_mode, manual_progress').eq('client_id', portal!.client_id),
+      supabase.from('tt_clients').select('org_id').eq('id', portal!.client_id).maybeSingle(),
+      supabase.from('tt_projects').select('id, name, status, due_date, progress_mode, manual_progress').eq('client_id', portal!.client_id),
       supabase.from('tt_tasks').select('id, title, description, status, due_date').eq('client_id', portal!.client_id).order('created_at', { ascending: false }),
       supabase.from('tt_project_milestones').select('project_id, completed_at'),
-      supabase.from('client_contacts').select('*').eq('user_id', uid).maybeSingle(),
+      supabase.from('tt_client_contacts').select('*').eq('user_id', uid).maybeSingle(),
       supabase.from('tt_approvals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('tt_notifications').select('id', { count: 'exact', head: true }).eq('user_id', uid).is('read_at', null),
     ]);

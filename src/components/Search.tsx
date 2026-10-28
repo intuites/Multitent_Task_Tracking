@@ -28,9 +28,9 @@ export default function Search() {
     const h = setTimeout(async () => {
       const like = `%${term}%`;
       const [c, ct, p, t, e] = await Promise.all([
-        supabase.from('clients').select('id, name').eq('org_id', orgId).ilike('name', like).limit(5),
-        supabase.from('client_contacts').select('client_id, full_name').eq('org_id', orgId).ilike('full_name', like).limit(5),
-        supabase.from('projects').select('id, name').eq('org_id', orgId).ilike('name', like).limit(5),
+        supabase.from('tt_clients').select('id, name').eq('org_id', orgId).ilike('name', like).limit(5),
+        supabase.from('tt_client_contacts').select('client_id, full_name').eq('org_id', orgId).ilike('full_name', like).limit(5),
+        supabase.from('tt_projects').select('id, name').eq('org_id', orgId).ilike('name', like).limit(5),
         supabase.from('tt_tasks').select('id, title').eq('org_id', orgId).ilike('title', like).limit(5),
         supabase.from('tt_escalations').select('id, reason').eq('org_id', orgId).ilike('reason', like).limit(5),
       ]);

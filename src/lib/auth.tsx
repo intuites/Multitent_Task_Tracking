@@ -37,12 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!session) { setMembership(null); setPortal(null); return; }
     (async () => {
       // RLS limits these reads to the caller's own rows; roles are never taken from the browser.
-      const { data } = await supabase.from('org_members').select('org_id, role, organizations(name, time_zone)')
+      const { data } = await supabase.from('tt_org_members').select('org_id, role, organizations:tt_organizations(name, time_zone)')
         .eq('user_id', session.user.id).eq('active', true).order('created_at').limit(1);
       const m = data?.[0] as any;
       setMembership(m ? { org_id: m.org_id, role: m.role, org_name: m.organizations?.name ?? '', time_zone: m.organizations?.time_zone ?? 'UTC' } : null);
       if (!m) {
-        const { data: c } = await supabase.from('client_contacts').select('id, client_id, full_name, can_approve, clients(name)')
+        const { data: c } = await supabase.from('tt_client_contacts').select('id, client_id, full_name, can_approve, clients:tt_clients(name)')
           .eq('user_id', session.user.id).eq('portal_access', true).eq('status', 'active').limit(1);
         const x = c?.[0] as any;
         setPortal(x ? { client_id: x.client_id, contact_id: x.id, client_name: x.clients?.name ?? '', can_approve: x.can_approve, full_name: x.full_name } : null);

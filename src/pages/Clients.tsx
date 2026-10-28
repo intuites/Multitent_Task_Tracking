@@ -25,7 +25,7 @@ export default function Clients() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    let query = supabase.from('clients').select('*', { count: 'exact' }).eq('org_id', orgId)
+    let query = supabase.from('tt_clients').select('*', { count: 'exact' }).eq('org_id', orgId)
       .order('created_at', { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1);
     if (status) query = query.eq('status', status); else query = query.neq('status', 'archived');
     if (type) query = query.eq('type', type);
@@ -44,7 +44,7 @@ export default function Clients() {
   async function create(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const { data, error } = await supabase.from('clients').insert({
+    const { data, error } = await supabase.from('tt_clients').insert({
       org_id: orgId, owner_id: session!.user.id,
       name: String(f.get('name')).trim(), type: f.get('type'), status: f.get('status'),
       email: String(f.get('email')).trim() || null, phone: String(f.get('phone')).trim() || null,

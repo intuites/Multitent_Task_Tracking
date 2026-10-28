@@ -24,8 +24,8 @@ export default function Reports() {
     (async () => {
       const [t, c, p, ms, es, ap, ac] = await Promise.all([
         supabase.from('tt_tasks').select('id, title, status, priority, client_id, project_id, due_date, created_at, completed_at, recurrence_parent_id, tt_task_assignees(user_id)').eq('org_id', orgId).limit(5000),
-        supabase.from('clients').select('id, name').eq('org_id', orgId),
-        supabase.from('projects').select('id, name, progress_mode, manual_progress, client_id').eq('org_id', orgId),
+        supabase.from('tt_clients').select('id, name').eq('org_id', orgId),
+        supabase.from('tt_projects').select('id, name, progress_mode, manual_progress, client_id').eq('org_id', orgId),
         supabase.from('tt_project_milestones').select('project_id, completed_at').eq('org_id', orgId),
         supabase.from('tt_escalations').select('severity, state, raised_at, acknowledged_at, resolved_at, task_id').eq('org_id', orgId).limit(5000),
         supabase.from('tt_approvals').select('status, created_at, decided_at').eq('org_id', orgId).limit(5000),

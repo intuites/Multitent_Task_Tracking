@@ -1,16 +1,16 @@
 # Database dictionary
 
-All tables have RLS enabled. `org_id` = tenant. Migrations: `supabase/migrations/0001..0006`, additive only (`if not exists`). **Review against your real schema before applying** (names like `organizations`, `clients`, `projects`, `org_members` may already exist there).
+All tables have RLS enabled. `org_id` = tenant. Migrations: `supabase/migrations/0001..0006`, additive only (`if not exists`). Every table and function uses the `tt_` prefix. To start over, run `supabase/reset_taskify.sql` (drops only Taskify objects, deletes their data), then 0001..0006 in order.
 
 | Table | Purpose | Notes |
 |---|---|---|
-| organizations | Tenant root | name, slug (unique), time_zone |
-| org_members | User role per org | roles owner/admin/manager/employee; `active` flag; owner changes guarded by trigger |
+| tt_organizations | Tenant root | name, slug (unique), time_zone |
+| tt_org_members | User role per org | roles owner/admin/manager/employee; `active` flag; owner changes guarded by trigger |
 | tt_profiles | Display name/email per auth user | filled by trigger on `auth.users` |
-| clients | CRM clients | type individual/business; status lead…archived |
-| client_contacts | People at a client | `user_id` + `portal_access` + `can_approve` drive portal; one primary per client |
-| client_notes | Internal notes | never exposed to portal |
-| projects | Projects | `client_visible`, progress_mode manual/milestones/tasks |
+| tt_clients | CRM clients | type individual/business; status lead…archived |
+| tt_client_contacts | People at a client | `user_id` + `portal_access` + `can_approve` drive portal; one primary per client |
+| tt_client_notes | Internal notes | never exposed to portal |
+| tt_projects | Projects | `client_visible`, progress_mode manual/milestones/tasks |
 | tt_project_milestones | Milestones | `completed_at` null = open |
 | tt_project_members | Project team | table only; UI not built |
 | tt_tasks | Tasks | status check constraint; trigger guards status; `archived_at`, `client_visible`, `requires_approval`, recurrence columns |

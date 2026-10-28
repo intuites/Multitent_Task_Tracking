@@ -22,7 +22,7 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const pr = await supabase.from('projects').select('*, clients(name)').eq('id', id!).eq('org_id', orgId).maybeSingle();
+    const pr = await supabase.from('tt_projects').select('*, clients:tt_clients(name)').eq('id', id!).eq('org_id', orgId).maybeSingle();
     setP(pr.data);
     if (pr.data) {
       const [m, t] = await Promise.all([
@@ -36,7 +36,7 @@ export default function ProjectDetail() {
   useEffect(() => { load(); }, [load]);
 
   async function update(patch: object, action: string, detail: object = {}) {
-    const { error } = await supabase.from('projects').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id!);
+    const { error } = await supabase.from('tt_projects').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id!);
     if (error) return setError(error.message);
     await logActivity(orgId, uid, 'project', id!, action, detail);
     setError(''); load();

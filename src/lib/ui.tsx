@@ -23,7 +23,7 @@ export function loadPeople(orgId: string, fresh = false): Promise<Person[]> {
   if (fresh) cache.delete(orgId);
   if (!cache.has(orgId)) {
     cache.set(orgId, (async () => {
-      const { data: m } = await supabase.from('org_members').select('user_id, role, active').eq('org_id', orgId);
+      const { data: m } = await supabase.from('tt_org_members').select('user_id, role, active').eq('org_id', orgId);
       const ids = (m ?? []).map((x) => x.user_id);
       const { data: p } = ids.length ? await supabase.from('tt_profiles').select('user_id, full_name, email').in('user_id', ids) : { data: [] as any[] };
       const pm = new Map((p ?? []).map((x: any) => [x.user_id, x]));

@@ -47,14 +47,14 @@ export default function Employees() {
     setMsg('Invitation sent / member added.'); form.reset(); refresh();
   }
   async function setRole(p: Person, newRole: string) {
-    const { error } = await supabase.from('org_members').update({ role: newRole }).eq('org_id', orgId).eq('user_id', p.id);
+    const { error } = await supabase.from('tt_org_members').update({ role: newRole }).eq('org_id', orgId).eq('user_id', p.id);
     if (error) setError(error.message);
     await supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'organization', entity_id: orgId, action: 'role_changed', detail: { user: p.id, to: newRole } });
     refresh();
   }
   async function setActive(p: Person, on: boolean) {
     if (!on && !(await ask({ message: `Deactivate ${p.name}? They lose access immediately.`, confirmLabel: 'Deactivate', danger: true })).ok) return;
-    const { error } = await supabase.from('org_members').update({ active: on }).eq('org_id', orgId).eq('user_id', p.id);
+    const { error } = await supabase.from('tt_org_members').update({ active: on }).eq('org_id', orgId).eq('user_id', p.id);
     if (error) setError(error.message);
     await supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'organization', entity_id: orgId, action: on ? 'member_activated' : 'member_deactivated', detail: { user: p.id } });
     refresh();

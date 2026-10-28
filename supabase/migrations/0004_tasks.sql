@@ -1,6 +1,6 @@
 -- REVIEW BEFORE APPLYING. Additive only. Tasks, collaboration, escalations, notifications, files.
 -- All state changes that need history go through SECURITY DEFINER functions (tt_*), which re-check
--- membership/role from org_members using auth.uid(); nothing trusts client-supplied roles.
+-- membership/role from tt_org_members using auth.uid(); nothing trusts client-supplied roles.
 
 -- ───────── profiles (display names / emails; table is tt_ prefixed to avoid clashing with an existing "profiles")
 create table if not exists tt_profiles (
@@ -32,13 +32,13 @@ on conflict (user_id) do nothing;
 alter table tt_profiles enable row level security;
 create policy profiles_read on tt_profiles for select using (
   user_id = auth.uid() or exists (
-    select 1 from org_members a join org_members b on b.org_id = a.org_id
+    select 1 from tt_org_members a join tt_org_members b on b.org_id = a.org_id
     where a.user_id = auth.uid() and a.active and b.user_id = tt_profiles.user_id));
 create policy profiles_update_self on tt_profiles for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- ───────── helpers
 create or replace function tt_role(p_org uuid) returns text language sql stable security definer set search_path = public as $$
-  select role from org_members where org_id = p_org and user_id = auth.uid() and active;
+  select role from tt_org_members where org_id = p_org and user_id = auth.uid() and active;
 $$;
 
 create or replace function tt_log(p_org uuid, p_type text, p_id uuid, p_action text, p_detail jsonb default '{}') returns void
@@ -96,7 +96,7 @@ create table if not exists tt_task_watchers (
 );
 create table if not exists tt_task_checklist_items (
   id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references organizations(id) on delete cascade,
+  org_id uuid not null references tt_organizations(id) on delete cascade,
   task_id uuid not null references tt_tasks(id) on delete cascade,
   title text not null,
   done boolean not null default false,
@@ -108,7 +108,7 @@ create index if not exists tt_checklist_task on tt_task_checklist_items(task_id,
 create table if not exists tt_task_dependencies (
   task_id uuid not null references tt_tasks(id) on delete cascade,
   blocked_by_id uuid not null references tt_tasks(id) on delete cascade,
-  org_id uuid not null references organizations(id) on delete cascade,
+  org_id uuid not null references tt_organizations(id) on delete cascade,
   created_by uuid references auth.users(id),
   primary key (task_id, blocked_by_id),
   check (task_id <> blocked_by_id)
@@ -118,7 +118,7 @@ comment on table tt_task_dependencies is 'task_id cannot start until blocked_by_
 -- ───────── comments (+ edit audit)
 create table if not exists tt_task_comments (
   id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references organizations(id) on delete cascade,
+  org_id uuid not null references tt_organizations(id) on delete cascade,
   task_id uuid not null references tt_tasks(id) on delete cascade,
   user_id uuid not null references auth.users(id),
   author_name text,
@@ -141,7 +141,7 @@ create table if not exists tt_task_comment_edits (
 -- ───────── files (metadata; bytes live in private storage bucket tt-files)
 create table if not exists tt_files (
   id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references organizations(id) on delete cascade,
+  org_id uuid not null references tt_organizations(id) on delete cascade,
   entity_type text not null check (entity_type in ('task','project','client')),
   entity_id uuid not null,
   path text not null unique,
@@ -165,7 +165,7 @@ on conflict (id) do nothing;
 -- ───────── escalations
 create table if not exists tt_escalations (
   id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references organizations(id) on delete cascade,
+  org_id uuid not null references tt_organizations(id) on delete cascade,
   task_id uuid not null references tt_tasks(id) on delete cascade,
   reason text not null,
   description text,
@@ -187,7 +187,7 @@ create index if not exists tt_escalations_org_state on tt_escalations(org_id, st
 create index if not exists tt_escalations_task on tt_escalations(task_id);
 create table if not exists tt_escalation_updates (
   id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references organizations(id) on delete cascade,
+  org_id uuid not null references tt_organizations(id) on delete cascade,
   escalation_id uuid not null references tt_escalations(id) on delete cascade,
   user_id uuid references auth.users(id),
   state text,
@@ -198,11 +198,11 @@ create table if not exists tt_escalation_updates (
 -- ───────── approvals
 create table if not exists tt_approvals (
   id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references organizations(id) on delete cascade,
+  org_id uuid not null references tt_organizations(id) on delete cascade,
   task_id uuid not null references tt_tasks(id) on delete cascade,
   requested_by uuid references auth.users(id),
   approver_user_id uuid references auth.users(id),
-  approver_contact_id uuid references client_contacts(id),
+  approver_contact_id uuid references tt_client_contacts(id),
   status text not null default 'pending' check (status in ('pending','approved','rejected')),
   comment text,
   decided_by uuid references auth.users(id),
@@ -214,7 +214,7 @@ create index if not exists tt_approvals_task on tt_approvals(task_id);
 -- ───────── notifications
 create table if not exists tt_notifications (
   id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references organizations(id) on delete cascade,
+  org_id uuid not null references tt_organizations(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   type text not null,
   title text not null,
@@ -228,7 +228,7 @@ create table if not exists tt_notifications (
 create index if not exists tt_notifications_user on tt_notifications(user_id, read_at, created_at desc);
 create table if not exists tt_notification_preferences (
   user_id uuid not null references auth.users(id) on delete cascade,
-  org_id uuid not null references organizations(id) on delete cascade,
+  org_id uuid not null references tt_organizations(id) on delete cascade,
   type text not null,
   in_app boolean not null default true,
   email boolean not null default true,
@@ -236,7 +236,7 @@ create table if not exists tt_notification_preferences (
 );
 create table if not exists tt_email_delivery_logs (
   id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references organizations(id) on delete cascade,
+  org_id uuid not null references tt_organizations(id) on delete cascade,
   user_id uuid references auth.users(id),
   to_email text not null,
   subject text not null,
@@ -302,7 +302,7 @@ begin
     end if;
   end loop;
   if new.visibility = 'client' and t.client_id is not null then
-    for u in select user_id from client_contacts where client_id = t.client_id and user_id is not null and portal_access and status = 'active' loop
+    for u in select user_id from tt_client_contacts where client_id = t.client_id and user_id is not null and portal_access and status = 'active' loop
       if u <> new.user_id then
         perform tt_notify(new.org_id, u, 'portal_update', 'New update on ' || t.title, left(new.body, 200), '/', 'pcomment:' || new.id || ':' || u);
       end if;
@@ -369,7 +369,7 @@ begin
   select * into t from tt_tasks where id = p_task;
   if not found then raise exception 'Task not found'; end if;
   if tt_role(t.org_id) not in ('owner','admin','manager') then raise exception 'Not authorized'; end if;
-  if not exists (select 1 from org_members where org_id = t.org_id and user_id = p_user and active) then
+  if not exists (select 1 from tt_org_members where org_id = t.org_id and user_id = p_user and active) then
     raise exception 'User is not an active member of this organization';
   end if;
   if p_add then
@@ -409,7 +409,7 @@ begin
   if tt_role(t.org_id) is null then raise exception 'Not authorized'; end if;
   if coalesce(trim(p_reason), '') = '' then raise exception 'A reason is required'; end if;
   if t.status in ('escalation','completed','cancelled') then raise exception 'Task cannot be escalated from status %', t.status; end if;
-  if p_owner is not null and not exists (select 1 from org_members where org_id = t.org_id and user_id = p_owner and active) then
+  if p_owner is not null and not exists (select 1 from tt_org_members where org_id = t.org_id and user_id = p_owner and active) then
     raise exception 'Escalation owner must be an active member';
   end if;
   insert into tt_escalations(org_id, task_id, reason, description, severity, owner_id, target_date, previous_task_status, raised_by)
@@ -419,7 +419,7 @@ begin
   update tt_tasks set status = 'escalation' where id = p_task;
   insert into tt_task_status_history(org_id, task_id, from_status, to_status, changed_by, reason) values (t.org_id, p_task, t.status, 'escalation', auth.uid(), p_reason);
   perform tt_log(t.org_id, 'task', p_task, 'escalation_raised', jsonb_build_object('escalation', esc, 'severity', p_severity));
-  for u in select user_id from org_members where org_id = t.org_id and active
+  for u in select user_id from tt_org_members where org_id = t.org_id and active
       and ((p_owner is not null and user_id = p_owner) or (p_owner is null and role in ('owner','admin','manager'))) loop
     if u <> auth.uid() then
       perform tt_notify(t.org_id, u, 'escalation_raised', 'Escalation (' || p_severity || '): ' || t.title, p_reason, '/escalations', null);
@@ -439,7 +439,7 @@ begin
   if p_state not in ('open','acknowledged','in_progress','waiting','closed') then raise exception 'Invalid state (use resolve to resolve)'; end if;
   if e.state in ('resolved','closed') and p_state <> 'closed' then raise exception 'Escalation is already resolved'; end if;
   if p_state = 'closed' and e.state <> 'resolved' then raise exception 'Only a resolved escalation can be closed'; end if;
-  if p_owner is not null and not exists (select 1 from org_members where org_id = e.org_id and user_id = p_owner and active) then
+  if p_owner is not null and not exists (select 1 from tt_org_members where org_id = e.org_id and user_id = p_owner and active) then
     raise exception 'Owner must be an active member';
   end if;
   update tt_escalations set state = p_state,
@@ -493,11 +493,11 @@ begin
   if not found then raise exception 'Task not found'; end if;
   if tt_role(t.org_id) not in ('owner','admin','manager') then raise exception 'Not authorized'; end if;
   if p_user is null and p_contact is null then raise exception 'Choose an approver'; end if;
-  if p_contact is not null and not exists (select 1 from client_contacts where id = p_contact and client_id = t.client_id and can_approve and portal_access) then
+  if p_contact is not null and not exists (select 1 from tt_client_contacts where id = p_contact and client_id = t.client_id and can_approve and portal_access) then
     raise exception 'Contact cannot approve for this client';
   end if;
   insert into tt_approvals(org_id, task_id, requested_by, approver_user_id, approver_contact_id) values (t.org_id, p_task, auth.uid(), p_user, p_contact) returning tt_approvals.id into new_id;
-  for u in select coalesce(p_user, (select user_id from client_contacts where id = p_contact)) loop
+  for u in select coalesce(p_user, (select user_id from tt_client_contacts where id = p_contact)) loop
     if u is not null then perform tt_notify(t.org_id, u, 'approval_requested', 'Approval requested: ' || t.title, null, case when p_contact is not null then '/' else '/tasks/' || p_task end, 'appr:' || new_id); end if;
   end loop;
   perform tt_log(t.org_id, 'task', p_task, 'approval_requested', '{}');
@@ -512,7 +512,7 @@ begin
   if not found then raise exception 'Approval not found'; end if;
   if a.status <> 'pending' then raise exception 'Already decided'; end if;
   ok := a.approver_user_id = auth.uid()
-     or exists (select 1 from client_contacts c where c.id = a.approver_contact_id and c.user_id = auth.uid() and c.can_approve and c.portal_access and c.status = 'active');
+     or exists (select 1 from tt_client_contacts c where c.id = a.approver_contact_id and c.user_id = auth.uid() and c.can_approve and c.portal_access and c.status = 'active');
   if not ok then raise exception 'Not authorized'; end if;
   update tt_approvals set status = case when p_approve then 'approved' else 'rejected' end, comment = p_comment, decided_by = auth.uid(), decided_at = now() where id = p_id;
   perform tt_log(a.org_id, 'task', a.task_id, case when p_approve then 'approval_approved' else 'approval_rejected' end, '{}');
@@ -535,42 +535,42 @@ alter table tt_notifications enable row level security;
 alter table tt_notification_preferences enable row level security;
 alter table tt_email_delivery_logs enable row level security;
 
-create policy watchers_read on tt_task_watchers for select using (exists (select 1 from tt_tasks t where t.id = task_id and is_org_member(t.org_id)));
+create policy watchers_read on tt_task_watchers for select using (exists (select 1 from tt_tasks t where t.id = task_id and tt_is_org_member(t.org_id)));
 create policy watchers_self on tt_task_watchers for all
-  using (user_id = auth.uid() or exists (select 1 from tt_tasks t where t.id = task_id and is_org_member(t.org_id, array['owner','admin','manager'])))
-  with check (exists (select 1 from tt_tasks t where t.id = task_id and is_org_member(t.org_id)) and
-    (user_id = auth.uid() or exists (select 1 from tt_tasks t where t.id = task_id and is_org_member(t.org_id, array['owner','admin','manager']))));
+  using (user_id = auth.uid() or exists (select 1 from tt_tasks t where t.id = task_id and tt_is_org_member(t.org_id, array['owner','admin','manager'])))
+  with check (exists (select 1 from tt_tasks t where t.id = task_id and tt_is_org_member(t.org_id)) and
+    (user_id = auth.uid() or exists (select 1 from tt_tasks t where t.id = task_id and tt_is_org_member(t.org_id, array['owner','admin','manager']))));
 
-create policy checklist_read on tt_task_checklist_items for select using (is_org_member(org_id));
-create policy checklist_write on tt_task_checklist_items for all using (is_org_member(org_id)) with check (is_org_member(org_id));
+create policy checklist_read on tt_task_checklist_items for select using (tt_is_org_member(org_id));
+create policy checklist_write on tt_task_checklist_items for all using (tt_is_org_member(org_id)) with check (tt_is_org_member(org_id));
 
-create policy deps_read on tt_task_dependencies for select using (is_org_member(org_id));
-create policy deps_delete on tt_task_dependencies for delete using (is_org_member(org_id, array['owner','admin','manager']));
+create policy deps_read on tt_task_dependencies for select using (tt_is_org_member(org_id));
+create policy deps_delete on tt_task_dependencies for delete using (tt_is_org_member(org_id, array['owner','admin','manager']));
 
-create policy comments_read on tt_task_comments for select using (is_org_member(org_id));
-create policy comments_insert on tt_task_comments for insert with check (is_org_member(org_id) and user_id = auth.uid());
+create policy comments_read on tt_task_comments for select using (tt_is_org_member(org_id));
+create policy comments_insert on tt_task_comments for insert with check (tt_is_org_member(org_id) and user_id = auth.uid());
 create policy comments_update on tt_task_comments for update
-  using (user_id = auth.uid() or is_org_member(org_id, array['owner','admin','manager']));
+  using (user_id = auth.uid() or tt_is_org_member(org_id, array['owner','admin','manager']));
 create policy comment_edits_read on tt_task_comment_edits for select
-  using (exists (select 1 from tt_task_comments c where c.id = comment_id and is_org_member(c.org_id, array['owner','admin','manager'])));
+  using (exists (select 1 from tt_task_comments c where c.id = comment_id and tt_is_org_member(c.org_id, array['owner','admin','manager'])));
 
-create policy files_read on tt_files for select using (is_org_member(org_id));
-create policy files_insert on tt_files for insert with check (is_org_member(org_id) and uploaded_by = auth.uid());
-create policy files_delete on tt_files for delete using (uploaded_by = auth.uid() or is_org_member(org_id, array['owner','admin','manager']));
+create policy files_read on tt_files for select using (tt_is_org_member(org_id));
+create policy files_insert on tt_files for insert with check (tt_is_org_member(org_id) and uploaded_by = auth.uid());
+create policy files_delete on tt_files for delete using (uploaded_by = auth.uid() or tt_is_org_member(org_id, array['owner','admin','manager']));
 
-create policy esc_read on tt_escalations for select using (is_org_member(org_id));
-create policy escu_read on tt_escalation_updates for select using (is_org_member(org_id));
-create policy appr_read on tt_approvals for select using (is_org_member(org_id));
+create policy esc_read on tt_escalations for select using (tt_is_org_member(org_id));
+create policy escu_read on tt_escalation_updates for select using (tt_is_org_member(org_id));
+create policy appr_read on tt_approvals for select using (tt_is_org_member(org_id));
 
 create policy notif_own on tt_notifications for select using (user_id = auth.uid());
 create policy notif_update on tt_notifications for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy prefs_own on tt_notification_preferences for all using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy email_logs_admin on tt_email_delivery_logs for select using (is_org_member(org_id, array['owner','admin']));
+create policy email_logs_admin on tt_email_delivery_logs for select using (tt_is_org_member(org_id, array['owner','admin']));
 
 -- storage: members of the org named by the first path segment
 create policy tt_files_member_read on storage.objects for select
-  using (bucket_id = 'tt-files' and is_org_member(((storage.foldername(name))[1])::uuid));
+  using (bucket_id = 'tt-files' and tt_is_org_member(((storage.foldername(name))[1])::uuid));
 create policy tt_files_member_insert on storage.objects for insert
-  with check (bucket_id = 'tt-files' and is_org_member(((storage.foldername(name))[1])::uuid));
+  with check (bucket_id = 'tt-files' and tt_is_org_member(((storage.foldername(name))[1])::uuid));
 create policy tt_files_member_delete on storage.objects for delete
-  using (bucket_id = 'tt-files' and (owner = auth.uid() or is_org_member(((storage.foldername(name))[1])::uuid, array['owner','admin','manager'])));
+  using (bucket_id = 'tt-files' and (owner = auth.uid() or tt_is_org_member(((storage.foldername(name))[1])::uuid, array['owner','admin','manager'])));

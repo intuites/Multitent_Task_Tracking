@@ -31,14 +31,14 @@ export default function ClientProfile() {
 
   const load = useCallback(async () => {
     // org_id filter is defense in depth; RLS is the real boundary
-    const c = await supabase.from('clients').select('*').eq('id', id!).eq('org_id', orgId).maybeSingle();
+    const c = await supabase.from('tt_clients').select('*').eq('id', id!).eq('org_id', orgId).maybeSingle();
     setClient(c.data);
     if (c.data) {
       const [ct, nt, ac, pj, tk] = await Promise.all([
-        supabase.from('client_contacts').select('*').eq('client_id', id!).order('is_primary', { ascending: false }),
-        supabase.from('client_notes').select('*').eq('client_id', id!).order('created_at', { ascending: false }),
+        supabase.from('tt_client_contacts').select('*').eq('client_id', id!).order('is_primary', { ascending: false }),
+        supabase.from('tt_client_notes').select('*').eq('client_id', id!).order('created_at', { ascending: false }),
         supabase.from('tt_activity_logs').select('*').eq('entity_type', 'client').eq('entity_id', id!).order('created_at', { ascending: false }).limit(50),
-        supabase.from('projects').select('id, name, status').eq('client_id', id!).order('created_at', { ascending: false }),
+        supabase.from('tt_projects').select('id, name, status').eq('client_id', id!).order('created_at', { ascending: false }),
         supabase.from('tt_tasks').select('id, title, status').eq('client_id', id!).is('archived_at', null).order('created_at', { ascending: false }).limit(100),
       ]);
       setProjs(pj.data ?? []); setTks(tk.data ?? []);
@@ -50,7 +50,7 @@ export default function ClientProfile() {
 
   async function setStatus(status: string) {
     if (status === 'archived' && !(await ask({ message: 'Archive this client? You can restore it later.', confirmLabel: 'Archive', danger: true })).ok) return;
-    const { error } = await supabase.from('clients').update({ status, updated_at: new Date().toISOString() }).eq('id', id!);
+    const { error } = await supabase.from('tt_clients').update({ status, updated_at: new Date().toISOString() }).eq('id', id!);
     if (error) return setError(error.message);
     await logActivity(orgId, uid, 'client', id!, status === 'archived' ? 'archived' : 'status_changed', { from: client.status, to: status });
     load();
@@ -63,7 +63,7 @@ export default function ClientProfile() {
     const website = txt('website');
     // only http(s) links are rendered as clickable, so reject javascript: and similar schemes here
     if (website && !/^https?:\/\//i.test(website)) return setError('Website must start with http:// or https://');
-    const { error } = await supabase.from('clients').update({
+    const { error } = await supabase.from('tt_clients').update({
       name: txt('name'), type: f.get('type'), email: txt('email'), phone: txt('phone'), industry: txt('industry'),
       website, source: txt('source'), address: txt('address'),
       tags: String(f.get('tags') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
@@ -78,7 +78,7 @@ export default function ClientProfile() {
     e.preventDefault();
     const form = e.currentTarget;
     const f = new FormData(form);
-    const { error } = await supabase.from('client_contacts').insert({
+    const { error } = await supabase.from('tt_client_contacts').insert({
       org_id: orgId, client_id: id, full_name: String(f.get('full_name')).trim(),
       job_title: String(f.get('job_title')).trim() || null, email: String(f.get('email')).trim() || null,
       phone: String(f.get('phone')).trim() || null, is_primary: f.get('is_primary') === 'on',
@@ -94,7 +94,7 @@ export default function ClientProfile() {
     const form = e.currentTarget;
     const body = String(new FormData(form).get('body')).trim();
     if (!body) return;
-    const { error } = await supabase.from('client_notes').insert({ org_id: orgId, client_id: id, body, created_by: uid });
+    const { error } = await supabase.from('tt_client_notes').insert({ org_id: orgId, client_id: id, body, created_by: uid });
     if (error) return setError(error.message);
     await logActivity(orgId, uid, 'client', id!, 'note_added');
     form.reset(); load();

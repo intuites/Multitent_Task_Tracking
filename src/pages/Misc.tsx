@@ -13,7 +13,7 @@ export function Contacts() {
   const [q, setQ] = useState('');
   const [msg, setMsg] = useState('');
   useEffect(() => {
-    let qy = supabase.from('client_contacts').select('*, clients(name)').eq('org_id', orgId).order('full_name').limit(200);
+    let qy = supabase.from('tt_client_contacts').select('*, clients:tt_clients(name)').eq('org_id', orgId).order('full_name').limit(200);
     const term = q.trim().replace(/[,()%*]/g, ' ');
     if (term) qy = qy.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`);
     qy.then(({ data }) => setRows(data ?? []));
@@ -76,7 +76,7 @@ export function Settings() {
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const { error } = await supabase.from('organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz') }).eq('id', orgId);
+    const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz') }).eq('id', orgId);
     if (!error) { await supabase.from('tt_activity_logs').insert({ org_id: orgId, entity_type: 'organization', entity_id: orgId, action: 'settings_updated', actor_id: (await supabase.auth.getUser()).data.user?.id }); refresh(); }
     setMsg(error ? (error.message.includes('time zone') ? 'Unknown time zone' : error.message) : 'Saved.');
   }

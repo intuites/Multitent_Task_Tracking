@@ -12,12 +12,12 @@ export default handler('POST', async (req) => {
   const db = admin();
 
   // role comes from the database, never from the request
-  const { data: me } = await db.from('org_members').select('role').eq('org_id', org_id).eq('user_id', user.id).eq('active', true).maybeSingle();
+  const { data: me } = await db.from('tt_org_members').select('role').eq('org_id', org_id).eq('user_id', user.id).eq('active', true).maybeSingle();
   if (!me) throw new HttpError(403, 'Not authorized');
 
   if (client_contact_id) {
     if (!['owner', 'admin', 'manager'].includes(me.role)) throw new HttpError(403, 'Not authorized');
-    const { data: c } = await db.from('client_contacts').select('id').eq('id', client_contact_id).eq('org_id', org_id).maybeSingle();
+    const { data: c } = await db.from('tt_client_contacts').select('id').eq('id', client_contact_id).eq('org_id', org_id).maybeSingle();
     if (!c) throw new HttpError(404, 'Contact not found');
   } else {
     if (!ROLES.includes(role)) throw new HttpError(400, 'Invalid role');
@@ -35,10 +35,10 @@ export default handler('POST', async (req) => {
   if (!uid) throw new HttpError(400, 'Could not invite that email');
 
   if (client_contact_id) {
-    const { error } = await db.from('client_contacts').update({ user_id: uid, portal_access: true }).eq('id', client_contact_id).eq('org_id', org_id);
+    const { error } = await db.from('tt_client_contacts').update({ user_id: uid, portal_access: true }).eq('id', client_contact_id).eq('org_id', org_id);
     if (error) throw new HttpError(400, 'Could not link contact (is this user already linked to this client?)');
   } else {
-    const { error } = await db.from('org_members').upsert({ org_id, user_id: uid, role, active: true });
+    const { error } = await db.from('tt_org_members').upsert({ org_id, user_id: uid, role, active: true });
     if (error) throw new HttpError(400, 'Could not add member');
   }
   await db.from('tt_activity_logs').insert({

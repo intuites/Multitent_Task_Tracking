@@ -50,7 +50,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
     }
     const inner = mode !== 'all';
     let qy = supabase.from('tt_tasks')
-      .select(`*, clients(name), projects(name), tt_task_assignees${inner ? '!inner' : ''}(user_id)`, { count: 'exact' })
+      .select(`*, clients:tt_clients(name), projects:tt_projects(name), tt_task_assignees${inner ? '!inner' : ''}(user_id)`, { count: 'exact' })
       .eq('org_id', orgId);
     if (mode === 'mine') qy = qy.eq('tt_task_assignees.user_id', uid);
     if (mode === 'team') qy = qy.in('tt_task_assignees.user_id', teamIds);
@@ -82,8 +82,8 @@ export default function Tasks({ mode }: { mode: Mode }) {
   useEffect(() => {
     if (!canWrite) return;
     Promise.all([
-      supabase.from('clients').select('id, name').eq('org_id', orgId).neq('status', 'archived').order('name'),
-      supabase.from('projects').select('id, name, client_id').eq('org_id', orgId).neq('status', 'archived').order('name'),
+      supabase.from('tt_clients').select('id, name').eq('org_id', orgId).neq('status', 'archived').order('name'),
+      supabase.from('tt_projects').select('id, name, client_id').eq('org_id', orgId).neq('status', 'archived').order('name'),
     ]).then(([c, p]) => { setClients(c.data ?? []); setProjects(p.data ?? []); });
   }, [orgId, canWrite]);
 

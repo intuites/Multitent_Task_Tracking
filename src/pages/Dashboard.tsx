@@ -95,7 +95,7 @@ export default function Dashboard() {
           supabase.from('tt_tasks').select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('status', 'completed').is('archived_at', null),
           supabase.from('tt_tasks').select('completed_at').eq('org_id', orgId).eq('status', 'completed').gte('completed_at', weekStart.toISOString()).limit(5000),
           tasks().not('status', 'in', OPEN).gte('due_date', now.toISOString()).order('due_date').limit(1),
-          supabase.from('projects').select('id, name, due_date, status').eq('org_id', orgId).in('status', ['planning', 'not_started', 'in_progress', 'in_review'])
+          supabase.from('tt_projects').select('id, name, due_date, status').eq('org_id', orgId).in('status', ['planning', 'not_started', 'in_progress', 'in_review'])
             .order('due_date', { nullsFirst: false }).limit(5),
           supabase.from('tt_tasks').select('id, title, status, tt_task_assignees(user_id)').eq('org_id', orgId).is('archived_at', null)
             .in('status', ['in_progress', 'in_review', 'blocked', 'not_yet_started']).order('updated_at', { ascending: false }).limit(100),

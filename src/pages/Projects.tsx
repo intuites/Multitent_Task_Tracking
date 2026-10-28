@@ -24,8 +24,8 @@ export default function Projects() {
   const load = useCallback(async () => {
     setLoading(true);
     const [p, c] = await Promise.all([
-      supabase.from('projects').select('*, clients(name)').eq('org_id', orgId).neq('status', 'archived').order('created_at', { ascending: false }).limit(200),
-      supabase.from('clients').select('id, name').eq('org_id', orgId).neq('status', 'archived').order('name'),
+      supabase.from('tt_projects').select('*, clients:tt_clients(name)').eq('org_id', orgId).neq('status', 'archived').order('created_at', { ascending: false }).limit(200),
+      supabase.from('tt_clients').select('id, name').eq('org_id', orgId).neq('status', 'archived').order('name'),
     ]);
     setError(p.error?.message ?? '');
     setRows(p.data ?? []); setClients(c.data ?? []); setLoading(false);
@@ -35,7 +35,7 @@ export default function Projects() {
   async function create(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const { data, error } = await supabase.from('projects').insert({
+    const { data, error } = await supabase.from('tt_projects').insert({
       org_id: orgId, name: String(f.get('name')).trim(), client_id: f.get('client_id') || null,
       priority: f.get('priority'), status: 'planning', manager_id: session!.user.id,
       start_date: f.get('start_date') || null, due_date: f.get('due_date') || null,

@@ -26,7 +26,7 @@ export default function TaskDetail() {
   const [otherTasks, setOtherTasks] = useState<any[]>([]);
 
   const load = useCallback(async () => {
-    const tr = await supabase.from('tt_tasks').select('*, clients(name), projects(name)').eq('id', id!).eq('org_id', orgId).maybeSingle();
+    const tr = await supabase.from('tt_tasks').select('*, clients:tt_clients(name), projects:tt_projects(name)').eq('id', id!).eq('org_id', orgId).maybeSingle();
     setT(tr.data);
     if (tr.data) {
       const q = (tbl: string) => supabase.from(tbl).select('*');
@@ -45,7 +45,7 @@ export default function TaskDetail() {
       const { data: dt } = depIds.length ? await supabase.from('tt_tasks').select('id, title, status').in('id', depIds) : { data: [] as any[] };
       const tm = new Map((dt ?? []).map((x: any) => [x.id, x]));
       let contacts: any[] = [];
-      if (tr.data.client_id) contacts = (await supabase.from('client_contacts').select('id, full_name').eq('client_id', tr.data.client_id).eq('can_approve', true).eq('portal_access', true)).data ?? [];
+      if (tr.data.client_id) contacts = (await supabase.from('tt_client_contacts').select('id, full_name').eq('client_id', tr.data.client_id).eq('can_approve', true).eq('portal_access', true)).data ?? [];
       setD({
         assignees: as.data ?? [], watchers: wa.data ?? [], checklist: ck.data ?? [],
         blockedBy: (dp.data ?? []).map((x: any) => tm.get(x.blocked_by_id)).filter(Boolean),

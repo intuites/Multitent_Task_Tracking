@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -26,19 +26,7 @@ export default function Login() {
   }
 
   return (
-    <div className="auth">
-      <aside className="auth-art">
-        <div className="brand"><span className="mark" aria-hidden="true">T</span><span>Taskify</span></div>
-        <div className="auth-copy">
-          <p className="auth-head">Client work, tasks and escalations in one place.</p>
-          <ul>
-            <li><Check size={16} />Every status change is recorded</li>
-            <li><Check size={16} />Clients see only what you share with them</li>
-            <li><Check size={16} />Escalations stay visible until someone resolves them</li>
-          </ul>
-        </div>
-      </aside>
-      <main className="auth-main">
+    <AuthLayout>
     <form className="login" onSubmit={submit}>
       <h1>{mode === 'in' ? 'Welcome back' : 'Create your account'}</h1>
       <p className="muted auth-sub">{mode === 'in' ? 'Sign in to your workspace.' : 'Set up your account, then create or join an organization.'}</p>
@@ -52,7 +40,26 @@ export default function Login() {
         {mode === 'in' ? 'New here? Create an account' : 'Have an account? Sign in'}
       </button>
     </form>
-      </main>
+    </AuthLayout>
+  );
+}
+
+// Shared shell for sign-in, password setup and onboarding: brand panel left, content right.
+export function AuthLayout({ children }: { children: ReactNode }) {
+  return (
+    <div className="auth">
+      <aside className="auth-art">
+        <div className="brand"><span className="mark" aria-hidden="true">T</span><span>Taskify</span></div>
+        <div className="auth-copy">
+          <p className="auth-head">Client work, tasks and escalations in one place.</p>
+          <ul>
+            <li><Check size={16} />Every status change is recorded</li>
+            <li><Check size={16} />Clients see only what you share with them</li>
+            <li><Check size={16} />Escalations stay visible until someone resolves them</li>
+          </ul>
+        </div>
+      </aside>
+      <main className="auth-main">{children}</main>
     </div>
   );
 }

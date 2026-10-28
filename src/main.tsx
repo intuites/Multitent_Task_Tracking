@@ -8,6 +8,7 @@ import { navFor, NAV } from './lib/nav';
 import { can } from '../api/_lib/permissions';
 import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
+import SetPassword from './pages/SetPassword';
 import Dashboard from './pages/Dashboard';
 import Search from './components/Search';
 import { DialogHost } from './components/Dialog';
@@ -93,10 +94,11 @@ const Guard = ({ need, children }: { need: Parameters<typeof can>[1]; children: 
 };
 
 function Gate() {
-  const { session, membership, portal, platformAdmin, loading } = useAuth();
+  const { session, membership, portal, platformAdmin, loading, passwordSetup } = useAuth();
   if (!configured) return <div className="card">Set the Supabase variables in <code>.env.local</code>, then restart <code>npm run dev</code>.</div>;
   if (loading) return <div className="card">Loading…</div>;
   if (!session) return <Login />;
+  if (passwordSetup) return <SetPassword />;
   if (portal) return <Suspense fallback={<div className="card">Loading…</div>}><Portal /></Suspense>;
   if (!membership) return <Onboarding />;
   return (

@@ -16,7 +16,7 @@ const ALL: Action[] = [
 const MATRIX: Record<Role, Action[]> = {
   platform_admin: [],
   owner: ALL,
-  admin: ALL.filter((a) => a !== 'org:manage'),
+  admin: ALL, // full access; only owner-role changes stay owner-only (enforced in the database)
   manager: ['client:read', 'client:write', 'project:read', 'project:write', 'task:read',
     'task:write', 'task:status', 'escalation:manage', 'report:read', 'internal_comment:read'],
   employee: ['client:read', 'project:read', 'task:read', 'task:status', 'internal_comment:read'],

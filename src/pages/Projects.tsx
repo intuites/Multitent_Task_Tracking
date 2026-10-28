@@ -15,7 +15,6 @@ export default function Projects() {
   const canWrite = can(membership!.role, 'project:write');
   const [rows, setRows] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
-  const [view, setView] = useState<'list' | 'kanban'>('list');
   const [q, setQ] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
@@ -53,7 +52,6 @@ export default function Projects() {
       <div className="row">
         <h2>Projects</h2>
         <span>
-          <button className="link" onClick={() => setView(view === 'list' ? 'kanban' : 'list')}>{view === 'list' ? 'Kanban view' : 'List view'}</button>
           {canWrite && <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'New project'}</button>}
         </span>
       </div>
@@ -69,7 +67,7 @@ export default function Projects() {
       )}
       <div className="row filters"><input aria-label="Search projects" placeholder="Search projects" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       {error && <p role="alert">{error}</p>}
-      {loading ? <p>Loading…</p> : shown.length === 0 ? <p>No projects found.{canWrite && ' Use “New project” to add one.'}</p> : view === 'list' ? (
+      {loading ? <p>Loading…</p> : shown.length === 0 ? <p>No projects found.{canWrite && ' Use “New project” to add one.'}</p> : (
         <table>
           <thead><tr><th>Name</th><th>Client</th><th>Status</th><th>Priority</th><th>Due</th></tr></thead>
           <tbody>{shown.map((p) => (
@@ -77,14 +75,6 @@ export default function Projects() {
               <td className={overdue(p) ? 'overdue' : ''}>{fmtDay(p.due_date)}{overdue(p) && ' (overdue)'}</td></tr>
           ))}</tbody>
         </table>
-      ) : (
-        <div className="kanban">
-          {PROJECT_STATUSES.filter((s) => s !== 'archived').map((s) => (
-            <div key={s} className="col"><h4>{label(s)}</h4>
-              {shown.filter((p) => p.status === s).map((p) => <Link key={p.id} to={`/projects/${p.id}`} className="kcard">{p.name}</Link>)}
-            </div>
-          ))}
-        </div>
       )}
     </div>
   );

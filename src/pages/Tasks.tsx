@@ -23,7 +23,6 @@ export default function Tasks({ mode }: { mode: Mode }) {
   const [view, setView] = useState(params.get('view') ?? 'all');
   const [q, setQ] = useState('');
   const [priority, setPriority] = useState('');
-  const [display, setDisplay] = useState<'table' | 'kanban'>('table');
   const [selected, setSelected] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(params.get('new') === '1');
   const [clients, setClients] = useState<any[]>([]);
@@ -72,11 +71,11 @@ export default function Tasks({ mode }: { mode: Mode }) {
     else if ((TASK_STATUSES as readonly string[]).includes(view)) qy = qy.eq('status', view);
 
     qy = qy.order(view === 'overdue' || view === 'upcoming' ? 'due_date' : 'created_at', { ascending: view === 'overdue' || view === 'upcoming' });
-    qy = display === 'kanban' ? qy.range(0, 199) : qy.range(page * PAGE, page * PAGE + PAGE - 1);
+    qy = qy.range(page * PAGE, page * PAGE + PAGE - 1);
     const { data, count, error } = await qy;
     if (error) setError(error.message);
     setRows(data ?? []); setTotal(count ?? 0); setSelected([]); setLoading(false);
-  }, [orgId, uid, mode, view, q, priority, page, display, clientFilter, projectFilter]);
+  }, [orgId, uid, mode, view, q, priority, page, clientFilter, projectFilter]);
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
@@ -98,7 +97,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
         start_date: dateToTs(f.get('start_date')), due_date: dateToTs(f.get('due_date')),
         estimated_hours: f.get('estimated_hours') ? Number(f.get('estimated_hours')) : null,
         tags: String(f.get('tags')).split(',').map((s) => s.trim()).filter(Boolean),
-        client_visible: f.get('client_visible') === 'on', requires_approval: f.get('requires_approval') === 'on',
+        client_visible: f.get('client_visible') === 'on',
       }).select('id').single();
       if (error) throw error;
       for (const a of f.getAll('assignees')) await rpc('tt_assign', { p_task: data.id, p_user: a, p_add: true });
@@ -114,9 +113,6 @@ export default function Tasks({ mode }: { mode: Mode }) {
     if (error) return setError(error.message);
     load();
   }
-  async function quickStatus(id: string, to: string) {
-    try { await rpc('tt_set_task_status', { p_task: id, p_to: to }); load(); } catch (x) { setError((x as Error).message); }
-  }
 
   const title = mode === 'mine' ? 'My Tasks' : mode === 'team' ? 'Team Tasks' : 'Tasks';
   const pages = Math.max(1, Math.ceil(total / PAGE));
@@ -127,7 +123,6 @@ export default function Tasks({ mode }: { mode: Mode }) {
       <div className="row">
         <h2>{title}</h2>
         <span>
-          <button className="link" onClick={() => setDisplay(display === 'table' ? 'kanban' : 'table')}>{display === 'table' ? 'Kanban' : 'Table'}</button>
           {canWrite && <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'New task'}</button>}
         </span>
       </div>
@@ -152,7 +147,6 @@ export default function Tasks({ mode }: { mode: Mode }) {
             <label>Until<input type="date" name="until" /></label>
           </fieldset>
           <label className="inline"><input type="checkbox" name="client_visible" /> Visible to client</label>
-          <label className="inline"><input type="checkbox" name="requires_approval" /> Requires approval</label>
           <button type="submit">Create task (starts as Not Yet Started)</button>
         </form>
       )}
@@ -171,7 +165,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
         </div>
       )}
       {error && <p role="alert">{error}</p>}
-      {loading ? <p>Loading…</p> : rows.length === 0 ? <p>No tasks match.{canWrite && ' Use “New task” to create one.'}</p> : display === 'table' ? (
+      {loading ? <p>Loading…</p> : rows.length === 0 ? <p>No tasks match.{canWrite && ' Use “New task” to create one.'}</p> : (
         <table>
           <thead><tr>{canWrite && <th />}<th>Title</th><th>Status</th><th>Priority</th><th>Assignees</th><th>Client / Project</th><th>Due</th></tr></thead>
           <tbody>{rows.map((t) => (
@@ -183,20 +177,8 @@ export default function Tasks({ mode }: { mode: Mode }) {
             </tr>
           ))}</tbody>
         </table>
-      ) : (
-        <div className="kanban">{TASK_STATUSES.map((s) => (
-          <div key={s} className="col"><h4>{label(s)}</h4>
-            {rows.filter((t) => t.status === s).map((t) => (
-              <div key={t.id} className="kcard"><Link to={`/tasks/${t.id}`}>{t.title}</Link><br /><small>{names(t)}</small>
-                {s !== 'escalation' && (
-                  <select aria-label={`Move ${t.title} to`} value={s} onChange={(e) => quickStatus(t.id, e.target.value)}>
-                    {TASK_STATUSES.filter((x) => x === s || x !== 'escalation').map((x) => <option key={x} value={x}>{label(x)}</option>)}
-                  </select>)}
-              </div>))}
-          </div>))}
-        </div>
       )}
-      {display === 'table' && (
+      {(
         <div className="row">
           <button disabled={page === 0} onClick={() => setPage(page - 1)}>Prev</button>
           <span>Page {page + 1} of {pages} ({total})</span>

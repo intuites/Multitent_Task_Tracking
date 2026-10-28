@@ -32,7 +32,6 @@ const GROUPS: [string, string[]][] = [
   ['Tasks', ['task_assigned', 'task_assignment_changed', 'task_status', 'task_comment', 'review_requested']],
   ['Deadlines', ['deadline_upcoming', 'due_today', 'task_overdue']],
   ['Escalations', ['escalation_raised', 'escalation_reassigned', 'escalation_due', 'escalation_resolved']],
-  ['Approvals', ['approval_requested', 'approval_completed']],
   ['Clients', ['portal_update']],
 ];
 const fallback: TypeInfo = { label: 'Update', hint: '', icon: RefreshCw, tone: 'brand' };

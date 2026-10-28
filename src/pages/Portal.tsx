@@ -7,23 +7,18 @@ import FilePanel from '../components/FilePanel';
 import Notifications from './Notifications';
 import { Bell, FileText, House, MessageSquarePlus, UserCircle } from 'lucide-react';
 import Frame from '../components/Frame';
-import { ask } from '../components/Dialog';
 
 type Tab = 'home' | 'request' | 'documents' | 'notifications' | 'profile';
 // internal escalations must not be visible to clients: show them as In Progress
 const shown = (s: string) => (s === 'escalation' ? 'in_progress' : s);
 
-function TaskCard({ t, orgId, uid, canApprove }: { t: any; orgId: string; uid: string; canApprove: boolean }) {
+function TaskCard({ t, orgId, uid }: { t: any; orgId: string; uid: string }) {
   const [open, setOpen] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
-  const [approvals, setApprovals] = useState<any[]>([]);
   const [error, setError] = useState('');
   const load = useCallback(async () => {
-    const [c, a] = await Promise.all([
-      supabase.from('tt_task_comments').select('*').eq('task_id', t.id).eq('visibility', 'client').is('deleted_at', null).order('created_at'),
-      supabase.from('tt_approvals').select('*').eq('task_id', t.id).order('created_at', { ascending: false }),
-    ]);
-    setComments(c.data ?? []); setApprovals(a.data ?? []);
+    const c = await       supabase.from('tt_task_comments').select('*').eq('task_id', t.id).eq('visibility', 'client').is('deleted_at', null).order('created_at');
+    setComments(c.data ?? []);
   }, [t.id]);
   useEffect(() => { if (open) load(); }, [open, load]);
   async function post(e: FormEvent<HTMLFormElement>) {
@@ -33,13 +28,6 @@ function TaskCard({ t, orgId, uid, canApprove }: { t: any; orgId: string; uid: s
     if (error) return setError(error.message);
     form.reset(); load();
   }
-  async function decide(id: string, ok: boolean) {
-    try {
-      let comment: string | null = null;
-      if (!ok) { const r = await ask({ title: 'Reject deliverable', message: 'Tell the team what needs to change.', input: 'Reason', confirmLabel: 'Reject', danger: true }); if (!r.ok) return; comment = r.value || null; }
-      await rpc('tt_decide_approval', { p_id: id, p_approve: ok, p_comment: comment }); load();
-    } catch (x) { setError((x as Error).message); }
-  }
   return (
     <div className="note">
       <button className="link" onClick={() => setOpen(!open)}>{t.title}</button> <Badge v={shown(t.status)} /> <small>due {fmt(t.due_date)}</small>
@@ -47,9 +35,6 @@ function TaskCard({ t, orgId, uid, canApprove }: { t: any; orgId: string; uid: s
         <div>
           {t.description && <p>{t.description}</p>}
           {error && <p role="alert">{error}</p>}
-          {approvals.map((a) => (
-            <p key={a.id}>Approval: <Badge v={a.status} />
-              {a.status === 'pending' && canApprove && <><button onClick={() => decide(a.id, true)}>Approve</button><button className="danger" onClick={() => decide(a.id, false)}>Reject</button></>}</p>))}
           <h4>Discussion</h4>
           {comments.length === 0 ? <p>No messages yet.</p> : comments.map((c) => <p key={c.id}><b>{c.author_name}</b> <small>{fmtTime(c.created_at)}</small><br />{c.body}</p>)}
           <form className="row filters" onSubmit={post}><input name="body" required placeholder="Write a message" aria-label="Message" /><button type="submit">Send</button></form>
@@ -67,25 +52,23 @@ export default function Portal() {
   const [orgId, setOrgId] = useState('');
   const [projects, setProjects] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
-  const [pendingApprovals, setPendingApprovals] = useState(0);
   const [unread, setUnread] = useState(0);
   const [contact, setContact] = useState<any>(null);
   const [msg, setMsg] = useState('');
 
   const load = useCallback(async () => {
-    const [c, p, t, ms, ct, ap, un] = await Promise.all([
+    const [c, p, t, ms, ct, un] = await Promise.all([
       supabase.from('tt_clients').select('org_id').eq('id', portal!.client_id).maybeSingle(),
       supabase.from('tt_projects').select('id, name, status, due_date, progress_mode, manual_progress').eq('client_id', portal!.client_id),
       supabase.from('tt_tasks').select('id, title, description, status, due_date').eq('client_id', portal!.client_id).order('created_at', { ascending: false }),
       supabase.from('tt_project_milestones').select('project_id, completed_at'),
       supabase.from('tt_client_contacts').select('*').eq('user_id', uid).maybeSingle(),
-      supabase.from('tt_approvals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('tt_notifications').select('id', { count: 'exact', head: true }).eq('user_id', uid).is('read_at', null),
     ]);
     setOrgId(c.data?.org_id ?? '');
     // shortcut: 'tasks' progress mode falls back to milestones because the portal cannot read internal tasks; add a server-side figure if clients need it
     setProjects((p.data ?? []).map((x) => ({ ...x, progress: projectProgress(x.progress_mode === 'tasks' ? 'milestones' : x.progress_mode, x.manual_progress, (ms.data ?? []).filter((m) => m.project_id === x.id), []) })));
-    setTasks(t.data ?? []); setContact(ct.data); setPendingApprovals(ap.count ?? 0); setUnread(un.count ?? 0);
+    setTasks(t.data ?? []); setContact(ct.data); setUnread(un.count ?? 0);
   }, [portal, uid]);
   useEffect(() => {
     load();
@@ -128,7 +111,7 @@ export default function Portal() {
         <div className="dash">
           <div className="a-k1 kpi feature"><span className="kpi-head"><span>Shared projects</span></span><b>{projects.length}</b><small>{projects.filter((p) => p.status === 'in_progress').length} in progress</small></div>
           <div className="a-k2 kpi"><span className="kpi-head"><span>Open tasks</span></span><b>{open.length}</b><small>Being worked on for you</small></div>
-          <div className="a-k3 kpi"><span className="kpi-head"><span>Awaiting your approval</span></span><b>{pendingApprovals}</b><small>{portal!.can_approve ? 'Open a task to review it' : 'Your team approves these'}</small></div>
+          <div className="a-k3 kpi"><span className="kpi-head"><span>Due this week</span></span><b>{open.filter((t) => t.due_date && new Date(t.due_date).getTime() < Date.now() + 7 * 864e5).length}</b><small>Open tasks due in 7 days</small></div>
           <div className="a-k4 kpi"><span className="kpi-head"><span>Completed</span></span><b>{tasks.filter((t) => t.status === 'completed').length}</b><small>Delivered tasks</small></div>
 
           <section className="card a-an" aria-labelledby="pp-h">
@@ -143,14 +126,14 @@ export default function Portal() {
             <h3 id="nd-h">Next deadline</h3>
             {next ? (<><p className="remind-title">{next.title}</p><p className="remind-time">Due {fmtTime(next.due_date)}</p></>) : <p className="muted">No upcoming deadlines.</p>}
           </section>
-          <section className="card a-pr" aria-labelledby="ap-h">
-            <h3 id="ap-h">Approvals</h3>
-            <b className="big-num">{pendingApprovals}</b>
-            <p className="muted">{pendingApprovals ? 'Deliverables are waiting for your decision below.' : 'Nothing is waiting for you.'}</p>
+          <section className="card a-pr" aria-labelledby="dc-h">
+            <h3 id="dc-h">Documents</h3>
+            <p className="muted">Files your team shares with you are under Documents.</p>
+            <button type="button" className="pill-btn ghost" onClick={go('documents')}>Open documents</button>
           </section>
           <section className="card a-full" aria-labelledby="td-h">
             <h3 id="td-h">Tasks and deliverables</h3>
-            {tasks.length === 0 ? <p className="muted">Nothing shared yet.</p> : tasks.map((t) => <TaskCard key={t.id} t={t} orgId={orgId} uid={uid} canApprove={portal!.can_approve} />)}
+            {tasks.length === 0 ? <p className="muted">Nothing shared yet.</p> : tasks.map((t) => <TaskCard key={t.id} t={t} orgId={orgId} uid={uid} />)}
           </section>
         </div>
       </>)}

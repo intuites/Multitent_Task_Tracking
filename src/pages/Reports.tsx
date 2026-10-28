@@ -5,7 +5,7 @@ import { projectProgress } from '../../api/_lib/progress';
 import { download, isOpen, isOverdue, label, usePeople } from '../lib/ui';
 
 type Row = Record<string, string | number>;
-const REPORTS = ['task_completion', 'overdue_work', 'status_distribution', 'employee_workload', 'project_progress', 'client_activity', 'escalations', 'approval_turnaround', 'recurring_tasks'];
+const REPORTS = ['task_completion', 'overdue_work', 'status_distribution', 'employee_workload', 'project_progress', 'client_activity', 'escalations', 'recurring_tasks'];
 const avg = (a: number[]) => (a.length ? Math.round((a.reduce((x, y) => x + y, 0) / a.length) * 10) / 10 : 0);
 const hrs = (a: string, b: string) => (new Date(b).getTime() - new Date(a).getTime()) / 36e5;
 
@@ -78,13 +78,6 @@ export default function Reports() {
             'Avg hours to acknowledge': avg(m.filter((e: any) => e.acknowledged_at).map((e: any) => hrs(e.raised_at, e.acknowledged_at))),
             'Avg hours to resolve': avg(m.filter((e: any) => e.resolved_at).map((e: any) => hrs(e.raised_at, e.resolved_at))) };
         });
-      }
-      case 'approval_turnaround': {
-        const a = data.ap.filter((x: any) => inRange(x.created_at));
-        return [{ Metric: 'Requested', Value: a.length }, { Metric: 'Approved', Value: a.filter((x: any) => x.status === 'approved').length },
-          { Metric: 'Rejected', Value: a.filter((x: any) => x.status === 'rejected').length }, { Metric: 'Pending', Value: a.filter((x: any) => x.status === 'pending').length },
-          { Metric: 'Avg hours to decision', Value: avg(a.filter((x: any) => x.decided_at).map((x: any) => hrs(x.created_at, x.decided_at))) },
-          { Metric: 'Tasks currently In Review', Value: data.t.filter((t: any) => t.status === 'in_review').length }];
       }
       case 'recurring_tasks': {
         const occ = tasks.filter((t: any) => t.recurrence_parent_id);

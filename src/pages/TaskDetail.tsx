@@ -17,7 +17,7 @@ export default function TaskDetail() {
   const manager = can(role, 'task:write');
   const { active, name } = usePeople(orgId);
   const [t, setT] = useState<any>(null);
-  const [d, setD] = useState<any>({ assignees: [], watchers: [], checklist: [], blockedBy: [], blocks: [], comments: [], history: [], esc: [], approvals: [], activity: [], contacts: [], recur: null });
+  const [d, setD] = useState<any>({ assignees: [], checklist: [], blockedBy: [], blocks: [], comments: [], history: [], esc: [], activity: [], contacts: [], recur: null });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState(false);
@@ -30,27 +30,24 @@ export default function TaskDetail() {
     setT(tr.data);
     if (tr.data) {
       const q = (tbl: string) => supabase.from(tbl).select('*');
-      const [as, wa, ck, dp, db, cm, hi, es, ap, ac, rc] = await Promise.all([
-        q('tt_task_assignees').eq('task_id', id!), q('tt_task_watchers').eq('task_id', id!),
+      const [as, ck, dp, db, cm, hi, es, ac, rc] = await Promise.all([
+        q('tt_task_assignees').eq('task_id', id!),
         q('tt_task_checklist_items').eq('task_id', id!).order('position'),
         q('tt_task_dependencies').eq('task_id', id!), q('tt_task_dependencies').eq('blocked_by_id', id!),
         q('tt_task_comments').eq('task_id', id!).order('created_at'),
         q('tt_task_status_history').eq('task_id', id!).order('changed_at', { ascending: false }),
         q('tt_escalations').eq('task_id', id!).order('raised_at', { ascending: false }),
-        q('tt_approvals').eq('task_id', id!).order('created_at', { ascending: false }),
         q('tt_activity_logs').eq('entity_type', 'task').eq('entity_id', id!).order('created_at', { ascending: false }).limit(30),
         q('tt_task_recurrence').eq('task_id', id!).maybeSingle(),
       ]);
       const depIds = [...(dp.data ?? []).map((x: any) => x.blocked_by_id), ...(db.data ?? []).map((x: any) => x.task_id)];
       const { data: dt } = depIds.length ? await supabase.from('tt_tasks').select('id, title, status').in('id', depIds) : { data: [] as any[] };
       const tm = new Map((dt ?? []).map((x: any) => [x.id, x]));
-      let contacts: any[] = [];
-      if (tr.data.client_id) contacts = (await supabase.from('tt_client_contacts').select('id, full_name').eq('client_id', tr.data.client_id).eq('can_approve', true).eq('portal_access', true)).data ?? [];
       setD({
-        assignees: as.data ?? [], watchers: wa.data ?? [], checklist: ck.data ?? [],
+        assignees: as.data ?? [], checklist: ck.data ?? [],
         blockedBy: (dp.data ?? []).map((x: any) => tm.get(x.blocked_by_id)).filter(Boolean),
         blocks: (db.data ?? []).map((x: any) => tm.get(x.task_id)).filter(Boolean),
-        comments: cm.data ?? [], history: hi.data ?? [], esc: es.data ?? [], approvals: ap.data ?? [], activity: ac.data ?? [], contacts, recur: rc.data,
+        comments: cm.data ?? [], history: hi.data ?? [], esc: es.data ?? [], activity: ac.data ?? [], recur: rc.data,
       });
     }
     setLoading(false);
@@ -72,7 +69,6 @@ export default function TaskDetail() {
   const isAssignee = d.assignees.some((a: any) => a.user_id === uid);
   const canStatus = manager || isAssignee;
   const nexts = TASK_STATUSES.filter((s) => canTransition(t.status as TaskStatus, s) && s !== 'escalation');
-  const watching = d.watchers.some((w: any) => w.user_id === uid);
   const canClientComment = t.client_visible && !!t.client_id;
   const openEsc = d.esc.find((e: any) => !['resolved', 'closed'].includes(e.state));
   const unassigned = active.filter((p) => !d.assignees.some((a: any) => a.user_id === p.id));
@@ -92,7 +88,7 @@ export default function TaskDetail() {
         estimated_hours: f.get('estimated_hours') ? Number(f.get('estimated_hours')) : null,
         actual_hours: f.get('actual_hours') ? Number(f.get('actual_hours')) : null,
         tags: String(f.get('tags')).split(',').map((s) => s.trim()).filter(Boolean),
-        client_visible: f.get('client_visible') === 'on', requires_approval: f.get('requires_approval') === 'on',
+        client_visible: f.get('client_visible') === 'on',
       }).eq('id', id!));
       await supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'task', entity_id: id, action: 'edited' });
       setEdit(false);
@@ -132,11 +128,6 @@ export default function TaskDetail() {
     await must(supabase.from('tt_task_checklist_items').update({ position: b.position }).eq('id', a.id));
     await must(supabase.from('tt_task_checklist_items').update({ position: a.position }).eq('id', b.id));
   });
-  const requestApproval = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const v = String(new FormData(e.currentTarget).get('approver'));
-    run(() => rpc('tt_request_approval', v.startsWith('c:') ? { p_task: id, p_contact: v.slice(2) } : { p_task: id, p_user: v }));
-  };
 
   return (
     <div className="card">
@@ -160,7 +151,6 @@ export default function TaskDetail() {
           <label>Tags<input name="tags" defaultValue={t.tags.join(', ')} /></label>
           <label>Description<textarea name="description" rows={3} defaultValue={t.description ?? ''} /></label>
           <label className="inline"><input type="checkbox" name="client_visible" defaultChecked={t.client_visible} /> Visible to client</label>
-          <label className="inline"><input type="checkbox" name="requires_approval" defaultChecked={t.requires_approval} /> Requires approval</label>
           <button type="submit">Save</button>
         </form>
       ) : (
@@ -172,7 +162,7 @@ export default function TaskDetail() {
           <dt>Client</dt><dd>{t.clients ? <Link to={`/clients/${t.client_id}`}>{t.clients.name}</Link> : '—'}</dd>
           <dt>Project</dt><dd>{t.projects ? <Link to={`/projects/${t.project_id}`}>{t.projects.name}</Link> : '—'}</dd>
           <dt>Tags</dt><dd>{t.tags.join(', ') || '—'}</dd>
-          <dt>Flags</dt><dd>{[t.client_visible && 'client-visible', t.requires_approval && 'needs approval', t.archived_at && 'archived'].filter(Boolean).join(', ') || '—'}</dd>
+          <dt>Flags</dt><dd>{[t.client_visible && 'client-visible', t.archived_at && 'archived'].filter(Boolean).join(', ') || '—'}</dd>
           <dt>Repeats</dt><dd>{d.recur ? `${d.recur.frequency} ×${d.recur.interval_n}, next ${fmt(d.recur.next_run)}${d.recur.active ? '' : ' (ended)'}` : t.recurrence_parent_id ? <>occurrence of <Link to={`/tasks/${t.recurrence_parent_id}`}>recurring task</Link></> : 'No'}</dd>
           {t.completed_at && <><dt>Completed</dt><dd>{fmtTime(t.completed_at)} by {name(t.completed_by)}</dd></>}
         </dl>
@@ -208,10 +198,6 @@ export default function TaskDetail() {
         <select aria-label="Add assignee" value="" onChange={(e) => e.target.value && run(() => rpc('tt_assign', { p_task: id, p_user: e.target.value, p_add: true }))}>
           <option value="">+ Add assignee</option>{unassigned.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>)}
-      <p>Watchers: {d.watchers.map((w: any) => name(w.user_id)).join(', ') || 'none'}{' '}
-        <button className="link" onClick={() => run(() => must(watching
-          ? supabase.from('tt_task_watchers').delete().eq('task_id', id!).eq('user_id', uid)
-          : supabase.from('tt_task_watchers').insert({ task_id: id, user_id: uid })))}>{watching ? 'Stop watching' : 'Watch'}</button></p>
 
       <h3>Checklist</h3>
       {d.checklist.length === 0 ? <p>No checklist items.</p> : (
@@ -259,20 +245,6 @@ export default function TaskDetail() {
       <h3>Files</h3>
       <FilePanel orgId={orgId} userId={uid} entityType="task" entityId={id!} canUpload canDelete={manager} />
 
-      <h3>Approvals</h3>
-      {d.approvals.length === 0 ? <p>None.</p> : <ul className="plain">{d.approvals.map((a: any) => (
-        <li key={a.id}>{a.approver_contact_id ? `Client contact ${d.contacts.find((c: any) => c.id === a.approver_contact_id)?.full_name ?? ''}` : name(a.approver_user_id)} — <Badge v={a.status} />{a.comment && ` “${a.comment}”`}
-          {a.status === 'pending' && a.approver_user_id === uid && (<>
-            <button onClick={() => run(() => rpc('tt_decide_approval', { p_id: a.id, p_approve: true }))}>Approve</button>
-            <button className="danger" onClick={async () => { const r = await ask({ title: 'Reject approval', message: 'Say why, so the team can address it.', input: 'Reason', confirmLabel: 'Reject', danger: true }); if (r.ok) run(() => rpc('tt_decide_approval', { p_id: a.id, p_approve: false, p_comment: r.value })); }}>Reject</button></>)}
-        </li>))}</ul>}
-      {manager && (
-        <form className="row filters" onSubmit={requestApproval}>
-          <select aria-label="Approver" name="approver" required><option value="">Request approval from…</option>
-            {active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            {d.contacts.map((c: any) => <option key={c.id} value={`c:${c.id}`}>Client: {c.full_name}</option>)}</select>
-          <button type="submit">Request</button>
-        </form>)}
 
       <h3>Escalations</h3>
       {d.esc.length === 0 ? <p>None.</p> : <ul className="plain">{d.esc.map((e: any) => <li key={e.id}><Badge v={e.state} /> {label(e.severity)} — {e.reason} <small>raised {fmtTime(e.raised_at)} by {name(e.raised_by)}</small></li>)}</ul>}

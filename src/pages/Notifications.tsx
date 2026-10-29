@@ -41,11 +41,11 @@ const PAGE = 40;
 const dayLabel = (d: Date) => {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const diff = Math.round((today.getTime() - new Date(d).setHours(0, 0, 0, 0)) / 864e5);
-  return diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  return diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : d.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
 };
 const ago = (d: string) => {
   const m = Math.round((Date.now() - new Date(d).getTime()) / 60000);
-  return m < 1 ? 'Just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : new Date(d).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return m < 1 ? 'Just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 };
 // tell the top bar badge to refresh right away instead of on its next poll
 const announce = () => window.dispatchEvent(new Event('tt-notifications'));

@@ -16,7 +16,7 @@ const key = (d: Date | string) => {
   const x = new Date(d);
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 };
-const longDay = (k: string) => new Date(`${k}T00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+const longDay = (k: string) => new Date(`${k}T00:00`).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
 
 // Month view; dates are shown in the browser's time zone.
 export default function Calendar() {
@@ -78,7 +78,7 @@ export default function Calendar() {
   const cells = Array.from({ length: Math.ceil((first + days) / 7) * 7 }, (_, i) => i - first + 1);
   const dayEvents = byDay.get(picked) ?? [];
   const upcoming = (events ?? []).filter((e) => e.date >= today && e.kind !== 'start').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
-  const monthName = month.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+  const monthName = month.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
   return (
     <>
@@ -160,7 +160,7 @@ export default function Calendar() {
                 {upcoming.map((e, i) => (
                   <li key={i}>
                     <button type="button" className="up-date" onClick={() => setPicked(e.date)} aria-label={`Show ${longDay(e.date)}`}>
-                      <b>{new Date(`${e.date}T00:00`).getDate()}</b><small>{new Date(`${e.date}T00:00`).toLocaleDateString(undefined, { weekday: 'short' })}</small>
+                      <b>{new Date(`${e.date}T00:00`).getDate()}</b><small>{new Date(`${e.date}T00:00`).toLocaleDateString('en-US', { weekday: 'short' })}</small>
                     </button>
                     <Link to={e.link} className="up-text"><b>{e.title}</b><small>{KINDS[e.kind].name}</small></Link>
                   </li>

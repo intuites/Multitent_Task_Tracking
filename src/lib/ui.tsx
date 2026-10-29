@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 
 export const label = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-export const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : '—');
-export const fmtDay = (d?: string | null) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString() : '—');
-export const fmtTime = (d?: string | null) => (d ? new Date(d).toLocaleString() : '—');
+export const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
+export const fmtDay = (d?: string | null) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
+export const fmtTime = (d?: string | null) => (d ? new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—');
 // date input (YYYY-MM-DD) -> timestamptz at local noon, so the calendar day is stable across zones
 export const dateToTs = (v: FormDataEntryValue | null) => (v ? new Date(`${v}T12:00:00`).toISOString() : null);
 export const isOpen = (status: string) => !['completed', 'cancelled'].includes(status);

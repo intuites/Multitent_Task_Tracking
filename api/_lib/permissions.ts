@@ -13,7 +13,7 @@ const ALL: Action[] = [
   'report:read', 'activity:read', 'internal_comment:read',
 ];
 
-const MATRIX: Record<Role, Action[]> = {
+export const MATRIX: Record<Role, Action[]> = {
   platform_admin: [],
   owner: ALL,
   admin: ALL, // full access; only owner-role changes stay owner-only (enforced in the database)

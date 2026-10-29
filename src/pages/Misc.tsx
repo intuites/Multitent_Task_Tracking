@@ -94,27 +94,6 @@ export function Settings() {
   );
 }
 
-export function Profile() {
-  const { session, membership } = useAuth();
-  const [name, setName] = useState('');
-  const [msg, setMsg] = useState('');
-  const uid = session!.user.id;
-  useEffect(() => { supabase.from('tt_profiles').select('full_name').eq('user_id', uid).maybeSingle().then(({ data }) => setName(data?.full_name ?? '')); }, [uid]);
-  return (
-    <div className="card">
-      <h2>My Profile</h2>
-      <p>{session!.user.email}{membership && <> · {label(membership.role)} at {membership.org_name}</>}</p>
-      <form className="row filters" onSubmit={async (e) => { e.preventDefault(); const { error } = await supabase.from('tt_profiles').update({ full_name: name.trim() }).eq('user_id', uid); setMsg(error ? error.message : 'Saved.'); }}>
-        <input value={name} onChange={(e) => setName(e.target.value)} required aria-label="Full name" /><button type="submit">Save name</button>
-      </form>
-      <form className="row filters" onSubmit={async (e) => { e.preventDefault(); const p = String(new FormData(e.currentTarget).get('pw')); const { error } = await supabase.auth.updateUser({ password: p }); setMsg(error ? error.message : 'Password changed.'); e.currentTarget.reset(); }}>
-        <input name="pw" type="password" minLength={8} placeholder="New password" required aria-label="New password" /><button type="submit">Change password</button>
-      </form>
-      {msg && <p role="status">{msg}</p>}
-    </div>
-  );
-}
-
 export function Platform() {
   const [s, setS] = useState<any>(null);
   const [err, setErr] = useState('');

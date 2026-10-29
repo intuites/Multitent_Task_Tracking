@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { AlertCircle, Check, CheckCircle2, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { LiquidBg } from '../components/Liquid';
+import { ThemeToggle } from '../components/Frame';
 
 type Msg = { kind: 'error' | 'ok'; text: string; n: number } | null;
 
@@ -101,7 +102,10 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           </ul>
         </div>
       </aside>
-      <main className="auth-main">{children}</main>
+      <main className="auth-main">
+        <div className="auth-corner"><a href="/guide" className="pill-btn ghost">How Taskify works</a><ThemeToggle /></div>
+        {children}
+      </main>
     </div>
   );
 }

@@ -141,7 +141,7 @@ export default function ClientProfile() {
           <dt>Address</dt><dd>{client.address ?? '—'}</dd>
           <dt>Source</dt><dd>{client.source ?? '—'}</dd>
           <dt>Tags</dt><dd>{client.tags?.length ? client.tags.join(', ') : '—'}</dd>
-          <dt>Created</dt><dd>{new Date(client.created_at).toLocaleDateString()}</dd>
+          <dt>Created</dt><dd>{new Date(client.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</dd>
         </dl>
         {canWrite && <button className="pill-btn ghost" onClick={() => setEditing(true)}>Edit details</button>}
       </>))}
@@ -184,13 +184,13 @@ export default function ClientProfile() {
             </form>
           )}
           {notes.length === 0 ? <p>No notes yet.</p> : notes.map((n) => (
-            <p key={n.id} className="note">{n.body}<br /><small>{new Date(n.created_at).toLocaleString()}</small></p>
+            <p key={n.id} className="note">{n.body}<br /><small>{new Date(n.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</small></p>
           ))}
         </>
       )}
 
       {tab === 'activity' && (activity.length === 0 ? <p>No activity yet.</p> : (
-        <ul>{activity.map((a) => <li key={a.id}>{a.action.replace('_', ' ')} — {new Date(a.created_at).toLocaleString()}</li>)}</ul>
+        <ul>{activity.map((a) => <li key={a.id}>{a.action.replace('_', ' ')} — {new Date(a.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</li>)}</ul>
       ))}
       </div>
     </div>

@@ -1,5 +1,5 @@
 import {
-  BarChart3, Bell, Building2, CalendarDays, ClipboardList, Contact, FolderKanban, History, LayoutDashboard,
+  BarChart3, Bell, BookOpen, Building2, CalendarDays, ClipboardList, Contact, FolderKanban, History, LayoutDashboard,
   ListTodo, Settings, Siren, UserCircle, Users, UsersRound, type LucideIcon,
 } from 'lucide-react';
 import { can, type Action, type Role } from '../../api/_lib/permissions';
@@ -22,6 +22,7 @@ export const NAV: NavItem[] = [
   { path: '/notifications', label: 'Notifications', icon: Bell, group: 'General' },
   { path: '/settings', label: 'Organization Settings', icon: Settings, group: 'General', needs: 'members:manage' },
   { path: '/profile', label: 'My Profile', icon: UserCircle, group: 'General' },
+  { path: '/guide', label: 'Guide', icon: BookOpen, group: 'General' },
 ];
 
 export const navFor = (role: Role | undefined) => NAV.filter((n) => !n.needs || can(role, n.needs));

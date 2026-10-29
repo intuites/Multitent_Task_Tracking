@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
-import { Bell, Plus, Settings as SettingsIcon, Shield, UserCircle } from 'lucide-react';
+import { Bell, BookOpen, Plus, Settings as SettingsIcon, Shield, UserCircle } from 'lucide-react';
 import { AuthProvider, useAuth } from './lib/auth';
 import { configured, supabase } from './lib/supabase';
 import { navFor, NAV } from './lib/nav';
@@ -28,8 +28,10 @@ const Calendar = lazy(() => import('./pages/Calendar'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Portal = lazy(() => import('./pages/Portal'));
-const misc = (k: 'ActivityLogs' | 'Contacts' | 'Platform' | 'Profile' | 'Settings') => lazy(() => import('./pages/Misc').then((m) => ({ default: m[k] })));
-const ActivityLogs = misc('ActivityLogs'), Contacts = misc('Contacts'), Platform = misc('Platform'), Profile = misc('Profile'), Settings = misc('Settings');
+const Guide = lazy(() => import('./pages/Guide'));
+const ProfilePage = lazy(() => import('./pages/Profile'));
+const misc = (k: 'ActivityLogs' | 'Contacts' | 'Platform' | 'Settings') => lazy(() => import('./pages/Misc').then((m) => ({ default: m[k] })));
+const ActivityLogs = misc('ActivityLogs'), Contacts = misc('Contacts'), Platform = misc('Platform'), Settings = misc('Settings');
 import '@fontsource-variable/plus-jakarta-sans';
 import './styles.css';
 import { Boot, PageSkeleton } from './components/Skeleton';
@@ -74,6 +76,7 @@ function Shell() {
       menu={[
         { label: 'My profile', icon: UserCircle, to: '/profile' },
         { label: 'Notification settings', icon: Bell, to: '/notifications' },
+        { label: 'Help & guide', icon: BookOpen, to: '/guide' },
         ...(can(membership!.role, 'members:manage') ? [{ label: 'Organization settings', icon: SettingsIcon, to: '/settings' }] : []),
       ]}
       onSignOut={signOut} closeKey={pathname}
@@ -99,7 +102,8 @@ function Gate() {
   const { session, membership, portal, platformAdmin, loading, passwordSetup } = useAuth();
   if (!configured) return <div className="card">Set the Supabase variables in <code>.env.local</code>, then restart <code>npm run dev</code>.</div>;
   if (loading) return <Boot />;
-  if (!session) return <Login />;
+  // the product guide is public so people can read it before signing in
+  if (!session) return window.location.pathname === '/guide' ? <Suspense fallback={<Boot />}><Guide standalone /></Suspense> : <Login />;
   if (passwordSetup) return <SetPassword />;
   if (portal) return <Suspense fallback={<Boot />}><Portal /></Suspense>;
   if (!membership) return <Onboarding />;
@@ -124,7 +128,8 @@ function Gate() {
         <Route path="/reports" element={<Guard need="report:read"><Reports /></Guard>} />
         <Route path="/activity" element={<Guard need="task:write"><ActivityLogs /></Guard>} />
         <Route path="/settings" element={<Guard need="members:manage"><Settings /></Guard>} />
-        <Route path="/profile" element={<Profile />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/guide" element={<Guide />} />
         <Route path="/platform" element={platformAdmin ? <Platform /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Pending name="Not found" />} />
       </Route>

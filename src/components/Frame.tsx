@@ -1,9 +1,20 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { reducedMotion } from './Liquid';
 import { ask } from './Dialog';
-import { Bell, CheckCheck, ChevronDown, LogOut, Menu, X, type LucideIcon } from 'lucide-react';
+import { Bell, CheckCheck, ChevronDown, LogOut, Menu, Moon, Sun, X, type LucideIcon } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../lib/theme';
+
+export function ThemeToggle() {
+  const { theme, toggle } = useTheme();
+  const dark = theme === 'dark';
+  return (
+    <button type="button" className="icon-btn theme-btn" onClick={toggle} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} title={dark ? 'Light mode' : 'Dark mode'}>
+      <span key={theme} className="theme-ico">{dark ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}</span>
+    </button>
+  );
+}
 
 // Shared app frame (sidebar + top bar) for the staff app and the client portal.
 export interface FrameItem { label: string; icon: LucideIcon; to?: string; onClick?: () => void; active?: boolean; badge?: number }
@@ -166,7 +177,7 @@ export default function Frame({ brand, groups, footer, title, search, action, be
   // re-render each minute so the greeting rolls over (morning → afternoon) without a reload
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(t); }, []);
-  const today = now.toLocaleDateString(undefined, { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' });
+  const today = now.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <div className="app">
@@ -195,6 +206,7 @@ export default function Frame({ brand, groups, footer, title, search, action, be
           {search ?? <span className="grow" />}
           <div className="top-actions">
             {action}
+            <ThemeToggle />
             <NotificationBell {...bell} />
             <span className="top-divider" aria-hidden="true" />
             <ProfileMenu user={user} menu={menu} onSignOut={confirmSignOut} />

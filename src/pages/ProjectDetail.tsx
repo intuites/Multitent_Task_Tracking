@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { projectProgress, type ProgressMode } from '../../api/_lib/progress';
 import { logActivity } from '../lib/activity';
-import { PROJECT_STATUSES } from './Projects';
+import { PRIORITIES, PROJECT_STATUSES } from './Projects';
 import { ask } from '../components/Dialog';
 import { fmtDay, label } from '../lib/ui';
 import { PageSkeleton } from '../components/Skeleton';
@@ -21,6 +21,13 @@ export default function ProjectDetail() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [clients, setClients] = useState<any[]>([]);
+  // fetch clients before opening the form so the select's defaultValue lands on a real option
+  async function startEdit() {
+    const { data } = await supabase.from('tt_clients').select('id, name').eq('org_id', orgId).order('name');
+    setClients(data ?? []); setEditing(true);
+  }
 
   const load = useCallback(async () => {
     const pr = await supabase.from('tt_projects').select('*, clients:tt_clients(name)').eq('id', id!).eq('org_id', orgId).maybeSingle();
@@ -38,9 +45,24 @@ export default function ProjectDetail() {
 
   async function update(patch: object, action: string, detail: object = {}) {
     const { error } = await supabase.from('tt_projects').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id!);
-    if (error) return setError(error.message);
+    if (error) { setError(error.message); return false; }
     await logActivity(orgId, uid, 'project', id!, action, detail);
     setError(''); load();
+    return true;
+  }
+
+  async function saveDetails(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const name = String(f.get('name')).trim();
+    const start = String(f.get('start_date') || '') || null, due = String(f.get('due_date') || '') || null;
+    if (!name) return setError('Enter a project name.');
+    if (start && due && due < start) return setError('The due date can’t be before the start date.');
+    const ok = await update({
+      name, client_id: f.get('client_id') || null, priority: f.get('priority'), start_date: start, due_date: due,
+      description: String(f.get('description') || '').trim() || null,
+    }, 'edited');
+    if (ok) setEditing(false);
   }
 
   async function addMilestone(e: FormEvent<HTMLFormElement>) {
@@ -79,7 +101,22 @@ export default function ProjectDetail() {
         )}
       </div>
       {error && <p role="alert">{error}</p>}
+      {editing ? (
+        <form className="grid" onSubmit={saveDetails}>
+          <label>Name<input name="name" defaultValue={p.name} required maxLength={200} /></label>
+          <label>Client<select name="client_id" defaultValue={p.client_id ?? ''}>
+            <option value="">— none —</option>
+            {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select></label>
+          <label>Priority<select name="priority" defaultValue={p.priority}>{PRIORITIES.map((x) => <option key={x} value={x}>{label(x)}</option>)}</select></label>
+          <label>Start<input name="start_date" type="date" defaultValue={p.start_date ?? ''} /></label>
+          <label>Due<input name="due_date" type="date" defaultValue={p.due_date ?? ''} /></label>
+          <label>Description<textarea name="description" rows={3} defaultValue={p.description ?? ''} maxLength={5000} /></label>
+          <span className="row filters"><button type="submit">Save changes</button><button type="button" className="link" onClick={() => { setEditing(false); setError(''); }}>Cancel</button></span>
+        </form>
+      ) : canWrite && <p><button className="pill-btn ghost" onClick={startEdit}>Edit details</button></p>}
       <dl>
+        {p.description && <><dt>Description</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{p.description}</dd></>}
         <dt>Priority</dt><dd>{label(p.priority)}</dd>
         <dt>Dates</dt><dd>{fmtDay(p.start_date)} → {fmtDay(p.due_date)}</dd>
         <dt>Progress</dt>

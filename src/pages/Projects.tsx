@@ -8,7 +8,7 @@ import { Badge, fmtDay, label } from '../lib/ui';
 import { ListSkeleton } from '../components/Skeleton';
 
 export const PROJECT_STATUSES = ['planning', 'not_started', 'in_progress', 'on_hold', 'in_review', 'completed', 'cancelled', 'archived'];
-const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+export const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
 export default function Projects() {
   const { membership, session } = useAuth();

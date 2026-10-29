@@ -100,11 +100,11 @@ export default function OrgSettings() {
             <p><span className="prio prio-low">{label(role)}</span></p>
             <p className="muted">{ROLE_TEXT[role as keyof typeof ROLE_TEXT]?.blurb}</p>
           </section>
-          <section className="card" aria-labelledby="ppl-h">
+          {can(role, 'task:write') && <section className="card" aria-labelledby="ppl-h">
             <div className="panel-head"><h3 id="ppl-h"><Users size={16} aria-hidden="true" /> People</h3>{can(role, 'members:manage') && <Link to="/employees" className="mini-link">Manage people</Link>}</div>
             <ul className="role-counts">{ROLES.map((r) => <li key={r}><b>{roles[r] ?? 0}</b><small>{label(r)}{(roles[r] ?? 0) === 1 ? '' : 's'}</small></li>)}</ul>
             <p className="muted pf-hint">{total} active member{total === 1 ? '' : 's'}.</p>
-          </section>
+          </section>}
         </div>
 
         <section className="card" aria-labelledby="dep-h">

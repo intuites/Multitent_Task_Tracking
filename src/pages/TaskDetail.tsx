@@ -11,6 +11,7 @@ import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { Avatar, initials } from '../components/Frame';
 
+const CYCLES: [string, string][] = [['daily', 'Daily'], ['weekdays', 'Weekdays'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['semiannual', 'Every 6 months'], ['yearly', 'Yearly']];
 const toDateInput = (d?: string | null) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
 export default function TaskDetail() {
@@ -28,6 +29,7 @@ export default function TaskDetail() {
   const [subForm, setSubForm] = useState(false);
   const [escForm, setEscForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [toSel, setToSel] = useState('');
 
   const load = useCallback(async () => {
     const tr = await supabase.from('tt_tasks').select('*, clients:tt_clients(name), projects:tt_projects(name)').eq('id', id!).eq('org_id', orgId).maybeSingle();
@@ -65,9 +67,11 @@ export default function TaskDetail() {
 
   const isAssignee = d.assignees.some((a: any) => a.user_id === uid);
   const canStatus = manager || isAssignee;
-  // "Completed this cycle" needs a repeating schedule to come back on
+  // "Completed this cycle" needs a repeating schedule to come back on; ask for one when the task has none
   const repeats = !!t.reminder_frequency && t.reminder_frequency !== 'once';
-  const nexts = TASK_STATUSES.filter((s) => canTransition(t.status as TaskStatus, s) && (s !== 'completed_cycle' || repeats));
+  const nexts = TASK_STATUSES.filter((s) => canTransition(t.status as TaskStatus, s));
+  const to = nexts.includes(toSel as TaskStatus) ? toSel : nexts[0];
+  const askCycle = to === 'completed_cycle' && !repeats;
   const canClientComment = t.client_visible && !!t.client_id;
   const openEsc = d.esc.find((e: any) => !['resolved', 'closed'].includes(e.state));
   const unassigned = active.filter((p) => !d.assignees.some((a: any) => a.user_id === p.id));
@@ -75,7 +79,11 @@ export default function TaskDetail() {
   const changeStatus = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    run(() => rpc('tt_set_task_status', { p_task: id, p_to: f.get('to'), p_reason: String(f.get('reason')) || null, p_override: f.get('override') === 'on' }));
+    run(async () => {
+      if (askCycle) await rpc('tt_set_cycle_frequency', { p_task: id, p_freq: f.get('cycle') });
+      await rpc('tt_set_task_status', { p_task: id, p_to: to, p_reason: String(f.get('reason')) || null });
+      setToSel('');
+    });
   };
   const saveEdit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -173,7 +181,7 @@ export default function TaskDetail() {
         <h2 className="td-title">{t.title}</h2>
         <div className="td-meta">
           <span className={overdue ? 'overdue' : ''}><CalendarClock size={15} aria-hidden="true" />{dueNote}</span>
-          {t.clients && <Link to={`/clients/${t.client_id}`}><Building2 size={15} aria-hidden="true" />{t.clients.name}</Link>}
+          {t.clients && (can(role, 'client:write') ? <Link to={`/clients/${t.client_id}`}><Building2 size={15} aria-hidden="true" />{t.clients.name}</Link> : <span><Building2 size={15} aria-hidden="true" />{t.clients.name}</span>)}
           {t.projects && <Link to={`/projects/${t.project_id}`}><FolderKanban size={15} aria-hidden="true" />{t.projects.name}</Link>}
         </div>
       </header>
@@ -279,7 +287,10 @@ export default function TaskDetail() {
               <p className="note">This task is escalated{openEsc ? <> ({label(openEsc.severity)}, {label(openEsc.state)}). It returns to {label(openEsc.previous_task_status)} when the escalation is resolved on the <Link to="/escalations">Escalations</Link> page.</> : '.'}</p>
             ) : canStatus ? (
               <form className="stack" onSubmit={changeStatus}>
-                <select aria-label="New status" name="to" required disabled={!nexts.length}>{nexts.map((s) => <option key={s} value={s}>{s === 'completed' ? 'Completed permanently' : s === 'completed_cycle' ? 'Completed this cycle' : label(s)}</option>)}</select>
+                <select aria-label="New status" value={to} onChange={(e) => setToSel(e.target.value)} required disabled={!nexts.length}>{nexts.map((s) => <option key={s} value={s}>{s === 'completed' ? 'Completed permanently' : s === 'completed_cycle' ? 'Completed this cycle' : label(s)}</option>)}</select>
+                {askCycle && <label>Next cycle starts<select name="cycle" defaultValue="monthly" required>{CYCLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+                  <small className="muted">The task reopens as Not Yet Started on its next cycle day.</small></label>}
+                {to === 'completed_cycle' && repeats && <small className="muted">Reopens as Not Yet Started on its next cycle ({(CYCLES.find(([v]) => v === t.reminder_frequency)?.[1] ?? label(t.reminder_frequency)).toLowerCase()}).</small>}
                 <input aria-label="Reason for status change" name="reason" placeholder="Reason (optional)" />
                 <button type="submit" disabled={!nexts.length}>Update status</button>
                 {can(role, 'escalation:manage') && !['completed', 'completed_cycle'].includes(t.status) && <button type="button" className="pill-btn ghost danger-text" onClick={() => setEscForm(!escForm)}><Siren size={15} aria-hidden="true" />{escForm ? 'Cancel escalation' : 'Escalate'}</button>}

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { usePeople } from '../lib/ui';
+import { can } from '../../api/_lib/permissions';
 
 interface Hit { group: string; text: string; to: string }
 
@@ -11,6 +12,7 @@ interface Hit { group: string; text: string; to: string }
 export default function Search() {
   const { membership } = useAuth();
   const orgId = membership!.org_id;
+  const crm = can(membership!.role, 'client:write'); // employees don't get the clients, contacts or people pages
   const { people } = usePeople(orgId);
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<Hit[]>([]);
@@ -36,12 +38,12 @@ export default function Search() {
       ]);
       const lc = term.toLowerCase();
       setHits([
-        ...(c.data ?? []).map((x) => ({ group: 'Client', text: x.name, to: `/clients/${x.id}` })),
-        ...(ct.data ?? []).map((x) => ({ group: 'Contact', text: x.full_name, to: `/clients/${x.client_id}` })),
+        ...(!crm ? [] : c.data ?? []).map((x) => ({ group: 'Client', text: x.name, to: `/clients/${x.id}` })),
+        ...(!crm ? [] : ct.data ?? []).map((x) => ({ group: 'Contact', text: x.full_name, to: `/clients/${x.client_id}` })),
         ...(p.data ?? []).map((x) => ({ group: 'Project', text: x.name, to: `/projects/${x.id}` })),
         ...(t.data ?? []).map((x) => ({ group: 'Task', text: x.title, to: `/tasks/${x.id}` })),
         ...(e.data ?? []).map((x) => ({ group: 'Escalation', text: x.reason, to: '/escalations' })),
-        ...people.filter((x) => x.name.toLowerCase().includes(lc) || x.email.toLowerCase().includes(lc)).slice(0, 5).map((x) => ({ group: 'Employee', text: x.name, to: '/employees' })),
+        ...(!crm ? [] : people).filter((x) => x.name.toLowerCase().includes(lc) || x.email.toLowerCase().includes(lc)).slice(0, 5).map((x) => ({ group: 'Employee', text: x.name, to: '/employees' })),
       ]);
     }, 250);
     return () => clearTimeout(h);

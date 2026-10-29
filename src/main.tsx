@@ -128,9 +128,9 @@ function Gate() {
     <Routes>
       <Route element={<Shell />}>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/clients" element={<Guard need="client:read"><Clients /></Guard>} />
-        <Route path="/clients/:id" element={<Guard need="client:read"><ClientProfile /></Guard>} />
-        <Route path="/contacts" element={<Guard need="client:read"><Contacts /></Guard>} />
+        <Route path="/clients" element={<Guard need="client:write"><Clients /></Guard>} />
+        <Route path="/clients/:id" element={<Guard need="client:write"><ClientProfile /></Guard>} />
+        <Route path="/contacts" element={<Guard need="client:write"><Contacts /></Guard>} />
         <Route path="/projects" element={<Guard need="project:read"><Projects /></Guard>} />
         <Route path="/projects/:id" element={<Guard need="project:read"><ProjectDetail /></Guard>} />
         <Route path="/tasks" element={<Tasks mode="all" />} />

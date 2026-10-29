@@ -2,7 +2,7 @@
 -- Drops ONLY objects created by Taskify's migrations; other tables in the database are not touched.
 -- Auth users (logins) are kept. Files already in the 'tt-files' storage bucket are kept (Supabase blocks
 -- deleting storage rows from SQL); remove them in Dashboard > Storage if you want a clean bucket.
--- After running this, run supabase/migrations/0001 ... 0014 in order.
+-- After running this, run supabase/migrations/0001 ... 0015 in order.
 
 begin;
 
@@ -41,7 +41,7 @@ drop function if exists
   tt_portal_project_visible, tt_portal_submit_request, tt_portal_update_contact, tt_is_platform_admin,
   tt_platform_stats, tt_org_summary, tt_leave_org, tt_clients_parent_guard, tt_create_from_template,
   tt_subtasks_done_guard, tt_generate_task_reminders, tt_task_cc_emails, tt_notify_assignee_leads,
-  tt_cycle_day, tt_cycle_guard
+  tt_cycle_day, tt_cycle_guard, tt_set_cycle_frequency
 cascade;
 
 commit;

@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
-import { Badge, Due, dateToTs, label, rpc, usePeople } from '../lib/ui';
+import { Badge, Due, label, usePeople } from '../lib/ui';
 import { ListSkeleton } from '../components/Skeleton';
 import { ask } from '../components/Dialog';
+import NewTaskForm from '../components/NewTaskForm';
 
 export type Mode = 'all' | 'mine' | 'team';
 const PAGE = 25;
@@ -27,9 +28,6 @@ export default function Tasks({ mode }: { mode: Mode }) {
   const [priority, setPriority] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(params.get('new') === '1');
-  const [clients, setClients] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [formClient, setFormClient] = useState(params.get('client') ?? '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const clientFilter = params.get('client'), projectFilter = params.get('project');
@@ -80,35 +78,6 @@ export default function Tasks({ mode }: { mode: Mode }) {
   }, [orgId, uid, mode, view, q, priority, page, clientFilter, projectFilter]);
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    if (!canWrite) return;
-    Promise.all([
-      supabase.from('tt_clients').select('id, name').eq('org_id', orgId).neq('status', 'archived').order('name'),
-      supabase.from('tt_projects').select('id, name, client_id').eq('org_id', orgId).neq('status', 'archived').order('name'),
-    ]).then(([c, p]) => { setClients(c.data ?? []); setProjects(p.data ?? []); });
-  }, [orgId, canWrite]);
-
-  async function create(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    setError('');
-    try {
-      const { data, error } = await supabase.from('tt_tasks').insert({
-        org_id: orgId, created_by: uid, title: String(f.get('title')).trim(), description: String(f.get('description')).trim() || null,
-        priority: f.get('priority'), client_id: f.get('client_id') || null, project_id: f.get('project_id') || null,
-        start_date: dateToTs(f.get('start_date')), due_date: dateToTs(f.get('due_date')),
-        estimated_hours: f.get('estimated_hours') ? Number(f.get('estimated_hours')) : null,
-        tags: String(f.get('tags')).split(',').map((s) => s.trim()).filter(Boolean),
-        client_visible: f.get('client_visible') === 'on',
-      }).select('id').single();
-      if (error) throw error;
-      for (const a of f.getAll('assignees')) await rpc('tt_assign', { p_task: data.id, p_user: a, p_add: true });
-      const freq = String(f.get('freq'));
-      if (freq) await rpc('tt_set_recurrence', { p_task: data.id, p_freq: freq, p_n: Number(f.get('every') || 1), p_until: f.get('until') || null });
-      await supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'task', entity_id: data.id, action: 'created' });
-      setShowForm(false); load();
-    } catch (x) { setError((x as Error).message); }
-  }
 
   async function bulk(patch: object) {
     const { error } = await supabase.from('tt_tasks').update(patch).in('id', selected);
@@ -129,28 +98,11 @@ export default function Tasks({ mode }: { mode: Mode }) {
         </span>
       </div>
       {showForm && (
-        <form className="grid" onSubmit={create}>
-          <label>Title<input name="title" required maxLength={200} /></label>
-          <label>Priority<select name="priority" defaultValue="medium">{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select></label>
-          <label>Client<select name="client_id" value={formClient} onChange={(e) => setFormClient(e.target.value)}><option value="">— none —</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <label>Project<select name="project_id" defaultValue={params.get('project') ?? ''}><option value="">— none —</option>
-            {projects.filter((p) => !formClient || p.client_id === formClient).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-          <label>Start<input type="date" name="start_date" /></label>
-          <label>Due<input type="date" name="due_date" /></label>
-          <label>Estimated hours<input type="number" step="0.25" min="0" name="estimated_hours" /></label>
-          <label>Tags (comma separated)<input name="tags" /></label>
-          <label>Description<textarea name="description" rows={2} /></label>
-          <fieldset><legend>Assignees</legend>
-            {active.map((p) => <label key={p.id} className="inline"><input type="checkbox" name="assignees" value={p.id} /> {p.name}</label>)}
-          </fieldset>
-          <fieldset><legend>Repeat</legend>
-            <select aria-label="Repeat" name="freq" defaultValue=""><option value="">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="custom">Every N days</option></select>
-            <label>Every<input type="number" name="every" min={1} max={365} defaultValue={1} /></label>
-            <label>Until<input type="date" name="until" /></label>
-          </fieldset>
-          <label className="inline"><input type="checkbox" name="client_visible" /> Visible to client</label>
-          <button type="submit">Create task (starts as Not Yet Started)</button>
-        </form>
+        <section className="nt-card" aria-label="New task">
+          <h3>New task</h3>
+          <NewTaskForm defaults={{ client: params.get('client') ?? undefined, project: params.get('project') ?? undefined }}
+            onCancel={() => setShowForm(false)} onDone={() => { setShowForm(false); load(); }} />
+        </section>
       )}
       <div className="row filters">
         <input aria-label="Search tasks by title" placeholder="Search title" value={q} onChange={(e) => { setPage(0); setQ(e.target.value); }} />

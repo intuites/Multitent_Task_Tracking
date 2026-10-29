@@ -16,6 +16,7 @@ export default handler('GET', async (req) => {
   const db = admin();
   const rec = await db.rpc('tt_generate_recurrences', { p_limit: 100 });
   const rem = await db.rpc('tt_generate_reminders', { p_limit: 500 });
+  const taskRem = await db.rpc('tt_generate_task_reminders', { p_limit: 500 });
 
   const { data: queue } = await db.from('tt_email_delivery_logs').select('id, to_email, subject, body, attempts')
     .in('status', ['pending', 'failed']).lt('attempts', MAX_ATTEMPTS).order('created_at').limit(EMAIL_BATCH);
@@ -37,6 +38,7 @@ export default handler('GET', async (req) => {
   return {
     recurrences: rec.error ? `error: ${rec.error.message}` : rec.data,
     reminders: rem.error ? `error: ${rem.error.message}` : rem.data,
+    task_reminders: taskRem.error ? `error: ${taskRem.error.message}` : taskRem.data,
     emails: { sent, failed },
   };
 });

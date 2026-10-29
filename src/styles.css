@@ -1184,3 +1184,32 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
 .tpl-card select { width: 100%; }
 .dept-list li { padding: 12px; }
 @media (max-width: 900px) { .inv-form { grid-template-columns: 1fr; } .emp-table th:nth-child(3), .emp-table td:nth-child(3), .emp-table th:nth-child(4), .emp-table td:nth-child(4) { display: none; } }
+
+/* ---------- new task form ---------- */
+.nt-card { margin: 0 0 20px; padding: 22px 24px; border-radius: var(--r-card); background: var(--surface-2); border: 1px solid var(--line); animation: fade-in-up .35s var(--ease) both; }
+.nt-card h3 { margin: 0 0 14px; }
+.nt { display: grid; gap: 16px; }
+.nt label { display: grid; gap: 6px; }
+.nt-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.nt-help { font-weight: 400; font-size: 12px; }
+.nt-subs { margin: 0; padding: 16px; border: 1px dashed var(--control-line); border-radius: 14px; display: grid; gap: 12px; background: var(--surface); }
+.nt-subs-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+.nt-subs-head > div:first-child { display: grid; gap: 4px; max-width: 52ch; }
+.nt-subs-head b { display: inline-flex; align-items: center; gap: 6px; }
+.nt-subs-head small { font-size: 12.5px; }
+.nt-subs-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.nt-sub-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.nt-sub-list li { display: grid; grid-template-columns: 28px 2fr 1fr 1fr 150px auto; gap: 8px; align-items: center; animation: fade-in-up .3s var(--ease) both; }
+.nt-n { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--client-tint); color: var(--brand); font-size: 12px; font-weight: 700; }
+.nt-remind { display: grid; gap: 8px; padding: 14px 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.nt-summary { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 14px; border-radius: 10px; background: var(--client-tint); color: var(--brand-deep); font-weight: 600; font-size: 13.5px; }
+.nt-more summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--brand); font-weight: 600; list-style: none; padding: 4px 0; }
+.nt-more summary::-webkit-details-marker { display: none; }
+.nt-more[open] summary svg { transform: rotate(180deg); }
+.nt-more summary svg { transition: transform .25s var(--ease); }
+.nt-more[open] > .nt-row { margin: 12px 0; }
+.nt-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.nt-actions > * { min-height: 44px; }
+@media (max-width: 800px) { .nt-sub-list li { grid-template-columns: 28px 1fr auto; } .nt-sub-list li > select, .nt-sub-list li > input[type=date] { grid-column: 2 / -1; } .nt-actions { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .nt-card, .nt-sub-list li { animation: none !important; } }
+.nt label.inline { display: flex; align-items: center; gap: 8px; }

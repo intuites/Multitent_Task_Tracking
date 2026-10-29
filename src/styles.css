@@ -842,7 +842,6 @@ dialog .actions > * { min-width: 104px; }
 @keyframes bar-solid-dark { to { background: rgb(20 30 25 / .95); box-shadow: inset 0 1px 0 rgb(255 255 255 / .05), 0 12px 32px rgb(0 0 0 / .45); } }
 :root[data-theme="dark"] .side-link .count { background: var(--brand-2); }
 :root[data-theme="dark"] .bar.best { background: var(--brand); }
-:root[data-theme="dark"] .bar { background: var(--brand-2); }
 :root[data-theme="dark"] .switch { background: #3a4842; }
 :root[data-theme="dark"] .switch.on { background: var(--brand-2); }
 :root[data-theme="dark"] * { scrollbar-color: #33413a transparent; }

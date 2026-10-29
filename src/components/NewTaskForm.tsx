@@ -8,7 +8,23 @@ import { dateToTs, label, loadPeople, rpc, type Person } from '../lib/ui';
 interface Sub { title: string; department_id: string; assignee_id: string; due: string }
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-const FREQ: Record<string, string> = { daily: 'Every day', weekdays: 'Every weekday (Mon–Fri)', weekly: 'Once a week' };
+const FREQS: [string, string][] = [['once', 'Once'], ['daily', 'Daily'], ['weekdays', 'Weekdays (Mon–Fri)'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly (every 3 months)'], ['yearly', 'Yearly'], ['custom', 'Custom']];
+const nyToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+const ord = (n: number) => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
+/** Plain-English reminder schedule; the day comes from the start date, as in tt_generate_task_reminders. */
+function schedule(freq: string, start: string, every: number) {
+  const d = new Date(`${start}T12:00:00`);
+  const md = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  return ({
+    once: `Once on ${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`,
+    daily: 'Every day', weekdays: 'Every weekday (Mon–Fri)',
+    weekly: `Every ${d.toLocaleDateString('en-US', { weekday: 'long' })}`,
+    monthly: `Every month on the ${ord(d.getDate())}`,
+    quarterly: `Every 3 months on the ${ord(d.getDate())}`,
+    yearly: `Every year on ${md}`,
+    custom: every === 1 ? 'Every day' : `Every ${every} days`,
+  } as Record<string, string>)[freq];
+}
 const fmt12 = (t: string) => { const [h, m] = t.split(':').map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
 const blank = (): Sub => ({ title: '', department_id: '', assignee_id: '', due: '' });
 
@@ -30,6 +46,7 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
   const [client, setClient] = useState(defaults?.client ?? '');
   const [subs, setSubs] = useState<Sub[]>([]);
   const [remind, setRemind] = useState(true), [freq, setFreq] = useState('daily'), [time, setTime] = useState('09:00');
+  const [rStart, setRStart] = useState(nyToday), [every, setEvery] = useState(2);
   const [error, setError] = useState(''), [busy, setBusy] = useState(false);
 
   // everything below depends on the organization chosen at the top
@@ -101,10 +118,10 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
         client_visible: f.get('client_visible') === 'on',
         ...(dept ? { department_id: dept } : {}),
         ...(cc.length ? { notify_emails: cc } : {}),
-        ...(remind ? { reminder_enabled: true, reminder_frequency: freq, reminder_time: time } : {}),
+        ...(remind ? { reminder_enabled: true, reminder_frequency: freq, reminder_time: time, reminder_start: rStart, reminder_interval_days: freq === 'custom' ? every : null } : {}),
       };
       const { data, error: err } = await supabase.from('tt_tasks').insert(row).select('id').single();
-      if (err) throw new Error(/column|schema cache/i.test(err.message) ? 'Departments, CC emails and reminders need the database updates (migrations 0010 and 0012). Turn those off or run the updates.' : err.message);
+      if (err) throw new Error(/column|schema cache/i.test(err.message) ? 'Departments, CC emails and reminders need the database updates (migrations 0010, 0012 and 0013). Turn those off or run the updates.' : err.message);
       if (assignee) await rpc('tt_assign', { p_task: data.id, p_user: assignee, p_add: true });
       for (const s of subs) {
         const { data: sd, error: se } = await supabase.from('tt_tasks').insert({
@@ -170,10 +187,12 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
         <small className="muted nt-help">When on, Taskify reminds the assignee on this schedule. Times are US Eastern (America/New_York).</small>
         {remind && (<>
           <div className="nt-row">
-            <label>Reminder frequency<select value={freq} onChange={(e) => setFreq(e.target.value)}><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option></select></label>
+            <label>Reminder frequency<select value={freq} onChange={(e) => setFreq(e.target.value)}>{FREQS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
             <label>Reminder time<input type="time" value={time} onChange={(e) => setTime(e.target.value || '09:00')} required /></label>
+            <label><span>{freq === 'once' ? 'Remind on' : 'Starting'}</span><input type="date" value={rStart} min={nyToday()} onChange={(e) => setRStart(e.target.value || nyToday())} required /></label>
+            {freq === 'custom' && <label>Repeat every (days)<input type="number" min={1} max={365} value={every} onChange={(e) => setEvery(Math.min(365, Math.max(1, Number(e.target.value) || 1)))} required /></label>}
           </div>
-          <p className="nt-summary"><BellRing size={15} aria-hidden="true" />{FREQ[freq]} at {fmt12(time)} ET.</p>
+          <p className="nt-summary"><BellRing size={15} aria-hidden="true" />{schedule(freq, rStart, every)} at {fmt12(time)} ET{freq !== 'once' && rStart > nyToday() ? `, starting ${new Date(`${rStart}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}.</p>
         </>)}
       </div>
 

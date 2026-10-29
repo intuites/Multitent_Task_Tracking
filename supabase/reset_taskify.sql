@@ -2,7 +2,7 @@
 -- Drops ONLY objects created by Taskify's migrations; other tables in the database are not touched.
 -- Auth users (logins) are kept. Files already in the 'tt-files' storage bucket are kept (Supabase blocks
 -- deleting storage rows from SQL); remove them in Dashboard > Storage if you want a clean bucket.
--- After running this, run supabase/migrations/0001 ... 0012 in order.
+-- After running this, run supabase/migrations/0001 ... 0013 in order.
 
 begin;
 

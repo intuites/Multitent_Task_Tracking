@@ -11,7 +11,7 @@ import { ask } from '../components/Dialog';
 import { Badge, label } from '../lib/ui';
 import { PageSkeleton } from '../components/Skeleton';
 
-type Tab = 'overview' | 'contacts' | 'projects' | 'tasks' | 'documents' | 'notes' | 'activity';
+type Tab = 'overview' | 'contacts' | 'projects' | 'tasks' | 'documents' | 'notes' | 'activity' | 'sub_clients';
 
 export default function ClientProfile() {
   const { id } = useParams();
@@ -25,6 +25,8 @@ export default function ClientProfile() {
   const [activity, setActivity] = useState<any[]>([]);
   const [projs, setProjs] = useState<any[]>([]);
   const [tks, setTks] = useState<any[]>([]);
+  const [subs, setSubs] = useState<any[]>([]);
+  const [all, setAll] = useState<any[]>([]);
   const [tab, setTab] = useState<Tab>('overview');
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
@@ -35,13 +37,17 @@ export default function ClientProfile() {
     const c = await supabase.from('tt_clients').select('*').eq('id', id!).eq('org_id', orgId).maybeSingle();
     setClient(c.data);
     if (c.data) {
-      const [ct, nt, ac, pj, tk] = await Promise.all([
+      const [ct, nt, ac, pj, tk, sb, al] = await Promise.all([
         supabase.from('tt_client_contacts').select('*').eq('client_id', id!).order('is_primary', { ascending: false }),
         supabase.from('tt_client_notes').select('*').eq('client_id', id!).order('created_at', { ascending: false }),
         supabase.from('tt_activity_logs').select('*').eq('entity_type', 'client').eq('entity_id', id!).order('created_at', { ascending: false }).limit(50),
         supabase.from('tt_projects').select('id, name, status').eq('client_id', id!).order('created_at', { ascending: false }),
         supabase.from('tt_tasks').select('id, title, status').eq('client_id', id!).is('archived_at', null).order('created_at', { ascending: false }).limit(100),
+        // errors harmlessly (empty list) until migration 0010 adds parent_client_id
+        supabase.from('tt_clients').select('id, name, status, industry').eq('parent_client_id', id!).order('name'),
+        supabase.from('tt_clients').select('id, name').eq('org_id', orgId).neq('id', id!).neq('status', 'archived').order('name'),
       ]);
+      setSubs(sb.data ?? []); setAll(al.data ?? []);
       setProjs(pj.data ?? []); setTks(tk.data ?? []);
       setContacts(ct.data ?? []); setNotes(nt.data ?? []); setActivity(ac.data ?? []);
     }
@@ -67,6 +73,7 @@ export default function ClientProfile() {
     const { error } = await supabase.from('tt_clients').update({
       name: txt('name'), type: f.get('type'), email: txt('email'), phone: txt('phone'), industry: txt('industry'),
       website, source: txt('source'), address: txt('address'),
+      ...('parent_client_id' in client ? { parent_client_id: f.get('parent') || null } : {}),
       tags: String(f.get('tags') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
       updated_at: new Date().toISOString(),
     }).eq('id', id!).eq('org_id', orgId);
@@ -107,7 +114,7 @@ export default function ClientProfile() {
   return (
     <div className="card">
       <div className="row">
-        <h2>{client.name} <small>{label(client.type)} · </small><Badge v={client.status} /></h2>
+        <h2>{client.name} <small>{label(client.type)} · </small><Badge v={client.status} />{client.parent_client_id && <small className="parent-of"> Part of <Link to={`/clients/${client.parent_client_id}`}>{all.find((c) => c.id === client.parent_client_id)?.name ?? 'parent client'}</Link></small>}</h2>
         {canWrite && (
           <span>
             <select aria-label="Client status" value={client.status} onChange={(e) => setStatus(e.target.value)}>{CLIENT_STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
@@ -116,7 +123,7 @@ export default function ClientProfile() {
         )}
       </div>
       {error && <p role="alert">{error}</p>}
-      <Tabs prefix="client" label="Client sections" tabs={['overview', 'contacts', 'projects', 'tasks', 'documents', 'notes', 'activity'] as const} value={tab} onChange={setTab} />
+      <Tabs prefix="client" label="Client sections" tabs={['overview', 'sub_clients', 'contacts', 'projects', 'tasks', 'documents', 'notes', 'activity'] as const} value={tab} onChange={setTab} />
       <div {...panelProps('client', tab)}>
 
       {tab === 'overview' && (editing ? (
@@ -130,6 +137,7 @@ export default function ClientProfile() {
           <label>Source<input name="source" defaultValue={client.source ?? ''} /></label>
           <label>Tags (comma separated)<input name="tags" defaultValue={(client.tags ?? []).join(', ')} /></label>
           <label>Address<textarea name="address" rows={2} defaultValue={client.address ?? ''} /></label>
+          {'parent_client_id' in client && <label>Parent client<select name="parent" defaultValue={client.parent_client_id ?? ''}><option value="">None (top-level client)</option>{all.filter((c) => !subs.some((x) => x.id === c.id)).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
           <span className="row filters"><button type="submit">Save changes</button><button type="button" className="link" onClick={() => setEditing(false)}>Cancel</button></span>
         </form>
       ) : (<>
@@ -145,6 +153,26 @@ export default function ClientProfile() {
         </dl>
         {canWrite && <button className="pill-btn ghost" onClick={() => setEditing(true)}>Edit details</button>}
       </>))}
+
+      {tab === 'sub_clients' && (<>
+        {subs.length === 0 ? <p className="muted">No sub-clients. Add divisions or brands of {client.name} here.</p> : (
+          <table><thead><tr><th>Name</th><th>Industry</th><th>Status</th></tr></thead>
+            <tbody>{subs.map((x) => <tr key={x.id}><td><Link to={`/clients/${x.id}`}>{x.name}</Link></td><td>{x.industry ?? '—'}</td><td><Badge v={x.status} /></td></tr>)}</tbody></table>)}
+        {canWrite && 'parent_client_id' in client && (
+          <form className="row filters" onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget, nm = String(new FormData(form).get('name')).trim();
+            if (!nm) return;
+            const { error: err } = await supabase.from('tt_clients').insert({ org_id: orgId, owner_id: uid, name: nm, type: client.type, status: 'active', parent_client_id: id, industry: client.industry });
+            if (err) return setError(err.message);
+            await logActivity(orgId, uid, 'client', id!, 'sub_client_added', { name: nm });
+            form.reset(); load();
+          }}>
+            <input name="name" aria-label="Sub-client name" placeholder={`New sub-client of ${client.name}`} required maxLength={200} />
+            <button type="submit">Add sub-client</button>
+          </form>)}
+        {!('parent_client_id' in client) && <p className="muted">Sub-clients need the database update (migration 0010).</p>}
+      </>)}
 
       {tab === 'contacts' && (
         <>

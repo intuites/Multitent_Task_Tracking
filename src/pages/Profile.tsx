@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle, BadgeCheck, Briefcase, Building2, CalendarClock, Check, CheckCircle2, Clock, Eye, EyeOff, KeyRound, ListTodo,
-  LogOut, Mail, MapPin, Pencil, Phone, ShieldCheck, Users, X,
+  AlertTriangle, Briefcase, Camera, Building2, CalendarClock, Check, CheckCircle2, Clock, Eye, EyeOff, KeyRound, ListTodo,
+  LogOut, Mail, MapPin, Pencil, Phone, ShieldCheck, Trash2, Users,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { Badge, fmt, isOverdue, label } from '../lib/ui';
-import { MATRIX, type Action } from '../../api/_lib/permissions';
-import { ACTION_TEXT, ROLE_TEXT } from '../lib/roles';
-import { initials } from '../components/Frame';
+import { ROLE_TEXT } from '../lib/roles';
+import { Avatar } from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
@@ -17,7 +16,6 @@ import { PageSkeleton } from '../components/Skeleton';
 type Tab = 'overview' | 'work' | 'details' | 'security';
 const TABS: { id: Tab; name: string }[] = [{ id: 'overview', name: 'Overview' }, { id: 'work', name: 'My work' }, { id: 'details', name: 'Edit details' }, { id: 'security', name: 'Security' }];
 const FIELDS = ['full_name', 'job_title', 'department', 'phone', 'location', 'bio'] as const;
-const ACTIONS = Object.keys(ACTION_TEXT) as Action[];
 
 // rough strength guide for the new-password field: length plus character variety
 const strength = (p: string) => {
@@ -35,6 +33,7 @@ export default function Profile() {
   const [teams, setTeams] = useState<string[]>([]);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [pw, setPw] = useState(''), [showPw, setShowPw] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
     const [pr, mb, tk, tm, tt] = await Promise.all([
@@ -63,7 +62,6 @@ export default function Profile() {
   const dueSoon = open.filter((t) => t.due_date && new Date(t.due_date).getTime() <= weekEnd && !isOverdue(t));
   const rate = tasks.length ? Math.round((done.length / tasks.length) * 100) : 0;
   const roleInfo = ROLE_TEXT[role as keyof typeof ROLE_TEXT];
-  const allowed = new Set(MATRIX[role]);
 
   async function saveDetails(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -87,6 +85,34 @@ export default function Profile() {
     const { error } = await supabase.from('tt_profiles').update({ full_name: v }).eq('user_id', uid);
     setMsg(error ? { kind: 'error', text: error.message } : { kind: 'ok', text: 'Name saved.' });
     if (!error) load();
+  }
+  async function upload(file: File) {
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) return setMsg({ kind: 'error', text: 'Use a PNG, JPG, WebP or GIF image.' });
+    if (file.size > 2 * 1024 * 1024) return setMsg({ kind: 'error', text: 'Photos can be up to 2 MB.' });
+    setUploading(true);
+    // new file name each time so browsers don't keep showing the cached old photo
+    const path = `${uid}/avatar-${Date.now()}.${file.type.split('/')[1]}`;
+    const up = await supabase.storage.from('tt-avatars').upload(path, file, { upsert: false, contentType: file.type });
+    if (up.error) { setUploading(false); return setMsg({ kind: 'error', text: /bucket|not found/i.test(up.error.message) ? 'Photo upload needs the database update (migration 0010) first.' : up.error.message }); }
+    const url = supabase.storage.from('tt-avatars').getPublicUrl(path).data.publicUrl;
+    const old = p.avatar_url as string | null;
+    const { error } = await supabase.from('tt_profiles').update({ avatar_url: url }).eq('user_id', uid);
+    setUploading(false);
+    if (error) return setMsg({ kind: 'error', text: error.message });
+    if (old) { const prev = old.split('/tt-avatars/')[1]; if (prev) await supabase.storage.from('tt-avatars').remove([prev]); }
+    setMsg({ kind: 'ok', text: 'Photo updated.' });
+    window.dispatchEvent(new Event('tt-profile'));
+    load();
+  }
+  async function removePhoto() {
+    if (!(await ask({ title: 'Remove profile photo?', message: 'Your initials will show instead.', confirmLabel: 'Remove photo', danger: true })).ok) return;
+    const prev = String(p.avatar_url ?? '').split('/tt-avatars/')[1];
+    const { error } = await supabase.from('tt_profiles').update({ avatar_url: null }).eq('user_id', uid);
+    if (error) return setMsg({ kind: 'error', text: error.message });
+    if (prev) await supabase.storage.from('tt-avatars').remove([prev]);
+    setMsg({ kind: 'ok', text: 'Photo removed.' });
+    window.dispatchEvent(new Event('tt-profile'));
+    load();
   }
   async function changePassword(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -112,7 +138,14 @@ export default function Profile() {
       <header className="card pf-hero">
         <LiquidBg tone="deep" />
         <div className="pf-id">
-          <span className="pf-avatar" aria-hidden="true">{initials(name)}</span>
+          <div className="pf-photo">
+            <Avatar name={name} url={p.avatar_url} className="pf-avatar" />
+            <label className="pf-cam" title="Change photo">
+              <Camera size={16} aria-hidden="true" /><span className="sr-only">Upload profile photo</span>
+              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) upload(f); }} disabled={uploading} />
+            </label>
+            {uploading && <span className="pf-uploading" aria-live="polite">Uploading…</span>}
+          </div>
           <div className="pf-name">
             <h2>{name}</h2>
             <p>{[p.job_title, p.department].filter(Boolean).join(' · ') || roleInfo?.title}</p>
@@ -124,7 +157,10 @@ export default function Profile() {
             </div>
           </div>
         </div>
-        <button type="button" className="pill-btn light pf-edit" onClick={() => setTab('details')}><Pencil size={15} aria-hidden="true" />Edit profile</button>
+        <div className="pf-hero-actions">
+          {p.avatar_url && <button type="button" className="pill-btn g-ghost" onClick={removePhoto}><Trash2 size={15} aria-hidden="true" />Remove photo</button>}
+          <button type="button" className="pill-btn light pf-edit" onClick={() => setTab('details')}><Pencil size={15} aria-hidden="true" />Edit profile</button>
+        </div>
       </header>
 
       <div className="pf-stats">
@@ -141,21 +177,7 @@ export default function Profile() {
 
       <div key={tab} className="pf-panel">
         {tab === 'overview' && (
-          <div className="pf-grid">
-            <section className="card pf-role" aria-labelledby="role-h">
-              <span className="pf-role-ico"><BadgeCheck size={22} aria-hidden="true" /></span>
-              <h3 id="role-h">Your role: {roleInfo?.title ?? label(role)}</h3>
-              <p className="muted">{roleInfo?.blurb}</p>
-              <ul className="perm-list">
-                {ACTIONS.map((a, i) => (
-                  <li key={a} className={allowed.has(a) ? 'yes' : 'no'} style={{ '--i': i } as React.CSSProperties}>
-                    {allowed.has(a) ? <Check size={15} aria-hidden="true" /> : <X size={14} aria-hidden="true" />}
-                    <span>{ACTION_TEXT[a]}</span><span className="sr-only">{allowed.has(a) ? '(allowed)' : '(not allowed)'}</span>
-                  </li>))}
-              </ul>
-              {role !== 'owner' && <p className="muted pf-hint">Need more access? Ask an owner or admin to change your role in Employees &amp; Teams.</p>}
-            </section>
-            <div className="pf-col">
+          <div className="pf-grid even">
               <section className="card" aria-labelledby="about-h">
                 <h3 id="about-h">About</h3>
                 {p.bio ? <p className="pf-bio">{p.bio}</p> : <p className="muted">Add a short bio so teammates know what you work on.</p>}
@@ -170,7 +192,6 @@ export default function Profile() {
                 <h3 id="teams-h"><Users size={16} aria-hidden="true" /> Teams</h3>
                 {teams.length ? <div className="tag-row">{teams.map((t) => <span key={t} className="tag">{t}</span>)}</div> : <p className="muted">You’re not on a team yet.</p>}
               </section>
-            </div>
           </div>
         )}
 

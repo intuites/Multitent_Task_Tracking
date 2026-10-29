@@ -23,6 +23,9 @@ export default function Clients() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [all, setAll] = useState<any[]>([]);
+  useEffect(() => { supabase.from('tt_clients').select('id, name').eq('org_id', orgId).neq('status', 'archived').order('name').then(({ data }) => setAll(data ?? [])); }, [orgId]);
+  const nameOf = (id?: string | null) => all.find((c) => c.id === id)?.name;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,6 +53,8 @@ export default function Clients() {
       name: String(f.get('name')).trim(), type: f.get('type'), status: f.get('status'),
       email: String(f.get('email')).trim() || null, phone: String(f.get('phone')).trim() || null,
       industry: String(f.get('industry')).trim() || null,
+      // only sent when chosen, so creating clients still works before migration 0010
+      ...(f.get('parent') ? { parent_client_id: f.get('parent') } : {}),
     }).select('id').single();
     if (error) return setError(error.message);
     await logActivity(orgId, session!.user.id, 'client', data.id, 'created');
@@ -71,6 +76,7 @@ export default function Clients() {
           <label>Email<input name="email" type="email" /></label>
           <label>Phone<input name="phone" /></label>
           <label>Industry<input name="industry" /></label>
+          <label>Parent client<select name="parent" defaultValue=""><option value="">None (top-level client)</option>{all.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
           <button type="submit">Save</button>
         </form>
       )}
@@ -86,9 +92,9 @@ export default function Clients() {
       {error && <p role="alert">{error}</p>}
       {loading ? <ListSkeleton /> : rows.length === 0 ? <p>No clients found.{canWrite && ' Use “New client” to add one.'}</p> : (
         <table>
-          <thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Email</th><th>Phone</th></tr></thead>
+          <thead><tr><th>Name</th><th>Parent</th><th>Type</th><th>Status</th><th>Email</th><th>Phone</th></tr></thead>
           <tbody>{rows.map((c) => (
-            <tr key={c.id}><td><Link to={`/clients/${c.id}`}>{c.name}</Link></td><td>{label(c.type)}</td><td><Badge v={c.status} /></td><td>{c.email}</td><td>{c.phone}</td></tr>
+            <tr key={c.id}><td><Link to={`/clients/${c.id}`}>{c.name}</Link></td><td>{c.parent_client_id ? <Link to={`/clients/${c.parent_client_id}`} className="muted">{nameOf(c.parent_client_id) ?? 'Parent'}</Link> : '—'}</td><td>{label(c.type)}</td><td><Badge v={c.status} /></td><td>{c.email}</td><td>{c.phone}</td></tr>
           ))}</tbody>
         </table>
       )}

@@ -69,31 +69,6 @@ export function ActivityLogs() {
   );
 }
 
-export function Settings() {
-  const { membership, refresh } = useAuth();
-  const orgId = membership!.org_id;
-  const [msg, setMsg] = useState('');
-  async function save(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz') }).eq('id', orgId);
-    if (!error) { await supabase.from('tt_activity_logs').insert({ org_id: orgId, entity_type: 'organization', entity_id: orgId, action: 'settings_updated', actor_id: (await supabase.auth.getUser()).data.user?.id }); refresh(); }
-    setMsg(error ? (error.message.includes('time zone') ? 'Unknown time zone' : error.message) : 'Saved.');
-  }
-  return (
-    <div className="card">
-      <h2>Organization Settings</h2>
-      <form className="grid" onSubmit={save}>
-        <label>Name<input name="name" defaultValue={membership!.org_name} required /></label>
-        <label>Time zone (IANA, e.g. America/New_York)<input name="tz" defaultValue={membership!.time_zone} required /></label>
-        <button type="submit">Save</button>
-      </form>
-      {msg && <p role="status">{msg}</p>}
-      <p><small>Recurrence and reminders use this time zone. Logo/branding upload is not implemented.</small></p>
-    </div>
-  );
-}
-
 export function Platform() {
   const [s, setS] = useState<any>(null);
   const [err, setErr] = useState('');

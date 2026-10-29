@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { reducedMotion } from './Liquid';
 import { ask } from './Dialog';
-import { Bell, CheckCheck, ChevronDown, LogOut, Menu, Moon, Sun, X, type LucideIcon } from 'lucide-react';
+import { Bell, Check, CheckCheck, ChevronDown, ChevronsUpDown, LogOut, Menu, Moon, Plus, Sun, X, type LucideIcon } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/theme';
@@ -20,6 +20,13 @@ export function ThemeToggle() {
 export interface FrameItem { label: string; icon: LucideIcon; to?: string; onClick?: () => void; active?: boolean; badge?: number }
 export interface FrameGroup { title: string; items: FrameItem[] }
 export interface BellProps { userId: string; unread: number; onChanged: () => void; allTo?: string; onAll?: () => void }
+
+/** Profile photo when there is one, initials otherwise. */
+export const Avatar = ({ name, url, className = 'avatar' }: { name: string; url?: string | null; className?: string }) => (
+  <span className={className} aria-hidden="true">{url ? <img src={url} alt="" /> : initials(name)}</span>
+);
+
+export interface OrgOption { id: string; name: string; role: string }
 
 export const initials = (s: string) => s.split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
 
@@ -134,9 +141,40 @@ function NotificationBell({ userId, unread, onChanged, allTo, onAll }: BellProps
   );
 }
 
+export interface FrameUser { name: string; email: string; role?: string; avatar?: string | null }
+
+// Organization name at the top of the sidebar; opens a list of every org the user belongs to.
+function OrgSwitcher({ brand, orgs, current, onSwitch, onCreate }: { brand: string; orgs: OrgOption[]; current?: string; onSwitch: (id: string) => void; onCreate?: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = () => setOpen(false);
+  useDismiss(ref, open, close);
+  return (
+    <div className="org-switch" ref={ref}>
+      <button type="button" className="brand org-btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span className="mark" aria-hidden="true">{initials(brand).charAt(0)}</span><span className="org-name">{brand}</span>
+        <ChevronsUpDown size={16} className="org-chev" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="pop org-pop" role="menu" aria-label="Switch organization">
+          <p className="org-pop-title">Your organizations</p>
+          {orgs.map((o) => (
+            <button key={o.id} role="menuitemradio" aria-checked={o.id === current} type="button" className="menu-item org-item" onClick={() => { close(); if (o.id !== current) onSwitch(o.id); }}>
+              <span className="mark sm" aria-hidden="true">{initials(o.name).charAt(0)}</span>
+              <span className="org-text"><b>{o.name}</b><small>{o.role}</small></span>
+              {o.id === current && <Check size={16} className="org-check" aria-hidden="true" />}
+            </button>
+          ))}
+          {onCreate && <button role="menuitem" type="button" className="menu-item org-new" onClick={() => { close(); onCreate(); }}><Plus size={16} aria-hidden="true" />Create organization</button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export interface MenuEntry { label: string; icon: LucideIcon; to?: string; onClick?: () => void }
 
-function ProfileMenu({ user, menu, onSignOut }: { user: { name: string; email: string; role?: string }; menu: MenuEntry[]; onSignOut: () => void }) {
+function ProfileMenu({ user, menu, onSignOut }: { user: FrameUser; menu: MenuEntry[]; onSignOut: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const close = () => setOpen(false);
@@ -144,7 +182,7 @@ function ProfileMenu({ user, menu, onSignOut }: { user: { name: string; email: s
   return (
     <div className="pop-wrap" ref={ref}>
       <button type="button" className="me" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span className="avatar" aria-hidden="true">{initials(user.name)}</span>
+        <Avatar name={user.name} url={user.avatar} />
         <span className="me-text"><b>{user.name}</b><small>{user.role ?? user.email}</small></span>
         <ChevronDown size={16} className="me-chev" aria-hidden="true" />
       </button>
@@ -161,9 +199,10 @@ function ProfileMenu({ user, menu, onSignOut }: { user: { name: string; email: s
   );
 }
 
-export default function Frame({ brand, groups, footer, title, search, action, bell, user, menu, onSignOut, closeKey, children }: {
+export default function Frame({ brand, groups, footer, title, search, action, bell, user, menu, onSignOut, closeKey, children, orgs, currentOrg, onSwitchOrg, onCreateOrg }: {
   brand: string; groups: FrameGroup[]; footer?: ReactNode; title: string; search?: ReactNode; action?: ReactNode; bell: BellProps;
-  user: { name: string; email: string; role?: string }; menu: MenuEntry[]; onSignOut: () => void; closeKey: string; children: ReactNode;
+  user: FrameUser; menu: MenuEntry[]; onSignOut: () => void; closeKey: string; children: ReactNode;
+  orgs?: OrgOption[]; currentOrg?: string; onSwitchOrg?: (id: string) => void; onCreateOrg?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [closeKey]);
@@ -182,7 +221,8 @@ export default function Frame({ brand, groups, footer, title, search, action, be
   return (
     <div className="app">
       <aside id="side" className={open ? 'side open' : 'side'}>
-        <div className="brand"><span className="mark" aria-hidden="true">{initials(brand).charAt(0)}</span><span>{brand}</span></div>
+        {orgs && onSwitchOrg ? <OrgSwitcher brand={brand} orgs={orgs} current={currentOrg} onSwitch={onSwitchOrg} onCreate={onCreateOrg} />
+          : <div className="brand"><span className="mark" aria-hidden="true">{initials(brand).charAt(0)}</span><span>{brand}</span></div>}
         <nav aria-label="Main" ref={navRef}>
           <span className={`side-flow ${marker.phase}`} aria-hidden="true"
             style={{ transform: `translateY(${marker.top}px)`, height: marker.height, opacity: marker.on ? 1 : 0 }} />

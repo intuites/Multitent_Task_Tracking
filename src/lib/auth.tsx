@@ -3,11 +3,15 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase, configured, authLinkType } from './supabase';
 import type { Role } from '../../api/_lib/permissions';
 
-interface Membership { org_id: string; role: Role; org_name: string; time_zone: string }
+export interface Membership { org_id: string; role: Role; org_name: string; time_zone: string }
+const ORG_KEY = 'tt-org';
 export interface Portal { client_id: string; contact_id: string; client_name: string; can_approve: boolean; full_name: string }
 interface Ctx {
   session: Session | null;
   membership: Membership | null;
+  /** every organization this user belongs to; membership is the active one */
+  memberships: Membership[];
+  switchOrg: (orgId: string) => void;
   portal: Portal | null;
   platformAdmin: boolean;
   loading: boolean;
@@ -17,12 +21,13 @@ interface Ctx {
   refresh: () => void;
   signOut: () => Promise<void>;
 }
-const AuthCtx = createContext<Ctx>({ session: null, membership: null, portal: null, platformAdmin: false, loading: true, passwordSetup: null, finishPasswordSetup: () => {}, refresh: () => {}, signOut: async () => {} });
+const AuthCtx = createContext<Ctx>({ session: null, membership: null, memberships: [], switchOrg: () => {}, portal: null, platformAdmin: false, loading: true, passwordSetup: null, finishPasswordSetup: () => {}, refresh: () => {}, signOut: async () => {} });
 export const useAuth = () => useContext(AuthCtx);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [membership, setMembership] = useState<Membership | null>(null);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
   const [portal, setPortal] = useState<Portal | null>(null);
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [loading, setLoading] = useState(configured);
@@ -31,6 +36,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authLinkType === 'recovery' || authLinkType === 'invite' ? authLinkType : null);
   const finishPasswordSetup = useCallback(() => setPasswordSetup(null), []);
   const refresh = useCallback(() => setTick((n) => n + 1), []);
+  // remember the choice per browser, then reload so every page re-reads data for the new org
+  const switchOrg = useCallback((orgId: string) => {
+    try { localStorage.setItem(ORG_KEY, orgId); } catch { /* ignore */ }
+    window.location.assign('/');
+  }, []);
 
   useEffect(() => {
     if (!configured) return;
@@ -43,13 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!session) { setMembership(null); setPortal(null); return; }
+    if (!session) { setMembership(null); setMemberships([]); setPortal(null); return; }
     (async () => {
       // RLS limits these reads to the caller's own rows; roles are never taken from the browser.
       const { data } = await supabase.from('tt_org_members').select('org_id, role, organizations:tt_organizations(name, time_zone)')
-        .eq('user_id', session.user.id).eq('active', true).order('created_at').limit(1);
-      const m = data?.[0] as any;
-      setMembership(m ? { org_id: m.org_id, role: m.role, org_name: m.organizations?.name ?? '', time_zone: m.organizations?.time_zone ?? 'UTC' } : null);
+        .eq('user_id', session.user.id).eq('active', true).order('created_at');
+      const all: Membership[] = (data ?? []).map((m: any) => ({ org_id: m.org_id, role: m.role, org_name: m.organizations?.name ?? '', time_zone: m.organizations?.time_zone ?? 'UTC' }));
+      let saved: string | null = null;
+      try { saved = localStorage.getItem(ORG_KEY); } catch { /* storage blocked: fall back to the first org */ }
+      const m = all.find((x) => x.org_id === saved) ?? all[0];
+      setMemberships(all);
+      setMembership(m ?? null);
       if (!m) {
         const { data: c } = await supabase.from('tt_client_contacts').select('id, client_id, full_name, can_approve, clients:tt_clients(name)')
           .eq('user_id', session.user.id).eq('portal_access', true).eq('status', 'active').limit(1);
@@ -63,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session, tick]);
 
   return (
-    <AuthCtx.Provider value={{ session, membership, portal, platformAdmin, loading, passwordSetup, finishPasswordSetup, refresh, signOut: async () => { await supabase.auth.signOut(); } }}>
+    <AuthCtx.Provider value={{ session, membership, memberships, switchOrg, portal, platformAdmin, loading, passwordSetup, finishPasswordSetup, refresh, signOut: async () => { await supabase.auth.signOut(); } }}>
       {children}
     </AuthCtx.Provider>
   );

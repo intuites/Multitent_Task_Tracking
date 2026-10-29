@@ -9,7 +9,7 @@ import { Badge, dateToTs, fmt, fmtTime, isOverdue, label, rpc, usePeople } from 
 import FilePanel from '../components/FilePanel';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
-import { initials } from '../components/Frame';
+import { Avatar, initials } from '../components/Frame';
 
 const toDateInput = (d?: string | null) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
@@ -20,20 +20,22 @@ export default function TaskDetail() {
   const manager = can(role, 'task:write');
   const { active, name } = usePeople(orgId);
   const [t, setT] = useState<any>(null);
-  const [d, setD] = useState<any>({ assignees: [], checklist: [], blockedBy: [], blocks: [], comments: [], history: [], esc: [], activity: [], contacts: [], recur: null });
+  const [d, setD] = useState<any>({ assignees: [], checklist: [], subtasks: [], parent: null, blockedBy: [], blocks: [], comments: [], history: [], esc: [], activity: [], contacts: [], recur: null });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState(false);
+  const [subForm, setSubForm] = useState(false);
   const [escForm, setEscForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [otherTasks, setOtherTasks] = useState<any[]>([]);
 
   const load = useCallback(async () => {
     const tr = await supabase.from('tt_tasks').select('*, clients:tt_clients(name), projects:tt_projects(name)').eq('id', id!).eq('org_id', orgId).maybeSingle();
+    setSubForm(false);
     setT(tr.data);
     if (tr.data) {
       const q = (tbl: string) => supabase.from(tbl).select('*');
-      const [as, ck, dp, db, cm, hi, es, ac, rc] = await Promise.all([
+      const [as, ck, dp, db, cm, hi, es, ac, rc, sb, pa] = await Promise.all([
         q('tt_task_assignees').eq('task_id', id!),
         q('tt_task_checklist_items').eq('task_id', id!).order('position'),
         q('tt_task_dependencies').eq('task_id', id!), q('tt_task_dependencies').eq('blocked_by_id', id!),
@@ -42,12 +44,14 @@ export default function TaskDetail() {
         q('tt_escalations').eq('task_id', id!).order('raised_at', { ascending: false }),
         q('tt_activity_logs').eq('entity_type', 'task').eq('entity_id', id!).order('created_at', { ascending: false }).limit(30),
         q('tt_task_recurrence').eq('task_id', id!).maybeSingle(),
+        supabase.from('tt_tasks').select('id, title, status, start_date, due_date, tt_task_assignees(user_id)').eq('parent_task_id', id!).is('archived_at', null).order('start_date', { nullsFirst: false }),
+        tr.data.parent_task_id ? supabase.from('tt_tasks').select('id, title').eq('id', tr.data.parent_task_id).maybeSingle() : Promise.resolve({ data: null }),
       ]);
       const depIds = [...(dp.data ?? []).map((x: any) => x.blocked_by_id), ...(db.data ?? []).map((x: any) => x.task_id)];
       const { data: dt } = depIds.length ? await supabase.from('tt_tasks').select('id, title, status').in('id', depIds) : { data: [] as any[] };
       const tm = new Map((dt ?? []).map((x: any) => [x.id, x]));
       setD({
-        assignees: as.data ?? [], checklist: ck.data ?? [],
+        assignees: as.data ?? [], checklist: ck.data ?? [], subtasks: sb.data ?? [], parent: pa.data,
         blockedBy: (dp.data ?? []).map((x: any) => tm.get(x.blocked_by_id)).filter(Boolean),
         blocks: (db.data ?? []).map((x: any) => tm.get(x.task_id)).filter(Boolean),
         comments: cm.data ?? [], history: hi.data ?? [], esc: es.data ?? [], activity: ac.data ?? [], recur: rc.data,
@@ -116,6 +120,19 @@ export default function TaskDetail() {
       form.reset();
     });
   };
+  const addSubtask = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget), title = String(f.get('title')).trim(), who = String(f.get('assignee') || '');
+    if (!title) return;
+    run(async () => {
+      const { data, error } = await supabase.from('tt_tasks').insert({
+        org_id: orgId, parent_task_id: id, client_id: t.client_id, project_id: t.project_id, department_id: t.department_id ?? undefined,
+        title, priority: t.priority, start_date: dateToTs(f.get('start')), due_date: dateToTs(f.get('due')), created_by: uid,
+      }).select('id').single();
+      if (error) throw new Error(error.message);
+      if (who) await rpc('tt_assign', { p_task: data.id, p_user: who, p_add: true });
+    });
+  };
   const addItem = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget, title = String(new FormData(form).get('title')).trim();
@@ -149,7 +166,8 @@ export default function TaskDetail() {
 
   return (
     <div className="td">
-      <Link to="/tasks" className="back-link"><ArrowLeft size={16} aria-hidden="true" />All tasks</Link>
+      {d.parent ? <Link to={`/tasks/${d.parent.id}`} className="back-link"><ArrowLeft size={16} aria-hidden="true" />Subtask of {d.parent.title}</Link>
+        : <Link to="/tasks" className="back-link"><ArrowLeft size={16} aria-hidden="true" />All tasks</Link>}
 
       <header className={`card td-hero ${overdue ? 'is-overdue' : ''}`}>
         <div className="td-hero-top">
@@ -193,6 +211,30 @@ export default function TaskDetail() {
               </form>
             ) : t.description ? <p className="td-desc">{t.description}</p> : <p className="muted">No description yet.{manager && ' Use Edit to add one.'}</p>}
             {!edit && t.tags.length > 0 && <div className="tag-row">{t.tags.map((g: string) => <span key={g} className="tag">#{g}</span>)}</div>}
+          </section>
+
+          <section className="card" aria-labelledby="sub-h">
+            <div className="panel-head"><h3 id="sub-h">Subtasks</h3>{d.subtasks.length > 0 && <small className="muted">{d.subtasks.filter((s: any) => s.status === 'completed').length} of {d.subtasks.length} done</small>}</div>
+            {d.subtasks.length === 0 ? <p className="muted">{manager ? 'Split this work into subtasks, each with its own owner and start date.' : 'No subtasks.'}</p> : (
+              <ul className="sub-list">{d.subtasks.map((s: any, i: number) => (
+                <li key={s.id} style={{ '--i': i } as React.CSSProperties}>
+                  <Link to={`/tasks/${s.id}`} className="sub-item">
+                    <span className={`sub-dot ${s.status}`} aria-hidden="true" />
+                    <b>{s.title}</b>
+                    <small className={isOverdue(s) ? 'overdue' : 'muted'}>{s.start_date && new Date(s.start_date) > new Date() ? `Starts ${fmt(s.start_date)}` : s.due_date ? `Due ${fmt(s.due_date)}` : ''}</small>
+                    <span className="sub-who">{s.tt_task_assignees.slice(0, 3).map((a: any) => <Avatar key={a.user_id} name={name(a.user_id)} className="avatar xs" />)}</span>
+                    <Badge v={s.status} />
+                  </Link>
+                </li>))}</ul>)}
+            {manager && (subForm ? (
+              <form className="sub-add" onSubmit={addSubtask}>
+                <input name="title" aria-label="Subtask title" placeholder="Subtask title" required maxLength={200} autoFocus />
+                <select name="assignee" aria-label="Subtask assignee" defaultValue=""><option value="">Unassigned</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+                <label>Start<input type="date" name="start" /></label>
+                <label>Due<input type="date" name="due" /></label>
+                <span className="row filters"><button type="submit"><Plus size={15} aria-hidden="true" />Add subtask</button><button type="button" className="link" onClick={() => setSubForm(false)}>Cancel</button></span>
+              </form>
+            ) : <button type="button" className="pill-btn ghost" onClick={() => setSubForm(true)}><Plus size={15} aria-hidden="true" />Add subtask</button>)}
           </section>
 
           <section className="card" aria-labelledby="ck-h">

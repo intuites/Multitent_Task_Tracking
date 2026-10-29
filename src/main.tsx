@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, BookOpen, Plus, Settings as SettingsIcon, Shield, UserCircle } from 'lucide-react';
 import { AuthProvider, useAuth } from './lib/auth';
 import { configured, supabase } from './lib/supabase';
@@ -30,23 +30,34 @@ const Reports = lazy(() => import('./pages/Reports'));
 const Portal = lazy(() => import('./pages/Portal'));
 const Guide = lazy(() => import('./pages/Guide'));
 const ProfilePage = lazy(() => import('./pages/Profile'));
-const misc = (k: 'ActivityLogs' | 'Contacts' | 'Platform' | 'Settings') => lazy(() => import('./pages/Misc').then((m) => ({ default: m[k] })));
-const ActivityLogs = misc('ActivityLogs'), Contacts = misc('Contacts'), Platform = misc('Platform'), Settings = misc('Settings');
+const NewOrg = lazy(() => import('./pages/NewOrg'));
+const Templates = lazy(() => import('./pages/Templates'));
+const misc = (k: 'ActivityLogs' | 'Contacts' | 'Platform') => lazy(() => import('./pages/Misc').then((m) => ({ default: m[k] })));
+const ActivityLogs = misc('ActivityLogs'), Contacts = misc('Contacts'), Platform = misc('Platform');
+const Settings = lazy(() => import('./pages/OrgSettings'));
 import '@fontsource-variable/plus-jakarta-sans';
 import './styles.css';
 import { Boot, PageSkeleton } from './components/Skeleton';
 
 function Shell() {
-  const { membership, session, platformAdmin, signOut } = useAuth();
+  const { membership, memberships, switchOrg, session, platformAdmin, signOut } = useAuth();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const uid = session!.user.id;
   const [unread, setUnread] = useState(0);
   const [mine, setMine] = useState(0);
   const [name, setName] = useState('');
+  const [avatar, setAvatar] = useState<string | null>(null);
   const items = navFor(membership?.role);
   const crumb = NAV.find((n) => n.path === pathname || (n.path !== '/' && pathname.startsWith(n.path + '/')))?.label ?? (pathname === '/platform' ? 'Platform' : 'Not found');
   useEffect(() => { document.title = `${crumb} · ${membership?.org_name || 'Taskify'}`; }, [crumb, membership?.org_name]);
-  useEffect(() => { supabase.from('tt_profiles').select('full_name').eq('user_id', uid).maybeSingle().then(({ data }) => setName(data?.full_name ?? '')); }, [uid]);
+  useEffect(() => {
+    // select('*') so this works before migration 0010 adds avatar_url
+    const load = () => supabase.from('tt_profiles').select('*').eq('user_id', uid).maybeSingle().then(({ data }) => { setName(data?.full_name ?? ''); setAvatar(data?.avatar_url ?? null); });
+    load();
+    window.addEventListener('tt-profile', load);
+    return () => window.removeEventListener('tt-profile', load);
+  }, [uid]);
 
   const refresh = useCallback(() => {
       supabase.from('tt_notifications').select('id', { count: 'exact', head: true }).eq('user_id', uid).is('read_at', null).then(({ count }) => setUnread(count ?? 0));
@@ -72,12 +83,14 @@ function Shell() {
     <Frame brand={membership?.org_name || 'Taskify'} groups={groups} title={crumb} search={<Search />}
       action={can(membership!.role, 'task:write') ? <Link to="/tasks?new=1" className="pill-btn top-new"><Plus size={16} aria-hidden="true" /><span>New task</span></Link> : undefined}
       bell={{ userId: uid, unread, onChanged: refresh, allTo: '/notifications' }}
-      user={{ name: name || session!.user.email!, email: session!.user.email!, role: `${label(membership!.role)} · ${membership!.org_name}` }}
+      user={{ name: name || session!.user.email!, email: session!.user.email!, role: `${label(membership!.role)} · ${membership!.org_name}`, avatar }}
+      orgs={memberships.map((m) => ({ id: m.org_id, name: m.org_name, role: label(m.role) }))} currentOrg={membership!.org_id}
+      onSwitchOrg={switchOrg} onCreateOrg={() => navigate('/organizations/new')}
       menu={[
         { label: 'My profile', icon: UserCircle, to: '/profile' },
         { label: 'Notification settings', icon: Bell, to: '/notifications' },
         { label: 'Help & guide', icon: BookOpen, to: '/guide' },
-        ...(can(membership!.role, 'members:manage') ? [{ label: 'Organization settings', icon: SettingsIcon, to: '/settings' }] : []),
+        { label: 'Organization settings', icon: SettingsIcon, to: '/settings' },
       ]}
       onSignOut={signOut} closeKey={pathname}
       footer={(
@@ -127,9 +140,11 @@ function Gate() {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/reports" element={<Guard need="report:read"><Reports /></Guard>} />
         <Route path="/activity" element={<Guard need="task:write"><ActivityLogs /></Guard>} />
-        <Route path="/settings" element={<Guard need="members:manage"><Settings /></Guard>} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/guide" element={<Guide />} />
+        <Route path="/organizations/new" element={<NewOrg />} />
+        <Route path="/templates" element={<Guard need="task:write"><Templates /></Guard>} />
         <Route path="/platform" element={platformAdmin ? <Platform /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Pending name="Not found" />} />
       </Route>

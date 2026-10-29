@@ -12,6 +12,7 @@ import SetPassword from './pages/SetPassword';
 import Dashboard from './pages/Dashboard';
 import Search from './components/Search';
 import { DialogHost } from './components/Dialog';
+import SelectEnhancer from './components/SelectEnhancer';
 import Frame, { type FrameGroup } from './components/Frame';
 import { label } from './lib/ui';
 
@@ -154,5 +155,5 @@ function Gate() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  <BrowserRouter><AuthProvider><Gate /><DialogHost /></AuthProvider></BrowserRouter>,
+  <BrowserRouter><AuthProvider><Gate /><DialogHost /><SelectEnhancer /></AuthProvider></BrowserRouter>,
 );

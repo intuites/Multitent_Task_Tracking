@@ -1213,3 +1213,26 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
 @media (max-width: 800px) { .nt-sub-list li { grid-template-columns: 28px 1fr auto; } .nt-sub-list li > select, .nt-sub-list li > input[type=date] { grid-column: 2 / -1; } .nt-actions { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .nt-card, .nt-sub-list li { animation: none !important; } }
 .nt label.inline { display: flex; align-items: center; gap: 8px; }
+
+/* ---------- custom dropdown list (SelectEnhancer) ---------- */
+.sel-pop { position: fixed; z-index: 1000; display: flex; flex-direction: column; padding: 6px; border-radius: 14px; background: var(--surface);
+  border: 1px solid var(--line); box-shadow: 0 18px 40px rgb(18 26 22 / .16), 0 2px 6px rgb(18 26 22 / .06); transform-origin: top center;
+  animation: sel-in .18s var(--ease) both; }
+.sel-pop.up { transform-origin: bottom center; animation-name: sel-in-up; }
+@keyframes sel-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+@keyframes sel-in-up { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+.sel-search { position: relative; margin-bottom: 6px; }
+.sel-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.sel-search input { width: 100%; min-height: 36px; padding-left: 33px; border-radius: 10px; border-color: var(--line); background: var(--surface-2); }
+.sel-pop ul { list-style: none; margin: 0; padding: 0; overflow-y: auto; outline: none; overscroll-behavior: contain; }
+.sel-pop li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-radius: 9px; cursor: pointer;
+  font-size: 14px; line-height: 1.35; transition: background-color .12s; }
+.sel-pop li[data-active=true] { background: var(--surface-2); }
+.sel-pop li[aria-selected=true] { color: var(--brand); font-weight: 600; background: var(--client-tint); }
+.sel-pop li[aria-selected=true][data-active=true] { background: color-mix(in srgb, var(--client-tint) 70%, var(--surface-2)); }
+.sel-pop li svg { flex: none; color: var(--brand); }
+.sel-pop li.placeholder { color: var(--muted); }
+.sel-pop li.disabled { opacity: .45; cursor: default; }
+.sel-empty { color: var(--muted); cursor: default !important; }
+:root[data-theme="dark"] .sel-pop { box-shadow: 0 18px 40px rgb(0 0 0 / .55); }
+@media (prefers-reduced-motion: reduce) { .sel-pop { animation: none; } }

@@ -450,20 +450,6 @@ legend { padding: 0 6px; font-weight: 600; font-size: 13px; color: var(--muted);
    One curve for movement (--ease), one spring for things that settle (--settle). Everything is off under reduced motion. */
 :root { --ease: cubic-bezier(.22, 1, .36, 1); --settle: cubic-bezier(.16, 1, .3, 1); }
 
-/* liquid metaballs inside hero cards */
-.liquid { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-.liquid-a { fill: #fff; opacity: .13; }
-.liquid-b { fill: #9fe3bd; opacity: .2; }
-.liquid-deep .liquid-a { opacity: .09; }
-.liquid-deep .liquid-b { fill: #5cb886; opacity: .28; }
-.drop { transform-box: fill-box; transform-origin: center; animation: drift 16s var(--ease) infinite alternate; }
-.d2 { animation-duration: 12s; animation-name: drift-2; }
-.d3 { animation-duration: 19s; animation-name: drift-3; }
-.d4 { animation-duration: 14s; animation-name: drift-2; animation-direction: alternate-reverse; }
-.d5 { animation-duration: 10s; animation-name: drift-3; }
-@keyframes drift   { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-70px, -26px) scale(1.18); } 100% { transform: translate(-20px, 18px) scale(.92); } }
-@keyframes drift-2 { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-90px, 40px) scale(.85); } 100% { transform: translate(-30px, -20px) scale(1.12); } }
-@keyframes drift-3 { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(60px, -46px) scale(1.25); } 100% { transform: translate(110px, -10px) scale(.95); } }
 .kpi.feature, .card.esc-card { position: relative; overflow: hidden; isolation: isolate; }
 .kpi.feature > :not(.liquid), .card.esc-card > :not(.liquid) { position: relative; z-index: 1; }
 
@@ -534,7 +520,7 @@ tbody tr, .inbox-item, .plist li, .team li { transition: background-color .25s v
 ::-webkit-scrollbar-thumb:hover { background-color: #9aa69f; }
 
 @media (prefers-reduced-motion: reduce) {
-  .drop, .page, .bar, .bar-tip, .gauge path + path, .meter i, dialog[open], dialog[open]::backdrop, .pop { animation: none !important; }
+  .page, .bar, .bar-tip, .gauge path + path, .meter i, dialog[open], dialog[open]::backdrop, .pop { animation: none !important; }
   .side-flow, .side-link svg, .kpi, a.kpi:hover, .pill-btn, button { transition: none !important; transform: none !important; }
   .pill-btn::before, button[type=submit]::before, .kpi::before { display: none; }
 }
@@ -874,7 +860,6 @@ dialog .actions > * { min-width: 104px; }
 :root[data-theme="dark"] .rp-kpi:hover, :root[data-theme="dark"] a.kpi:hover { box-shadow: 0 0 0 1px var(--control-line), 0 14px 30px rgb(0 0 0 / .4); }
 :root[data-theme="dark"] .kpi::before { background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgb(92 194 138 / .10), transparent 70%); }
 :root[data-theme="dark"] .boot-mark { box-shadow: 0 10px 30px rgb(0 0 0 / .5); }
-:root[data-theme="dark"] .liquid-deep .liquid-b { fill: #3f9d6b; }
 :root[data-theme="dark"] img, :root[data-theme="dark"] video { filter: brightness(.92); }
 
 /* theme switch: everything cross-fades for a moment, then transitions go back to normal */
@@ -1253,3 +1238,23 @@ tr.sub-row:hover td { background: var(--surface-2); }
 .task-title.sub { padding-left: 13px; }
 .sub-line { width: 14px; height: 14px; margin-top: -10px; border-left: 2px solid var(--line); border-bottom: 2px solid var(--line); border-bottom-left-radius: 6px; flex: none; }
 @media (prefers-reduced-motion: reduce) { tr.sub-row td { animation: none; } .expand svg { transition: none; } }
+
+/* ---------- liquid v2: transform-only gradient blobs (replaces the SVG blur filter) ---------- */
+.liquid { position: absolute; inset: 0; width: auto; height: auto; overflow: hidden; border-radius: inherit; pointer-events: none; z-index: 0; contain: strict; }
+.blob { position: absolute; border-radius: 50%; aspect-ratio: 1; will-change: transform; animation: blob-a 18s ease-in-out infinite alternate; }
+.liquid-light .blob { background: radial-gradient(circle at 50% 50%, rgb(255 255 255 / .2), rgb(255 255 255 / .06) 45%, transparent 68%); }
+.liquid-light .b2, .liquid-light .b4 { background: radial-gradient(circle at 50% 50%, rgb(159 227 189 / .32), rgb(159 227 189 / .08) 45%, transparent 68%); }
+.liquid-deep .blob { background: radial-gradient(circle at 50% 50%, rgb(92 184 134 / .38), rgb(92 184 134 / .1) 45%, transparent 68%); }
+.liquid-deep .b3 { background: radial-gradient(circle at 50% 50%, rgb(255 255 255 / .12), transparent 65%); }
+.b1 { width: 75%; right: -22%; bottom: -45%; }
+.b2 { width: 55%; right: 18%; bottom: -30%; animation-name: blob-b; animation-duration: 22s; }
+.b3 { width: 45%; left: -12%; top: -30%; animation-name: blob-c; animation-duration: 26s; }
+.b4 { width: 35%; right: -8%; top: -18%; animation-name: blob-b; animation-duration: 15s; animation-direction: alternate-reverse; }
+@keyframes blob-a { to { transform: translate(-18%, -12%) scale(1.15); } }
+@keyframes blob-b { 50% { transform: translate(22%, -16%) scale(.9); } to { transform: translate(-10%, 10%) scale(1.12); } }
+@keyframes blob-c { to { transform: translate(26%, 18%) scale(1.2); } }
+@media (prefers-reduced-motion: reduce) { .blob { animation: none !important; } }
+.crash { max-width: 560px; margin: 40px auto; text-align: center; display: grid; gap: 10px; justify-items: center; }
+.crash h2 { margin: 0; } .crash p { margin: 0 0 6px; }
+.crash button { display: inline-flex; align-items: center; gap: 8px; }
+.nt label { align-content: start; }

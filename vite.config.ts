@@ -34,4 +34,8 @@ function apiDev(): Plugin {
   };
 }
 
-export default defineConfig({ plugins: [react(), apiDev()] });
+export default defineConfig({
+  plugins: [react(), apiDev()],
+  // libraries change rarely, so keep them in their own long-cached files; a deploy then only re-downloads app code
+  build: { rollupOptions: { output: { manualChunks: { react: ['react', 'react-dom', 'react-router-dom'], supabase: ['@supabase/supabase-js'] } } } },
+});

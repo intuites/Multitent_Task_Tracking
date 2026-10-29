@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import Search from './components/Search';
 import { DialogHost } from './components/Dialog';
 import SelectEnhancer from './components/SelectEnhancer';
+import ErrorBoundary, { reloadForNewBuild } from './components/ErrorBoundary';
 import Frame, { type FrameGroup } from './components/Frame';
 import { label } from './lib/ui';
 
@@ -101,7 +102,7 @@ function Shell() {
           {can(membership!.role, 'members:manage') ? <Link to="/employees" className="pill-btn light">Invite teammates</Link> : <Link to="/profile" className="pill-btn light">Your profile</Link>}
         </div>
       )}>
-      <Suspense fallback={<PageSkeleton />}><Outlet /></Suspense>
+      <ErrorBoundary resetKey={pathname}><Suspense fallback={<PageSkeleton />}><Outlet /></Suspense></ErrorBoundary>
     </Frame>
   );
 }
@@ -154,6 +155,9 @@ function Gate() {
   );
 }
 
+// Vite fires this when a page's code file from an older deploy can't be fetched; reload once to get the new build
+window.addEventListener('vite:preloadError', (e) => { if (reloadForNewBuild()) e.preventDefault(); });
+
 createRoot(document.getElementById('root')!).render(
-  <BrowserRouter><AuthProvider><Gate /><DialogHost /><SelectEnhancer /></AuthProvider></BrowserRouter>,
+  <BrowserRouter><AuthProvider><ErrorBoundary><Gate /></ErrorBoundary><DialogHost /><SelectEnhancer /></AuthProvider></BrowserRouter>,
 );

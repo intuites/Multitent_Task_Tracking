@@ -75,15 +75,20 @@ function useLiquidMarker(navRef: RefObject<HTMLElement>, key: string) {
 function usePointerLight() {
   useEffect(() => {
     if (reducedMotion()) return;
-    const move = (e: PointerEvent) => {
+    // at most one layout read per animation frame, however fast the pointer moves
+    let frame = 0, last: PointerEvent | null = null;
+    const apply = () => {
+      frame = 0;
+      const e = last; if (!e) return;
       const el = (e.target as Element | null)?.closest?.('.pill-btn, .kpi, button[type=submit]') as HTMLElement | null;
       if (!el) return;
       const r = el.getBoundingClientRect();
       el.style.setProperty('--mx', `${e.clientX - r.left}px`);
       el.style.setProperty('--my', `${e.clientY - r.top}px`);
     };
+    const move = (e: PointerEvent) => { last = e; if (!frame) frame = requestAnimationFrame(apply); };
     document.addEventListener('pointermove', move, { passive: true });
-    return () => document.removeEventListener('pointermove', move);
+    return () => { document.removeEventListener('pointermove', move); cancelAnimationFrame(frame); };
   }, []);
 }
 

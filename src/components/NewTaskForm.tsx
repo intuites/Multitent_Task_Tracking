@@ -138,6 +138,10 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
         <label>Priority<select value={priority} onChange={(e) => setPriority(e.target.value)} required><option value="">Select priority</option>{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select></label>
         <label><span>Due date <small className="muted">(optional)</small></span><input type="date" name="due_date" /><small className="muted nt-help">The day the task must be finished. Leave empty for no deadline.</small></label>
       </div>
+      <div className="nt-row">
+        <label><span>Client <small className="muted">(optional)</small></span><select value={client} onChange={(e) => setClient(e.target.value)}><option value="">Select client</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        <label><span>Project <small className="muted">(optional)</small></span><select key={client} name="project_id" defaultValue={defaults?.project ?? ''}><option value="">{client ? 'Select project' : 'Select project (any client)'}</option>{projects.filter((p) => !client || p.client_id === client).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+      </div>
       <label><span>CC emails <small className="muted">(optional)</small></span><input name="cc" placeholder="someone@company.com, other@company.com" />
         <small className="muted nt-help">Separate with commas. The assignee’s team lead is CC’d automatically{leads.length ? `: ${leads.join(', ')}` : ''}.</small></label>
 
@@ -176,8 +180,6 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
       <details className="nt-more">
         <summary><ChevronDown size={15} aria-hidden="true" />More options</summary>
         <div className="nt-row">
-          <label>Client<select value={client} onChange={(e) => setClient(e.target.value)}><option value="">None</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <label>Project<select name="project_id" defaultValue={defaults?.project ?? ''}><option value="">None</option>{projects.filter((p) => !client || p.client_id === client).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
           <label>Start date<input type="date" name="start_date" /></label>
           <label>Estimated hours<input type="number" step="0.25" min="0" name="estimated_hours" /></label>
           <label>Tags<input name="tags" placeholder="Comma separated" /></label>

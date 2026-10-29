@@ -47,7 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); if (!data.session) setLoading(false); });
     const { data: sub } = supabase.auth.onAuthStateChange((e, s) => {
       if (e === 'PASSWORD_RECOVERY') setPasswordSetup('recovery');
-      setSession(s);
+      // hourly token refreshes (and tab refocus) don't change who is signed in; ignoring them stops every page re-loading its data
+      if (e === 'TOKEN_REFRESHED') return;
+      setSession((cur) => (cur?.user.id === s?.user.id && cur?.access_token === s?.access_token ? cur : s));
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -74,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPlatformAdmin(pa.data === true);
       setLoading(false);
     })();
-  }, [session, tick]);
+  }, [session?.user.id, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <AuthCtx.Provider value={{ session, membership, memberships, switchOrg, portal, platformAdmin, loading, passwordSetup, finishPasswordSetup, refresh, signOut: async () => { await supabase.auth.signOut(); } }}>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { Archive, ArchiveRestore, ArrowLeft, Building2, CalendarClock, Eye, FolderKanban, Pencil, Plus, Send, Siren, X } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Archive, ArchiveRestore, ArrowLeft, Building2, CalendarClock, Eye, FolderKanban, Pencil, Plus, Send, Siren, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
@@ -15,6 +15,7 @@ const toDateInput = (d?: string | null) => (d ? new Date(d).toISOString().slice(
 
 export default function TaskDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { membership, session } = useAuth();
   const orgId = membership!.org_id, uid = session!.user.id, role = membership!.role;
   const manager = can(role, 'task:write');
@@ -127,6 +128,19 @@ export default function TaskDetail() {
   const confirmRun = async (title: string, message: string, confirmLabel: string, fn: () => Promise<unknown>) => {
     if ((await ask({ title, message, confirmLabel, danger: true })).ok) run(fn);
   };
+  // subtasks and repeat copies point at this task without cascade, so clear them first
+  const deleteTask = async () => {
+    const subs = d.subtasks.length;
+    const r = await ask({ title: 'Delete this task?', message: `“${t.title}”${subs ? ` and its ${subs} subtask${subs === 1 ? '' : 's'}` : ''} will be permanently deleted, with comments, files and history. This can't be undone.`, confirmLabel: 'Delete task', danger: true });
+    if (!r.ok) return;
+    try {
+      setError('');
+      await must(supabase.from('tt_tasks').delete().eq('parent_task_id', id!));
+      await must(supabase.from('tt_tasks').update({ recurrence_parent_id: null }).eq('recurrence_parent_id', id!));
+      await must(supabase.from('tt_tasks').delete().eq('id', id!));
+      navigate(d.parent ? `/tasks/${d.parent.id}` : '/tasks', { replace: true });
+    } catch (x) { setError((x as Error).message); }
+  };
   const overdue = isOverdue(t);
   const dueIn = t.due_date ? Math.round((new Date(t.due_date).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 864e5) : null;
   const dueNote = dueIn === null ? 'No due date' : ['completed', 'cancelled'].includes(t.status) ? `Due ${fmt(t.due_date)}`
@@ -176,9 +190,10 @@ export default function TaskDetail() {
                 <label>Estimated hours<input type="number" step="0.25" min="0" name="estimated_hours" defaultValue={t.estimated_hours ?? ''} /></label>
                 <label>Actual hours<input type="number" step="0.25" min="0" name="actual_hours" defaultValue={t.actual_hours ?? ''} /></label>
                 <label>Tags<input name="tags" defaultValue={t.tags.join(', ')} /></label>
-                <label>Description<textarea name="description" rows={4} defaultValue={t.description ?? ''} /></label>
-                <label className="inline"><input type="checkbox" name="client_visible" defaultChecked={t.client_visible} /> Visible to client</label>
-                <span className="row filters"><button type="submit">Save changes</button><button type="button" className="link" onClick={() => setEdit(false)}>Cancel</button></span>
+                <label className="span-all">Description<textarea name="description" rows={4} defaultValue={t.description ?? ''} /></label>
+                <label className="inline span-all"><input type="checkbox" name="client_visible" defaultChecked={t.client_visible} /> Visible to client</label>
+                <span className="row filters span-all td-edit-actions"><button type="submit">Save changes</button><button type="button" className="link" onClick={() => setEdit(false)}>Cancel</button>
+                  <button type="button" className="pill-btn ghost danger-text" onClick={deleteTask}><Trash2 size={15} aria-hidden="true" />Delete task</button></span>
               </form>
             ) : t.description ? <p className="td-desc">{t.description}</p> : <p className="muted">No description yet.{manager && ' Use Edit to add one.'}</p>}
             {!edit && t.tags.length > 0 && <div className="tag-row">{t.tags.map((g: string) => <span key={g} className="tag">#{g}</span>)}</div>}

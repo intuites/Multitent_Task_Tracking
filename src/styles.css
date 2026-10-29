@@ -1258,3 +1258,8 @@ tr.sub-row:hover td { background: var(--surface-2); }
 .crash h2 { margin: 0; } .crash p { margin: 0 0 6px; }
 .crash button { display: inline-flex; align-items: center; gap: 8px; }
 .nt label { align-content: start; }
+
+/* task edit form: full-width rows, delete pushed to the right */
+form.grid > .span-all { grid-column: 1 / -1; }
+.td-edit-actions { align-items: center; }
+.td-edit-actions .danger-text { margin-left: auto; }

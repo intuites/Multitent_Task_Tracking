@@ -130,7 +130,7 @@ export default function OrgSettings() {
         </section>
 
         <section className="card" aria-labelledby="orgs-h">
-          <div className="panel-head"><h3 id="orgs-h"><ArrowRightLeft size={16} aria-hidden="true" /> Your organizations</h3><button type="button" className="pill-btn ghost" onClick={() => navigate('/organizations/new')}><Plus size={15} aria-hidden="true" />New</button></div>
+          <div className="panel-head"><h3 id="orgs-h"><ArrowRightLeft size={16} aria-hidden="true" /> Your organizations</h3>{memberships.some((m) => m.role === 'owner') && <button type="button" className="pill-btn ghost" onClick={() => navigate('/organizations/new')}><Plus size={15} aria-hidden="true" />New</button>}</div>
           <ul className="people">{memberships.map((m) => (
             <li key={m.org_id}>
               <span className="grow"><b>{m.org_name}</b><br /><small className="muted">{label(m.role)}</small></span>

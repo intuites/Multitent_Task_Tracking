@@ -1166,3 +1166,21 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
   .tpl-card:hover, .content .sub-item:hover, .pf-cam:hover { transform: none; }
 }
 :root[data-theme="dark"] .tpl-card:hover { box-shadow: 0 16px 32px rgb(0 0 0 / .4); }
+
+/* ---------- employees & teams ---------- */
+.inv-form { display: grid; grid-template-columns: 1.4fr 1fr 180px auto; gap: 12px; align-items: end; }
+.tab-n { margin-left: 6px; padding: 0 7px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--muted); font-size: 11.5px; font-weight: 700; }
+.rp-tabs button.on .tab-n { background: rgb(255 255 255 / .2); color: #fff; }
+.emp-tools { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.emp-search { position: relative; flex: 1; min-width: 220px; }
+.emp-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.emp-search input { width: 100%; padding-left: 36px; }
+.emp-person { display: flex; align-items: center; gap: 12px; }
+.emp-person > span:last-child { display: flex; flex-direction: column; } .emp-person small { font-size: 12.5px; }
+.emp-table tr.inactive td { opacity: .55; }
+.emp-table td:nth-child(3), .emp-table td:nth-child(4), .emp-table th:nth-child(3), .emp-table th:nth-child(4) { text-align: center; }
+.team-lead { margin: 0; font-size: 13px; color: var(--muted); } .team-lead b { color: var(--text); }
+.tpl-card .people { margin: 4px 0; }
+.tpl-card select { width: 100%; }
+.dept-list li { padding: 12px; }
+@media (max-width: 900px) { .inv-form { grid-template-columns: 1fr; } .emp-table th:nth-child(3), .emp-table td:nth-child(3), .emp-table th:nth-child(4), .emp-table td:nth-child(4) { display: none; } }

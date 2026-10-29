@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, ArrowUp, Building2, CalendarClock, Eye, FolderKanban, ListChecks, Pencil, Plus, Send, Siren, Trash2, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, Building2, CalendarClock, Eye, FolderKanban, Pencil, Plus, Send, Siren, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
@@ -20,14 +20,13 @@ export default function TaskDetail() {
   const manager = can(role, 'task:write');
   const { active, name } = usePeople(orgId);
   const [t, setT] = useState<any>(null);
-  const [d, setD] = useState<any>({ assignees: [], checklist: [], subtasks: [], parent: null, blockedBy: [], blocks: [], comments: [], history: [], esc: [], activity: [], contacts: [], recur: null });
+  const [d, setD] = useState<any>({ assignees: [], subtasks: [], parent: null, comments: [], history: [], esc: [], activity: [], contacts: [], recur: null });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState(false);
   const [subForm, setSubForm] = useState(false);
   const [escForm, setEscForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [otherTasks, setOtherTasks] = useState<any[]>([]);
 
   const load = useCallback(async () => {
     const tr = await supabase.from('tt_tasks').select('*, clients:tt_clients(name), projects:tt_projects(name)').eq('id', id!).eq('org_id', orgId).maybeSingle();
@@ -35,10 +34,8 @@ export default function TaskDetail() {
     setT(tr.data);
     if (tr.data) {
       const q = (tbl: string) => supabase.from(tbl).select('*');
-      const [as, ck, dp, db, cm, hi, es, ac, rc, sb, pa] = await Promise.all([
+      const [as, cm, hi, es, ac, rc, sb, pa] = await Promise.all([
         q('tt_task_assignees').eq('task_id', id!),
-        q('tt_task_checklist_items').eq('task_id', id!).order('position'),
-        q('tt_task_dependencies').eq('task_id', id!), q('tt_task_dependencies').eq('blocked_by_id', id!),
         q('tt_task_comments').eq('task_id', id!).order('created_at'),
         q('tt_task_status_history').eq('task_id', id!).order('changed_at', { ascending: false }),
         q('tt_escalations').eq('task_id', id!).order('raised_at', { ascending: false }),
@@ -47,22 +44,14 @@ export default function TaskDetail() {
         supabase.from('tt_tasks').select('id, title, status, start_date, due_date, tt_task_assignees(user_id)').eq('parent_task_id', id!).is('archived_at', null).order('start_date', { nullsFirst: false }),
         tr.data.parent_task_id ? supabase.from('tt_tasks').select('id, title').eq('id', tr.data.parent_task_id).maybeSingle() : Promise.resolve({ data: null }),
       ]);
-      const depIds = [...(dp.data ?? []).map((x: any) => x.blocked_by_id), ...(db.data ?? []).map((x: any) => x.task_id)];
-      const { data: dt } = depIds.length ? await supabase.from('tt_tasks').select('id, title, status').in('id', depIds) : { data: [] as any[] };
-      const tm = new Map((dt ?? []).map((x: any) => [x.id, x]));
       setD({
-        assignees: as.data ?? [], checklist: ck.data ?? [], subtasks: sb.data ?? [], parent: pa.data,
-        blockedBy: (dp.data ?? []).map((x: any) => tm.get(x.blocked_by_id)).filter(Boolean),
-        blocks: (db.data ?? []).map((x: any) => tm.get(x.task_id)).filter(Boolean),
+        assignees: as.data ?? [], subtasks: sb.data ?? [], parent: pa.data,
         comments: cm.data ?? [], history: hi.data ?? [], esc: es.data ?? [], activity: ac.data ?? [], recur: rc.data,
       });
     }
     setLoading(false);
   }, [id, orgId]);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => {
-    if (manager) supabase.from('tt_tasks').select('id, title').eq('org_id', orgId).neq('id', id!).is('archived_at', null).order('created_at', { ascending: false }).limit(200).then(({ data }) => setOtherTasks(data ?? []));
-  }, [manager, orgId, id]);
 
   // run an action, show its error, reload
   async function run(fn: () => Promise<unknown>) {
@@ -133,28 +122,11 @@ export default function TaskDetail() {
       if (who) await rpc('tt_assign', { p_task: data.id, p_user: who, p_add: true });
     });
   };
-  const addItem = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget, title = String(new FormData(form).get('title')).trim();
-    if (!title) return;
-    run(async () => {
-      await must(supabase.from('tt_task_checklist_items').insert({ org_id: orgId, task_id: id, title, position: d.checklist.length }));
-      form.reset();
-    });
-  };
-  const move = (i: number, dir: -1 | 1) => run(async () => {
-    const a = d.checklist[i], b = d.checklist[i + dir];
-    if (!b) return;
-    await must(supabase.from('tt_task_checklist_items').update({ position: b.position }).eq('id', a.id));
-    await must(supabase.from('tt_task_checklist_items').update({ position: a.position }).eq('id', b.id));
-  });
 
   // destructive actions always ask first
   const confirmRun = async (title: string, message: string, confirmLabel: string, fn: () => Promise<unknown>) => {
     if ((await ask({ title, message, confirmLabel, danger: true })).ok) run(fn);
   };
-  const doneCount = d.checklist.filter((c: any) => c.done).length;
-  const checkPct = d.checklist.length ? Math.round((doneCount / d.checklist.length) * 100) : 0;
   const overdue = isOverdue(t);
   const dueIn = t.due_date ? Math.round((new Date(t.due_date).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 864e5) : null;
   const dueNote = dueIn === null ? 'No due date' : ['completed', 'cancelled'].includes(t.status) ? `Due ${fmt(t.due_date)}`
@@ -187,7 +159,6 @@ export default function TaskDetail() {
           <span className={overdue ? 'overdue' : ''}><CalendarClock size={15} aria-hidden="true" />{dueNote}</span>
           {t.clients && <Link to={`/clients/${t.client_id}`}><Building2 size={15} aria-hidden="true" />{t.clients.name}</Link>}
           {t.projects && <Link to={`/projects/${t.project_id}`}><FolderKanban size={15} aria-hidden="true" />{t.projects.name}</Link>}
-          {d.checklist.length > 0 && <span><ListChecks size={15} aria-hidden="true" />{doneCount}/{d.checklist.length} checklist</span>}
         </div>
       </header>
       {error && <p role="alert" className="form-alert">{error}</p>}
@@ -235,26 +206,6 @@ export default function TaskDetail() {
                 <span className="row filters"><button type="submit"><Plus size={15} aria-hidden="true" />Add subtask</button><button type="button" className="link" onClick={() => setSubForm(false)}>Cancel</button></span>
               </form>
             ) : <button type="button" className="pill-btn ghost" onClick={() => setSubForm(true)}><Plus size={15} aria-hidden="true" />Add subtask</button>)}
-          </section>
-
-          <section className="card" aria-labelledby="ck-h">
-            <div className="panel-head"><h3 id="ck-h">Checklist</h3>{d.checklist.length > 0 && <small className="muted">{doneCount} of {d.checklist.length} done</small>}</div>
-            {d.checklist.length > 0 && <span className="meter td-meter" role="img" aria-label={`${checkPct}% of checklist done`}><i style={{ width: `${checkPct}%` }} /></span>}
-            {d.checklist.length === 0 ? <p className="muted">Break the work into steps so progress is visible.</p> : (
-              <ul className="check-list">{d.checklist.map((c: any, i: number) => (
-                <li key={c.id} className={c.done ? 'done' : ''}>
-                  <label className="inline"><input type="checkbox" checked={c.done} onChange={(e) => run(async () => {
-                    await must(supabase.from('tt_task_checklist_items').update({ done: e.target.checked, done_by: e.target.checked ? uid : null }).eq('id', c.id));
-                    await supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'task', entity_id: id, action: e.target.checked ? 'checklist_item_done' : 'checklist_item_reopened', detail: { title: c.title } });
-                  })} /> <span>{c.title}</span></label>
-                  <span className="check-tools">
-                    <button type="button" className="icon-btn sm" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp size={14} aria-hidden="true" /></button>
-                    <button type="button" className="icon-btn sm" aria-label="Move down" disabled={i === d.checklist.length - 1} onClick={() => move(i, 1)}><ArrowDown size={14} aria-hidden="true" /></button>
-                    <button type="button" className="icon-btn sm danger-text" aria-label={`Delete ${c.title}`} onClick={() => confirmRun('Delete checklist item?', `“${c.title}” will be removed from this task.`, 'Delete',
-                      () => must(supabase.from('tt_task_checklist_items').delete().eq('id', c.id)))}><Trash2 size={14} aria-hidden="true" /></button>
-                  </span>
-                </li>))}</ul>)}
-            <form className="inline-add" onSubmit={addItem}><input aria-label="New checklist item" name="title" placeholder="Add a step…" /><button type="submit"><Plus size={15} aria-hidden="true" />Add</button></form>
           </section>
 
           <section className="card" aria-labelledby="cm-h">
@@ -353,22 +304,6 @@ export default function TaskDetail() {
             {manager && unassigned.length > 0 && (
               <select aria-label="Add assignee" value="" onChange={(e) => e.target.value && run(() => rpc('tt_assign', { p_task: id, p_user: e.target.value, p_add: true }))}>
                 <option value="">+ Add assignee</option>{unassigned.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>)}
-          </section>
-
-          <section className="card" aria-labelledby="dp-h">
-            <h3 id="dp-h">Dependencies</h3>
-            <p className="facts-label">Blocked by</p>
-            {d.blockedBy.length === 0 ? <p className="muted">Nothing. This task can move freely.</p> : (
-              <ul className="people">{d.blockedBy.map((b: any) => (
-                <li key={b.id}><Link to={`/tasks/${b.id}`} className="grow">{b.title}</Link><Badge v={b.status} />
-                  {manager && <button type="button" className="icon-btn sm" aria-label={`Remove dependency on ${b.title}`} onClick={() => confirmRun('Remove dependency?', `This task will no longer wait for “${b.title}”.`, 'Remove',
-                    () => must(supabase.from('tt_task_dependencies').delete().eq('task_id', id!).eq('blocked_by_id', b.id)))}><X size={14} aria-hidden="true" /></button>}
-                </li>))}</ul>)}
-            {d.blocks.length > 0 && <><p className="facts-label">Blocks</p><ul className="people">{d.blocks.map((b: any) => <li key={b.id}><Link to={`/tasks/${b.id}`} className="grow">{b.title}</Link><Badge v={b.status} /></li>)}</ul></>}
-            {manager && (
-              <select aria-label="Add dependency" value="" onChange={(e) => e.target.value && run(() => rpc('tt_add_dependency', { p_task: id, p_blocker: e.target.value }))}>
-                <option value="">+ Blocked by…</option>{otherTasks.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
               </select>)}
           </section>
 

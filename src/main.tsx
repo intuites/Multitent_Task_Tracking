@@ -85,7 +85,7 @@ function Shell() {
       bell={{ userId: uid, unread, onChanged: refresh, allTo: '/notifications' }}
       user={{ name: name || session!.user.email!, email: session!.user.email!, role: `${label(membership!.role)} · ${membership!.org_name}`, avatar }}
       orgs={memberships.map((m) => ({ id: m.org_id, name: m.org_name, role: label(m.role) }))} currentOrg={membership!.org_id}
-      onSwitchOrg={switchOrg} onCreateOrg={() => navigate('/organizations/new')}
+      onSwitchOrg={switchOrg} onCreateOrg={memberships.some((m) => m.role === 'owner') ? () => navigate('/organizations/new') : undefined}
       menu={[
         { label: 'My profile', icon: UserCircle, to: '/profile' },
         { label: 'Notification settings', icon: Bell, to: '/notifications' },

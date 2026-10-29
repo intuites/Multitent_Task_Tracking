@@ -9,7 +9,7 @@ import { initials } from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
 import { DashSkeleton } from '../components/Skeleton';
 
-const OPEN = '(completed,cancelled)';
+const OPEN = '(completed,completed_cycle)';
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 // deterministic tile colour per name, from the green family
@@ -95,13 +95,13 @@ export default function Dashboard() {
       try {
         const [sum, done, week, next, projects, current, mine, esc, escCrit, escLate] = await Promise.all([
           rpc('tt_org_summary', { p_org: orgId, p_day_start: start.toISOString(), p_day_end: end.toISOString() }),
-          supabase.from('tt_tasks').select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('status', 'completed').is('archived_at', null),
-          supabase.from('tt_tasks').select('completed_at').eq('org_id', orgId).eq('status', 'completed').gte('completed_at', weekStart.toISOString()).limit(5000),
+          supabase.from('tt_tasks').select('id', { count: 'exact', head: true }).eq('org_id', orgId).in('status', ['completed', 'completed_cycle']).is('archived_at', null),
+          supabase.from('tt_tasks').select('completed_at').eq('org_id', orgId).in('status', ['completed', 'completed_cycle']).gte('completed_at', weekStart.toISOString()).limit(5000),
           tasks().not('status', 'in', OPEN).gte('due_date', now.toISOString()).order('due_date').limit(1),
           supabase.from('tt_projects').select('id, name, due_date, status').eq('org_id', orgId).in('status', ['planning', 'not_started', 'in_progress', 'in_review'])
             .order('due_date', { nullsFirst: false }).limit(5),
           supabase.from('tt_tasks').select('id, title, status, tt_task_assignees(user_id)').eq('org_id', orgId).is('archived_at', null)
-            .in('status', ['in_progress', 'in_review', 'blocked', 'not_yet_started']).order('updated_at', { ascending: false }).limit(100),
+            .in('status', ['started', 'pending', 'not_yet_started']).order('updated_at', { ascending: false }).limit(100),
           supabase.from('tt_tasks').select('id, title, status, due_date, tt_task_assignees!inner(user_id)').eq('org_id', orgId).eq('tt_task_assignees.user_id', uid)
             .is('archived_at', null).not('status', 'in', OPEN).order('due_date', { nullsFirst: false }).limit(4),
           supabase.from('tt_escalations').select('id', { count: 'exact', head: true }).eq('org_id', orgId).not('state', 'in', '(resolved,closed)'),
@@ -117,8 +117,8 @@ export default function Dashboard() {
         setD({
           sum, counts, today: now.getDay(), next: next.data?.[0], projects: projects.data ?? [], mine: mine.data ?? [],
           team: (sum.workload as any[]).filter((w) => w.open).slice(0, 4).map((w) => ({ ...w, task: working.get(w.user_id) })),
-          done: done.count ?? 0, active: (st.in_progress ?? 0) + (st.in_review ?? 0),
-          pending: (st.not_yet_started ?? 0) + (st.blocked ?? 0) + (st.escalation ?? 0),
+          done: done.count ?? 0, active: st.started ?? 0,
+          pending: (st.not_yet_started ?? 0) + (st.pending ?? 0) + (st.escalation ?? 0),
           esc: esc.count ?? 0, escCrit: escCrit.count ?? 0, escLate: escLate.count ?? 0,
         });
       } catch (x) { setError((x as Error).message); }
@@ -143,10 +143,10 @@ export default function Dashboard() {
       </div>
 
       <div className="dash">
-        <div className="a-k1"><Kpi feature title="Open tasks" value={d.sum.open} note={`${st.in_progress ?? 0} in progress`} to="/tasks" /></div>
+        <div className="a-k1"><Kpi feature title="Open tasks" value={d.sum.open} note={`${st.started ?? 0} started`} to="/tasks" /></div>
         <div className="a-k2"><Kpi title="Overdue" value={d.sum.overdue} note={d.sum.overdue ? 'Past their due date' : 'Everything is on time'} to="/tasks?view=overdue" /></div>
         <div className="a-k3"><Kpi title="Due today" value={d.sum.due_today} note="Before midnight" to="/tasks?view=due_today" /></div>
-        <div className="a-k4"><Kpi title="In review" value={d.sum.in_review} note="Waiting for sign-off" to="/tasks?view=in_review" /></div>
+        <div className="a-k4"><Kpi title="Pending" value={d.sum.pending ?? d.sum.in_review ?? 0} note="Waiting on something" to="/tasks?view=pending" /></div>
 
         <section className="card a-an" aria-labelledby="an-h">
           <div className="panel-head"><h3 id="an-h">Completed this week</h3><Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link></div>

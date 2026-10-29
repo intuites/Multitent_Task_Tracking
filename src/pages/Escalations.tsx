@@ -6,7 +6,7 @@ import { can } from '../../api/_lib/permissions';
 import { Badge, fmt, fmtTime, label, rpc, usePeople } from '../lib/ui';
 import { ListSkeleton } from '../components/Skeleton';
 
-const NEXT = ['not_yet_started', 'in_progress', 'in_review', 'blocked', 'completed', 'cancelled'];
+const NEXT = ['not_yet_started', 'started', 'pending', 'completed'];
 
 export default function Escalations() {
   const { membership, session } = useAuth();

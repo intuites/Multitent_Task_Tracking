@@ -3,6 +3,7 @@ import { AlertTriangle, BarChart3, Building2, CheckCircle2, Clock, Download, Fol
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { projectProgress } from '../../api/_lib/progress';
+import { TASK_STATUSES } from '../../api/_lib/taskStatus';
 import { download, isOpen, isOverdue, label, usePeople } from '../lib/ui';
 import { ListSkeleton } from '../components/Skeleton';
 import { CountUp } from '../components/Liquid';
@@ -20,7 +21,7 @@ const REPORTS: { id: Report; name: string; icon: LucideIcon; bar?: string; max?:
   { id: 'escalations', name: 'Escalations', icon: Siren, bar: 'Raised' },
   { id: 'recurring_tasks', name: 'Recurring', icon: Repeat, bar: 'Occurrences' },
 ];
-const STATUSES = ['not_yet_started', 'in_progress', 'in_review', 'blocked', 'escalation', 'completed', 'cancelled'];
+const STATUSES = TASK_STATUSES;
 const avg = (a: number[]) => (a.length ? Math.round((a.reduce((x, y) => x + y, 0) / a.length) * 10) / 10 : 0);
 const hrs = (a: string, b: string) => (new Date(b).getTime() - new Date(a).getTime()) / 36e5;
 
@@ -90,10 +91,10 @@ export default function Reports() {
     const cname = (id: string) => data.c.find((c: any) => c.id === id)?.name ?? '—';
     switch (report) {
       case 'task_completion': {
-        const done = tasks.filter((t: any) => t.status === 'completed');
+        const done = tasks.filter((t: any) => !isOpen(t.status));
         const onTime = done.filter((t: any) => !t.due_date || t.completed_at <= t.due_date).length;
         return [{ Metric: 'Tasks in scope', Value: tasks.length }, { Metric: 'Completed', Value: done.length }, { Metric: 'Completed on time', Value: onTime },
-          { Metric: 'Completed late', Value: done.length - onTime }, { Metric: 'Cancelled (not counted as completed)', Value: tasks.filter((t: any) => t.status === 'cancelled').length },
+          { Metric: 'Completed late', Value: done.length - onTime },
           { Metric: 'Completion rate %', Value: tasks.length ? Math.round((done.length / tasks.length) * 100) : 0 }];
       }
       case 'overdue_work':
@@ -103,7 +104,7 @@ export default function Reports() {
       case 'employee_workload':
         return people.filter((p) => !emp || p.id === emp).map((p) => {
           const m = tasks.filter((t: any) => t.tt_task_assignees.some((a: any) => a.user_id === p.id));
-          return { Employee: p.name, Open: m.filter((t: any) => isOpen(t.status)).length, Overdue: m.filter(isOverdue).length, Completed: m.filter((t: any) => t.status === 'completed').length };
+          return { Employee: p.name, Open: m.filter((t: any) => isOpen(t.status)).length, Overdue: m.filter(isOverdue).length, Completed: m.filter((t: any) => !isOpen(t.status)).length };
         }).filter((r) => r.Open + r.Completed > 0);
       case 'project_progress':
         return data.p.filter((p: any) => (!project || p.id === project) && (!client || p.client_id === client)).map((p: any) => ({
@@ -129,7 +130,7 @@ export default function Reports() {
         const parents = [...new Set(occ.map((t: any) => t.recurrence_parent_id))];
         return parents.map((pid) => {
           const m = occ.filter((t: any) => t.recurrence_parent_id === pid);
-          return { Template: data.t.find((t: any) => t.id === pid)?.title ?? '—', Occurrences: m.length, Completed: m.filter((t: any) => t.status === 'completed').length, Overdue: m.filter(isOverdue).length };
+          return { Template: data.t.find((t: any) => t.id === pid)?.title ?? '—', Occurrences: m.length, Completed: m.filter((t: any) => !isOpen(t.status)).length, Overdue: m.filter(isOverdue).length };
         });
       }
     }
@@ -139,7 +140,7 @@ export default function Reports() {
 
   const def = REPORTS.find((r) => r.id === report)!;
   const cols = rows[0] ? Object.keys(rows[0]) : [];
-  const done = tasks.filter((t: any) => t.status === 'completed').length;
+  const done = tasks.filter((t: any) => !isOpen(t.status)).length;
   const rate = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
   const openEsc = (data?.es ?? []).filter((e: any) => !['resolved', 'closed'].includes(e.state) && inRange(e.raised_at)).length;
   const filtered = !!(from || to || client || project || emp || status || priority || sev);

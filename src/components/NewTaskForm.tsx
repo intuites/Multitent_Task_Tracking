@@ -8,8 +8,9 @@ import { dateToTs, label, loadPeople, rpc, type Person } from '../lib/ui';
 interface Sub { title: string; department_id: string; assignee_id: string; due: string }
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-const FREQS: [string, string][] = [['once', 'Once'], ['daily', 'Daily'], ['weekdays', 'Weekdays (Mon–Fri)'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly (every 3 months)'], ['yearly', 'Yearly'], ['custom', 'Custom']];
+const FREQS: [string, string][] = [['once', 'Once'], ['daily', 'Daily'], ['weekdays', 'Weekdays (Mon–Fri)'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly (every 3 months)'], ['semiannual', 'Every 6 months'], ['yearly', 'Yearly'], ['custom', 'Custom']];
 const nyToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+const tomorrow = () => new Date(Date.now() + 864e5).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 const ord = (n: number) => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
 /** Plain-English reminder schedule; the day comes from the start date, as in tt_generate_task_reminders. */
 function schedule(freq: string, start: string, every: number) {
@@ -21,6 +22,7 @@ function schedule(freq: string, start: string, every: number) {
     weekly: `Every ${d.toLocaleDateString('en-US', { weekday: 'long' })}`,
     monthly: `Every month on the ${ord(d.getDate())}`,
     quarterly: `Every 3 months on the ${ord(d.getDate())}`,
+    semiannual: `Every 6 months on the ${ord(d.getDate())}`,
     yearly: `Every year on ${md}`,
     custom: every === 1 ? 'Every day' : `Every ${every} days`,
   } as Record<string, string>)[freq];
@@ -47,6 +49,7 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
   const [subs, setSubs] = useState<Sub[]>([]);
   const [remind, setRemind] = useState(true), [freq, setFreq] = useState('daily'), [time, setTime] = useState('09:00');
   const [rStart, setRStart] = useState(nyToday), [every, setEvery] = useState(2);
+  const [future, setFuture] = useState(false), [startOn, setStartOn] = useState('');
   const [error, setError] = useState(''), [busy, setBusy] = useState(false);
 
   // everything below depends on the organization chosen at the top
@@ -111,7 +114,7 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
       // newer columns are only sent when used, so a plain task still saves before migrations 0010/0012 are run
       const row: Record<string, unknown> = {
         org_id: orgId, created_by: uid, title: title.trim(), description: desc.trim() || null, priority,
-        due_date: dateToTs(f.get('due_date')), start_date: dateToTs(f.get('start_date')),
+        due_date: dateToTs(f.get('due_date')), start_date: dateToTs(future ? startOn : f.get('start_date')),
         client_id: client || null, project_id: f.get('project_id') || null,
         estimated_hours: f.get('estimated_hours') ? Number(f.get('estimated_hours')) : null,
         tags: String(f.get('tags') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
@@ -154,6 +157,12 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
       <div className="nt-row">
         <label>Priority<select value={priority} onChange={(e) => setPriority(e.target.value)} required><option value="">Select priority</option>{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select></label>
         <label><span>Due date <small className="muted">(optional)</small></span><input type="date" name="due_date" /><small className="muted nt-help">The day the task must be finished. Leave empty for no deadline.</small></label>
+      </div>
+      <div className="nt-future">
+        <label className="inline"><input type="checkbox" checked={future} onChange={(e) => { setFuture(e.target.checked); if (!e.target.checked) setStartOn(''); }} /> <b>Future task</b> <small className="muted">(optional)</small></label>
+        <small className="muted nt-help">For work that starts later. It's created now and shows a "Starts" date; reminders begin on that day.</small>
+        {future && <label><span>Starts on</span><input type="date" value={startOn} min={tomorrow()} required
+          onChange={(e) => { setStartOn(e.target.value); if (e.target.value && rStart < e.target.value) setRStart(e.target.value); }} /></label>}
       </div>
       <div className="nt-row">
         <label><span>Client <small className="muted">(optional)</small></span><select value={client} onChange={(e) => setClient(e.target.value)}><option value="">Select client</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
@@ -199,7 +208,7 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
       <details className="nt-more">
         <summary><ChevronDown size={15} aria-hidden="true" />More options</summary>
         <div className="nt-row">
-          <label>Start date<input type="date" name="start_date" /></label>
+          {!future && <label>Start date<input type="date" name="start_date" /></label>}
           <label>Estimated hours<input type="number" step="0.25" min="0" name="estimated_hours" /></label>
           <label>Tags<input name="tags" placeholder="Comma separated" /></label>
           <label>Repeat<select name="freq" defaultValue=""><option value="">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="custom">Every N days</option></select></label>

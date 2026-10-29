@@ -64,7 +64,7 @@ function Shell() {
   const refresh = useCallback(() => {
       supabase.from('tt_notifications').select('id', { count: 'exact', head: true }).eq('user_id', uid).is('read_at', null).then(({ count }) => setUnread(count ?? 0));
       supabase.from('tt_tasks').select('id, tt_task_assignees!inner(user_id)', { count: 'exact', head: true }).eq('org_id', membership!.org_id)
-        .eq('tt_task_assignees.user_id', uid).is('archived_at', null).not('status', 'in', '(completed,cancelled)').then(({ count }) => setMine(count ?? 0));
+        .eq('tt_task_assignees.user_id', uid).is('archived_at', null).not('status', 'in', '(completed,completed_cycle)').then(({ count }) => setMine(count ?? 0));
   }, [uid, membership]);
   useEffect(() => {
     refresh();

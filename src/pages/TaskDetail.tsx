@@ -65,7 +65,9 @@ export default function TaskDetail() {
 
   const isAssignee = d.assignees.some((a: any) => a.user_id === uid);
   const canStatus = manager || isAssignee;
-  const nexts = TASK_STATUSES.filter((s) => canTransition(t.status as TaskStatus, s) && s !== 'escalation');
+  // "Completed this cycle" needs a repeating schedule to come back on
+  const repeats = !!t.reminder_frequency && t.reminder_frequency !== 'once';
+  const nexts = TASK_STATUSES.filter((s) => canTransition(t.status as TaskStatus, s) && (s !== 'completed_cycle' || repeats));
   const canClientComment = t.client_visible && !!t.client_id;
   const openEsc = d.esc.find((e: any) => !['resolved', 'closed'].includes(e.state));
   const unassigned = active.filter((p) => !d.assignees.some((a: any) => a.user_id === p.id));
@@ -143,7 +145,7 @@ export default function TaskDetail() {
   };
   const overdue = isOverdue(t);
   const dueIn = t.due_date ? Math.round((new Date(t.due_date).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 864e5) : null;
-  const dueNote = dueIn === null ? 'No due date' : ['completed', 'cancelled'].includes(t.status) ? `Due ${fmt(t.due_date)}`
+  const dueNote = dueIn === null ? 'No due date' : ['completed', 'completed_cycle'].includes(t.status) ? `Due ${fmt(t.due_date)}`
     : dueIn < 0 ? `Overdue by ${-dueIn} day${dueIn === -1 ? '' : 's'}` : dueIn === 0 ? 'Due today' : `Due in ${dueIn} day${dueIn === 1 ? '' : 's'}`;
   const timeline = [
     ...d.history.map((h: any) => ({ at: h.changed_at, who: h.changed_by, text: <>{h.from_status ? <>{label(h.from_status)} → </> : 'Created as '}<b>{label(h.to_status)}</b>{h.reason && <> · “{h.reason}”</>}</>, kind: 'status' })),
@@ -200,7 +202,7 @@ export default function TaskDetail() {
           </section>
 
           <section className="card" aria-labelledby="sub-h">
-            <div className="panel-head"><h3 id="sub-h">Subtasks</h3>{d.subtasks.length > 0 && <small className="muted">{d.subtasks.filter((s: any) => s.status === 'completed').length} of {d.subtasks.length} done</small>}</div>
+            <div className="panel-head"><h3 id="sub-h">Subtasks</h3>{d.subtasks.length > 0 && <small className="muted">{d.subtasks.filter((s: any) => ['completed', 'completed_cycle'].includes(s.status)).length} of {d.subtasks.length} done</small>}</div>
             {d.subtasks.length === 0 ? <p className="muted">{manager ? 'Split this work into subtasks, each with its own owner and start date.' : 'No subtasks.'}</p> : (
               <ul className="sub-list">{d.subtasks.map((s: any, i: number) => (
                 <li key={s.id} style={{ '--i': i } as React.CSSProperties}>
@@ -277,11 +279,10 @@ export default function TaskDetail() {
               <p className="note">This task is escalated{openEsc ? <> ({label(openEsc.severity)}, {label(openEsc.state)}). It returns to {label(openEsc.previous_task_status)} when the escalation is resolved on the <Link to="/escalations">Escalations</Link> page.</> : '.'}</p>
             ) : canStatus ? (
               <form className="stack" onSubmit={changeStatus}>
-                <select aria-label="New status" name="to" required disabled={!nexts.length}>{nexts.map((s) => <option key={s} value={s}>Move to {label(s)}</option>)}</select>
+                <select aria-label="New status" name="to" required disabled={!nexts.length}>{nexts.map((s) => <option key={s} value={s}>{s === 'completed' ? 'Completed permanently' : s === 'completed_cycle' ? 'Completed this cycle' : label(s)}</option>)}</select>
                 <input aria-label="Reason for status change" name="reason" placeholder="Reason (optional)" />
-                {manager && <label className="inline"><input type="checkbox" name="override" /> Override dependency block</label>}
                 <button type="submit" disabled={!nexts.length}>Update status</button>
-                {can(role, 'escalation:manage') && !['completed', 'cancelled'].includes(t.status) && <button type="button" className="pill-btn ghost danger-text" onClick={() => setEscForm(!escForm)}><Siren size={15} aria-hidden="true" />{escForm ? 'Cancel escalation' : 'Escalate'}</button>}
+                {can(role, 'escalation:manage') && !['completed', 'completed_cycle'].includes(t.status) && <button type="button" className="pill-btn ghost danger-text" onClick={() => setEscForm(!escForm)}><Siren size={15} aria-hidden="true" />{escForm ? 'Cancel escalation' : 'Escalate'}</button>}
               </form>
             ) : <p className="muted">Only assignees and managers can change status.</p>}
             {escForm && can(role, 'escalation:manage') && (

@@ -12,7 +12,7 @@ import { ListSkeleton } from '../components/Skeleton';
 
 type Tab = 'home' | 'request' | 'documents' | 'notifications' | 'profile';
 // internal escalations must not be visible to clients: show them as In Progress
-const shown = (s: string) => (s === 'escalation' ? 'in_progress' : s);
+const shown = (s: string) => (s === 'escalation' ? 'started' : s);
 
 function TaskCard({ t, orgId, uid }: { t: any; orgId: string; uid: string }) {
   const [open, setOpen] = useState(false);
@@ -91,7 +91,7 @@ export default function Portal() {
     { title: 'Menu', items: items([['home', 'Home', House], ['request', 'New request', MessageSquarePlus], ['documents', 'Documents', FileText]]) },
     { title: 'General', items: items([['notifications', 'Notifications', Bell], ['profile', 'My profile', UserCircle]]) },
   ];
-  const open = tasks.filter((t) => !['completed', 'cancelled'].includes(t.status));
+  const open = tasks.filter((t) => !['completed', 'completed_cycle'].includes(t.status));
   const next = open.filter((t) => t.due_date && new Date(t.due_date) >= new Date()).sort((a, b) => a.due_date.localeCompare(b.due_date))[0];
   const titles: Record<Tab, string> = { home: 'Home', request: 'New request', documents: 'Documents', notifications: 'Notifications', profile: 'My profile' };
   const first = (contact?.full_name ?? portal!.full_name ?? '').split(' ')[0];
@@ -114,7 +114,7 @@ export default function Portal() {
           <div className="a-k1 kpi feature"><LiquidBg /><span className="kpi-head"><span>Shared projects</span></span><b><CountUp value={projects.length} /></b><small>{projects.filter((p) => p.status === 'in_progress').length} in progress</small></div>
           <div className="a-k2 kpi"><span className="kpi-head"><span>Open tasks</span></span><b>{open.length}</b><small>Being worked on for you</small></div>
           <div className="a-k3 kpi"><span className="kpi-head"><span>Due this week</span></span><b>{open.filter((t) => t.due_date && new Date(t.due_date).getTime() < Date.now() + 7 * 864e5).length}</b><small>Open tasks due in 7 days</small></div>
-          <div className="a-k4 kpi"><span className="kpi-head"><span>Completed</span></span><b>{tasks.filter((t) => t.status === 'completed').length}</b><small>Delivered tasks</small></div>
+          <div className="a-k4 kpi"><span className="kpi-head"><span>Completed</span></span><b>{tasks.filter((t) => ['completed', 'completed_cycle'].includes(t.status)).length}</b><small>Delivered tasks</small></div>
 
           <section className="card a-an" aria-labelledby="pp-h">
             <h3 id="pp-h">Project progress</h3>

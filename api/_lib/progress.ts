@@ -12,5 +12,5 @@ export function projectProgress(
   if (mode === 'manual') return manual;
   if (mode === 'milestones') return pct(milestones.filter((m) => m.completed_at).length, milestones.length);
   const live = tasks.filter((t) => t.status !== 'cancelled');
-  return pct(live.filter((t) => t.status === 'completed').length, live.length);
+  return pct(live.filter((t) => t.status === 'completed' || t.status === 'completed_cycle').length, live.length);
 }

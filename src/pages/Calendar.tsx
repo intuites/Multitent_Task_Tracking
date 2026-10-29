@@ -4,6 +4,7 @@ import { CalendarCheck, ChevronLeft, ChevronRight, Flag, PlayCircle, Siren, type
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { Badge, label, usePeople } from '../lib/ui';
+import { TASK_STATUSES } from '../../api/_lib/taskStatus';
 
 type Kind = 'due' | 'start' | 'ms' | 'esc';
 interface Ev { date: string; title: string; link: string; kind: Kind; status?: string }
@@ -101,7 +102,7 @@ export default function Calendar() {
             <div className="row filters">
               <select aria-label="Filter by assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)}><option value="">Any assignee</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
               <select aria-label="Filter by priority" value={priority} onChange={(e) => setPriority(e.target.value)}><option value="">Any priority</option>{['low', 'medium', 'high', 'urgent'].map((p) => <option key={p} value={p}>{label(p)}</option>)}</select>
-              <select aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Any status</option>{['not_yet_started', 'in_progress', 'in_review', 'blocked', 'escalation', 'completed', 'cancelled'].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
+              <select aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Any status</option>{TASK_STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
             </div>
             <ul className="cal-legend" aria-label="Legend">
               {(Object.keys(KINDS) as Kind[]).map((k) => <li key={k}><i className={`dot ev-${k}`} />{KINDS[k].name}</li>)}

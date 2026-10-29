@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
-import { Badge, Due, label, usePeople } from '../lib/ui';
+import { Badge, Due, isOpen as isOpenStatus, label, usePeople } from '../lib/ui';
 import { ListSkeleton } from '../components/Skeleton';
 import { ask } from '../components/Dialog';
 import NewTaskForm from '../components/NewTaskForm';
@@ -67,7 +67,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
     const now = new Date(), start = new Date(now); start.setHours(0, 0, 0, 0);
     const end = new Date(start); end.setDate(end.getDate() + 1);
     const week = new Date(start); week.setDate(week.getDate() + 8);
-    const open = '(completed,cancelled)';
+    const open = '(completed,completed_cycle)';
     if (view === 'archived') qy = qy.not('archived_at', 'is', null);
     else qy = qy.is('archived_at', null);
     if (view === 'unassigned') qy = qy.is('tt_task_assignees', null);
@@ -136,7 +136,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
         <table>
           <thead><tr>{canWrite && <th />}<th>Title</th><th>Status</th><th>Priority</th><th>Assignees</th><th>Client / Project</th><th>Due</th></tr></thead>
           <tbody>{rows.map((t) => {
-            const kids = subs[t.id] ?? [], isOpen = open.has(t.id), done = kids.filter((k) => k.status === 'completed').length;
+            const kids = subs[t.id] ?? [], isOpen = open.has(t.id), done = kids.filter((k) => !isOpenStatus(k.status)).length;
             return (
               <Fragment key={t.id}>
                 <tr className={isOpen ? 'has-open' : ''}>
@@ -147,6 +147,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
                         ? <button type="button" className={`expand ${isOpen ? 'on' : ''}`} aria-expanded={isOpen} aria-controls={`subs-${t.id}`} aria-label={`${isOpen ? 'Hide' : 'Show'} ${kids.length} subtasks of ${t.title}`} onClick={() => toggle(t.id)}><ChevronRight size={16} aria-hidden="true" /></button>
                         : <span className="expand-gap" aria-hidden="true" />}
                       <Link to={`/tasks/${t.id}`}>{t.title}</Link>
+                      {t.start_date && new Date(t.start_date) > new Date() && <span className="future-chip" title="Future task">Starts {new Date(t.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
                       {kids.length > 0 && <button type="button" className="sub-count" onClick={() => toggle(t.id)} title="Subtasks done"><ListTree size={13} aria-hidden="true" />{done}/{kids.length}</button>}
                     </span>
                   </td>

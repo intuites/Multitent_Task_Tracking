@@ -15,8 +15,11 @@ describe('permissions', () => {
 describe('task status', () => {
   it('defaults to not_yet_started', () => expect(DEFAULT_TASK_STATUS).toBe('not_yet_started'));
   it('blocks invalid transitions', () => {
-    expect(canTransition('not_yet_started', 'completed')).toBe(false);
-    expect(canTransition('in_progress', 'completed')).toBe(true);
+    expect(canTransition('started', 'started')).toBe(false);
+    expect(canTransition('started', 'escalation')).toBe(false);
+    expect(canTransition('escalation', 'started')).toBe(false);
+    expect(canTransition('not_yet_started', 'completed')).toBe(true);
+    expect(canTransition('completed_cycle', 'started')).toBe(true);
   });
   it('detects cycles', () => {
     const e = new Map([['a', ['b']], ['b', ['c']]]);

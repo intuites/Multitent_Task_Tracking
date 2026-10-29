@@ -1,21 +1,14 @@
 export const TASK_STATUSES = [
-  'not_yet_started', 'in_progress', 'in_review', 'blocked', 'escalation', 'completed', 'cancelled',
+  'not_yet_started', 'started', 'pending', 'escalation', 'completed_cycle', 'completed',
 ] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export const DEFAULT_TASK_STATUS: TaskStatus = 'not_yet_started';
+/** Finished for good, or finished until the task's next cycle (its reminder frequency). */
+export const DONE_STATUSES: readonly string[] = ['completed', 'completed_cycle'];
 
-const NEXT: Record<TaskStatus, TaskStatus[]> = {
-  not_yet_started: ['in_progress', 'blocked', 'escalation', 'cancelled'],
-  in_progress: ['in_review', 'blocked', 'escalation', 'completed', 'cancelled', 'not_yet_started'],
-  in_review: ['in_progress', 'completed', 'blocked', 'escalation', 'cancelled'],
-  blocked: ['in_progress', 'not_yet_started', 'escalation', 'cancelled'],
-  // leaving escalation goes through resolveEscalation with an explicit target
-  escalation: ['not_yet_started', 'in_progress', 'in_review', 'blocked', 'cancelled'],
-  completed: ['in_progress'], // reopen
-  cancelled: ['not_yet_started'],
-};
-
-export const canTransition = (from: TaskStatus, to: TaskStatus) => NEXT[from].includes(to);
+// any status to any other; escalation is entered and left only through the escalation workflow (mirrors tt_transition_ok)
+const WORK: readonly string[] = ['not_yet_started', 'started', 'pending', 'completed_cycle', 'completed'];
+export const canTransition = (from: TaskStatus, to: TaskStatus) => from !== to && WORK.includes(from) && WORK.includes(to);
 
 /** True if adding blocker -> task would create a cycle. edges: taskId -> ids it is blocked by. */
 export function createsCycle(edges: Map<string, string[]>, task: string, blockedBy: string): boolean {

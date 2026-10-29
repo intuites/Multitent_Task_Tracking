@@ -55,8 +55,8 @@ export default function Profile() {
   if (!p) return <PageSkeleton />;
 
   const name = p.full_name || session!.user.email!;
-  const open = tasks.filter((t) => !['completed', 'cancelled'].includes(t.status));
-  const done = tasks.filter((t) => t.status === 'completed');
+  const open = tasks.filter((t) => !['completed', 'completed_cycle'].includes(t.status));
+  const done = tasks.filter((t) => ['completed', 'completed_cycle'].includes(t.status));
   const overdue = tasks.filter(isOverdue);
   const weekEnd = Date.now() + 7 * 864e5;
   const dueSoon = open.filter((t) => t.due_date && new Date(t.due_date).getTime() <= weekEnd && !isOverdue(t));

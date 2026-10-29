@@ -229,8 +229,8 @@ ul.plain li { padding: var(--space-1) 0; }
 .chip button.link { min-width: 28px; padding: 0 6px; color: inherit; }
 .badge { display: inline-block; padding: 2px 9px; border-radius: 6px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
   background: var(--neutral-bg); color: var(--neutral-fg); border: 1px solid var(--neutral-line); }
-.b-completed, .b-resolved, .b-closed, .b-approved, .b-active { background: var(--ok-bg); color: var(--ok-fg); border-color: var(--ok-line); }
-.b-in_progress, .b-in_review, .b-waiting, .b-pending, .b-medium, .b-acknowledged { background: var(--warn-bg); color: var(--warn-fg); border-color: var(--warn-line); }
+.b-completed, .b-completed_cycle, .b-resolved, .b-closed, .b-approved, .b-active { background: var(--ok-bg); color: var(--ok-fg); border-color: var(--ok-line); }
+.b-in_progress, .b-started, .b-in_review, .b-waiting, .b-pending, .b-medium, .b-acknowledged { background: var(--warn-bg); color: var(--warn-fg); border-color: var(--warn-line); }
 .b-blocked, .b-escalation, .b-critical, .b-high, .b-urgent, .b-rejected, .b-open { background: var(--bad-bg); color: var(--bad-fg); border-color: var(--bad-line); }
 .b-planning, .b-not_started { background: var(--info-bg); color: var(--info-fg); border-color: var(--info-line); }
 .dot { background: var(--danger); color: #fff; border-radius: 10px; padding: 0 6px; margin-left: 6px; font-size: 12px; }
@@ -1113,7 +1113,7 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
 .content .sub-item:hover { background: var(--client-tint); transform: translateX(3px); box-shadow: none; }
 .sub-item b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .sub-item small { font-size: 12px; }
 .sub-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--hatch); }
-.sub-dot.in_progress, .sub-dot.in_review { background: #d99a1e; } .sub-dot.completed { background: var(--brand-2); } .sub-dot.blocked, .sub-dot.escalation { background: var(--danger); }
+.sub-dot.in_progress, .sub-dot.started, .sub-dot.pending, .sub-dot.in_review { background: #d99a1e; } .sub-dot.completed, .sub-dot.completed_cycle { background: var(--brand-2); } .sub-dot.blocked, .sub-dot.escalation { background: var(--danger); }
 .sub-add { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; align-items: end; padding: 12px; border-radius: 14px; border: 1px dashed var(--line); animation: fade-in-up .3s var(--ease) both; }
 .sub-add .row { grid-column: 1 / -1; }
 .sub-add label { font-size: 12px; }
@@ -1262,3 +1262,11 @@ tr.sub-row:hover td { background: var(--surface-2); }
 form.grid > .span-all { grid-column: 1 / -1; }
 .td-edit-actions { align-items: center; }
 .td-edit-actions .danger-text { margin-left: auto; }
+
+/* done for this cycle: same green as completed, dashed to show it comes back */
+.b-completed_cycle { border-style: dashed; }
+
+/* future task option + list chip */
+.nt-future { display: grid; gap: 8px; padding: 14px 16px; border: 1px dashed var(--line); border-radius: var(--r-md, 14px); }
+.nt-future > label:not(.inline) { max-width: 260px; }
+.future-chip { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: var(--r-pill); font-size: 12px; font-weight: 600; color: var(--muted); border: 1px dashed var(--hatch); white-space: nowrap; }

@@ -180,7 +180,7 @@ export default function ProjectDetail() {
       {can(membership!.role, 'task:write') && <p><Link to={`/tasks?project=${id}`}>View in task list</Link> · <Link to={`/tasks?project=${id}&client=${p.client_id ?? ''}&new=1`}>New task for this project</Link></p>}
       {tasks.length === 0 ? <p>No tasks linked to this project yet.</p> : (
         <ul className="plain">{tasks.map((t) => (
-          <li key={t.id}>{t.title} — {t.status}{t.due_date && t.due_date < today && !['completed', 'cancelled'].includes(t.status) && <small className="overdue"> overdue</small>}</li>
+          <li key={t.id}>{t.title} — {label(t.status)}{t.due_date && t.due_date < today && !['completed', 'completed_cycle'].includes(t.status) && <small className="overdue"> overdue</small>}</li>
         ))}</ul>
       )}
     </div>

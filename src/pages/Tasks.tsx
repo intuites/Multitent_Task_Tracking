@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
+import { ChevronRight, ListTree } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
@@ -27,6 +28,9 @@ export default function Tasks({ mode }: { mode: Mode }) {
   const [q, setQ] = useState('');
   const [priority, setPriority] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
+  const [subs, setSubs] = useState<Record<string, any[]>>({});
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setOpen((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const [showForm, setShowForm] = useState(params.get('new') === '1');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -57,6 +61,8 @@ export default function Tasks({ mode }: { mode: Mode }) {
     if (projectFilter) qy = qy.eq('project_id', projectFilter);
     if (q.trim()) qy = qy.ilike('title', `%${q.trim().replace(/[%,()*]/g, ' ')}%`);
     if (priority) qy = qy.eq('priority', priority);
+    // on the main list subtasks sit under their parent; My/Team Tasks still list them so people see their own work
+    if (mode === 'all' && !q.trim()) qy = qy.is('parent_task_id', null);
 
     const now = new Date(), start = new Date(now); start.setHours(0, 0, 0, 0);
     const end = new Date(start); end.setDate(end.getDate() + 1);
@@ -74,6 +80,13 @@ export default function Tasks({ mode }: { mode: Mode }) {
     qy = qy.range(page * PAGE, page * PAGE + PAGE - 1);
     const { data, count, error } = await qy;
     if (error) setError(error.message);
+    const ids = (data ?? []).map((t: any) => t.id);
+    const { data: kids } = ids.length
+      ? await supabase.from('tt_tasks').select('id, title, status, priority, due_date, start_date, parent_task_id, tt_task_assignees(user_id)').in('parent_task_id', ids).is('archived_at', null).order('start_date', { nullsFirst: false })
+      : { data: [] as any[] };
+    const bySub: Record<string, any[]> = {};
+    for (const k of kids ?? []) (bySub[k.parent_task_id] ??= []).push(k);
+    setSubs(bySub);
     setRows(data ?? []); setTotal(count ?? 0); setSelected([]); setLoading(false);
   }, [orgId, uid, mode, view, q, priority, page, clientFilter, projectFilter]);
   useEffect(() => { load(); }, [load]);
@@ -122,14 +135,37 @@ export default function Tasks({ mode }: { mode: Mode }) {
       {loading ? <ListSkeleton /> : rows.length === 0 ? <p>No tasks match.{canWrite && ' Use “New task” to create one.'}</p> : (
         <table>
           <thead><tr>{canWrite && <th />}<th>Title</th><th>Status</th><th>Priority</th><th>Assignees</th><th>Client / Project</th><th>Due</th></tr></thead>
-          <tbody>{rows.map((t) => (
-            <tr key={t.id}>
-              {canWrite && <td><input type="checkbox" aria-label="Select" checked={selected.includes(t.id)} onChange={(e) => setSelected(e.target.checked ? [...selected, t.id] : selected.filter((x) => x !== t.id))} /></td>}
-              <td><Link to={`/tasks/${t.id}`}>{t.title}</Link></td><td><Badge v={t.status} /></td><td>{label(t.priority)}</td>
-              <td>{names(t)}</td><td>{t.clients?.name ?? '—'} / {t.projects?.name ?? '—'}</td>
-              <td><Due t={t} /></td>
-            </tr>
-          ))}</tbody>
+          <tbody>{rows.map((t) => {
+            const kids = subs[t.id] ?? [], isOpen = open.has(t.id), done = kids.filter((k) => k.status === 'completed').length;
+            return (
+              <Fragment key={t.id}>
+                <tr className={isOpen ? 'has-open' : ''}>
+                  {canWrite && <td><input type="checkbox" aria-label="Select" checked={selected.includes(t.id)} onChange={(e) => setSelected(e.target.checked ? [...selected, t.id] : selected.filter((x) => x !== t.id))} /></td>}
+                  <td>
+                    <span className="task-title">
+                      {kids.length > 0
+                        ? <button type="button" className={`expand ${isOpen ? 'on' : ''}`} aria-expanded={isOpen} aria-controls={`subs-${t.id}`} aria-label={`${isOpen ? 'Hide' : 'Show'} ${kids.length} subtasks of ${t.title}`} onClick={() => toggle(t.id)}><ChevronRight size={16} aria-hidden="true" /></button>
+                        : <span className="expand-gap" aria-hidden="true" />}
+                      <Link to={`/tasks/${t.id}`}>{t.title}</Link>
+                      {kids.length > 0 && <button type="button" className="sub-count" onClick={() => toggle(t.id)} title="Subtasks done"><ListTree size={13} aria-hidden="true" />{done}/{kids.length}</button>}
+                    </span>
+                  </td>
+                  <td><Badge v={t.status} /></td><td>{label(t.priority)}</td>
+                  <td>{names(t)}</td><td>{t.clients?.name ?? '—'} / {t.projects?.name ?? '—'}</td>
+                  <td><Due t={t} /></td>
+                </tr>
+                {isOpen && kids.map((k, i) => (
+                  <tr key={k.id} id={i === 0 ? `subs-${t.id}` : undefined} className="sub-row" style={{ '--i': i } as React.CSSProperties}>
+                    {canWrite && <td />}
+                    <td><span className="task-title sub"><span className="sub-line" aria-hidden="true" /><span className={`sub-dot ${k.status}`} aria-hidden="true" /><Link to={`/tasks/${k.id}`}>{k.title}</Link></span></td>
+                    <td><Badge v={k.status} /></td><td>{label(k.priority)}</td>
+                    <td>{names(k)}</td><td className="muted">Subtask {i + 1} of {kids.length}</td>
+                    <td>{k.start_date && new Date(k.start_date) > new Date() ? <small className="muted">Starts {new Date(k.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</small> : <Due t={k} />}</td>
+                  </tr>
+                ))}
+              </Fragment>
+            );
+          })}</tbody>
         </table>
       )}
       {(

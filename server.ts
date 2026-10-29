@@ -13,6 +13,10 @@ const TYPES: Record<string, string> = {
   '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.txt': 'text/plain',
 };
 const MAX_BODY = 1_000_000;
+// same key and 30s window as reloadForNewBuild() in src/components/ErrorBoundary.tsx
+const STALE_JS = `let l=0;try{l=+sessionStorage.getItem('tt-chunk-reload')||0}catch{}
+if(Date.now()-l>30000){try{sessionStorage.setItem('tt-chunk-reload',String(Date.now()))}catch{}location.reload()}
+throw new Error('Failed to fetch dynamically imported module: Taskify was updated');`;
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
@@ -45,6 +49,10 @@ const server = createServer(async (req, res) => {
       return send(200, await readFile(file), TYPES[extname(file)] ?? 'application/octet-stream', hashed ? 'public, max-age=31536000, immutable' : 'no-cache');
     }
   } catch { /* not a file: fall through to the SPA */ }
+  // A tab opened before the last deploy asks for page files that no longer exist. Instead of a 404 (blank screen),
+  // answer with a module that reloads the tab once onto the new build; if it already did, fail so the error card shows.
+  if (url.pathname.startsWith('/assets/') && url.pathname.endsWith('.js')) return send(200, STALE_JS, TYPES['.js']);
+  if (url.pathname.startsWith('/assets/') && url.pathname.endsWith('.css')) return send(200, '', TYPES['.css']);
   if (extname(url.pathname)) return send(404, 'Not found', 'text/plain');
   send(200, await readFile(join(DIST, 'index.html')), TYPES['.html'], 'no-cache');
 });

@@ -45,7 +45,7 @@ export default function FilePanel({ orgId, userId, entityType, entityId, canUplo
     window.open(data.signedUrl, '_blank', 'noopener');
   }
   async function remove(f: any) {
-    if (!(await ask({ message: `Delete ${f.name}?`, confirmLabel: 'Delete', danger: true })).ok) return;
+    if (!(await ask({ title: 'Delete file?', message: `${f.name} will be permanently deleted. This can't be undone.`, confirmLabel: 'Delete', danger: true })).ok) return;
     await supabase.storage.from('tt-files').remove([f.path]);
     await supabase.from('tt_files').delete().eq('id', f.id);
     load();

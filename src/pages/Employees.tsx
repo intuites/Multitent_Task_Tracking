@@ -109,7 +109,7 @@ export default function Employees() {
           <div key={t.id} className="note">
             <b>{t.name}</b> <small>{depts.find((d) => d.id === t.department_id)?.name ?? 'no department'} · manager: {t.manager_id ? nameOf(t.manager_id) : '—'}</small>
             <p>{members.map((m) => <span key={m.user_id} className="chip">{nameOf(m.user_id)}
-              <button className="link" aria-label="Remove member" onClick={async () => { await supabase.from('tt_team_members').delete().eq('team_id', t.id).eq('user_id', m.user_id); refresh(); }}>×</button></span>)}</p>
+              <button className="link" aria-label="Remove member" onClick={async () => { if (!(await ask({ title: 'Remove from team?', message: `They will be removed from ${t.name}. Their tasks stay assigned.`, confirmLabel: 'Remove', danger: true })).ok) return; await supabase.from('tt_team_members').delete().eq('team_id', t.id).eq('user_id', m.user_id); refresh(); }}>×</button></span>)}</p>
             <select aria-label="Add member" value="" onChange={(e) => e.target.value && add('tt_team_members', { team_id: t.id, user_id: e.target.value })}>
               <option value="">+ Add member</option>{people.filter((p) => p.active && !members.some((m) => m.user_id === p.id)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>

@@ -36,12 +36,12 @@ function WeekBars({ counts, today }: { counts: number[]; today: number }) {
     <div className="weekbars" role="img" aria-label={`Tasks completed this week: ${summary}`}>
       {counts.map((c, i) => {
         const future = i > today;
-        const cls = future ? 'bar future' : i === today ? 'bar today' : c > 0 && i === best ? 'bar best' : 'bar';
+        const cls = future ? 'bar future' : c === 0 ? 'bar zero' : i === today ? 'bar today' : i === best ? 'bar best' : 'bar';
         return (
           <div key={i} className="bar-col" style={{ '--i': i } as React.CSSProperties}>
             <div className="bar-track">
               {i === today && <span className="bar-tip">{c}</span>}
-              <span className={cls} style={{ height: future ? '100%' : `${Math.max(12, (c / max) * 100)}%` }} />
+              <span className={cls} style={{ height: future ? '100%' : c === 0 ? '8%' : `${Math.max(16, (c / max) * 100)}%` }} />
             </div>
             <span className="bar-day">{DAYS[i]}</span>
           </div>
@@ -69,9 +69,9 @@ function Gauge({ done, active, pending }: { done: number; active: number; pendin
         <path d={arc} pathLength={100} fill="none" stroke="var(--brand-3)" strokeWidth="28" strokeDasharray={`${seg(done) + seg(active)} 100`} />
         <path d={arc} pathLength={100} fill="none" stroke="var(--brand)" strokeWidth="28" strokeDasharray={`${seg(done)} 100`} />
       </svg>
-      <div className="gauge-num"><b>{pct}%</b><small>Tasks completed</small></div>
+      <div className="gauge-num"><b>{total ? `${pct}%` : '—'}</b><small>{total ? `${done} of ${total} tasks done` : 'No tasks yet'}</small></div>
       <ul className="legend">
-        <li><i className="sw done" />Completed</li><li><i className="sw active" />In progress</li><li><i className="sw pending" />Pending</li>
+        <li><i className="sw done" />Completed <b>{done}</b></li><li><i className="sw active" />In progress <b>{active}</b></li><li><i className="sw pending" />Pending <b>{pending}</b></li>
       </ul>
     </div>
   );

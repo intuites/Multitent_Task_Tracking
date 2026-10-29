@@ -50,7 +50,7 @@ export default function ClientProfile() {
   useEffect(() => { load(); }, [load]);
 
   async function setStatus(status: string) {
-    if (status === 'archived' && !(await ask({ message: 'Archive this client? You can restore it later.', confirmLabel: 'Archive', danger: true })).ok) return;
+    if (status === 'archived' && !(await ask({ title: 'Archive this client?', message: 'It will be hidden from the client list. You can restore it later.', confirmLabel: 'Archive', danger: true })).ok) return;
     const { error } = await supabase.from('tt_clients').update({ status, updated_at: new Date().toISOString() }).eq('id', id!);
     if (error) return setError(error.message);
     await logActivity(orgId, uid, 'client', id!, status === 'archived' ? 'archived' : 'status_changed', { from: client.status, to: status });

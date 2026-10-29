@@ -1,12 +1,11 @@
 import {
-  BarChart3, Bell, Building2, CalendarDays, ClipboardList, Contact, FolderKanban, History, IdCard, LayoutDashboard,
+  BarChart3, Bell, Building2, CalendarDays, ClipboardList, Contact, FolderKanban, History, LayoutDashboard,
   ListTodo, Settings, Siren, UserCircle, Users, UsersRound, type LucideIcon,
 } from 'lucide-react';
 import { can, type Action, type Role } from '../../api/_lib/permissions';
 
 export interface NavItem { path: string; label: string; icon: LucideIcon; group: string; needs?: Action }
 
-// Candidate Dashboard is a placeholder until the existing app is audited (see docs/implementation-audit.md).
 export const NAV: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, group: 'Menu' },
   { path: '/my-tasks', label: 'My Tasks', icon: ListTodo, group: 'Menu', needs: 'task:read' },
@@ -23,7 +22,6 @@ export const NAV: NavItem[] = [
   { path: '/notifications', label: 'Notifications', icon: Bell, group: 'General' },
   { path: '/settings', label: 'Organization Settings', icon: Settings, group: 'General', needs: 'members:manage' },
   { path: '/profile', label: 'My Profile', icon: UserCircle, group: 'General' },
-  { path: '/candidates', label: 'Candidate Dashboard', icon: IdCard, group: 'General' },
 ];
 
 export const navFor = (role: Role | undefined) => NAV.filter((n) => !n.needs || can(role, n.needs));

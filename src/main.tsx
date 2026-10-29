@@ -125,7 +125,6 @@ function Gate() {
         <Route path="/activity" element={<Guard need="task:write"><ActivityLogs /></Guard>} />
         <Route path="/settings" element={<Guard need="members:manage"><Settings /></Guard>} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/candidates" element={<Pending name="Candidate Dashboard" />} />
         <Route path="/platform" element={platformAdmin ? <Platform /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Pending name="Not found" />} />
       </Route>

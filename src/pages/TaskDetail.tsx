@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, ArrowUp, Building2, CalendarClock, Eye, FolderKanban, ListChecks, Pencil, Plus, Send, Siren, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
@@ -8,6 +9,7 @@ import { Badge, dateToTs, fmt, fmtTime, isOverdue, label, rpc, usePeople } from 
 import FilePanel from '../components/FilePanel';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
+import { initials } from '../components/Frame';
 
 const toDateInput = (d?: string | null) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
@@ -130,130 +132,212 @@ export default function TaskDetail() {
     await must(supabase.from('tt_task_checklist_items').update({ position: a.position }).eq('id', b.id));
   });
 
+  // destructive actions always ask first
+  const confirmRun = async (title: string, message: string, confirmLabel: string, fn: () => Promise<unknown>) => {
+    if ((await ask({ title, message, confirmLabel, danger: true })).ok) run(fn);
+  };
+  const doneCount = d.checklist.filter((c: any) => c.done).length;
+  const checkPct = d.checklist.length ? Math.round((doneCount / d.checklist.length) * 100) : 0;
+  const overdue = isOverdue(t);
+  const dueIn = t.due_date ? Math.round((new Date(t.due_date).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 864e5) : null;
+  const dueNote = dueIn === null ? 'No due date' : ['completed', 'cancelled'].includes(t.status) ? `Due ${fmt(t.due_date)}`
+    : dueIn < 0 ? `Overdue by ${-dueIn} day${dueIn === -1 ? '' : 's'}` : dueIn === 0 ? 'Due today' : `Due in ${dueIn} day${dueIn === 1 ? '' : 's'}`;
+  const timeline = [
+    ...d.history.map((h: any) => ({ at: h.changed_at, who: h.changed_by, text: <>{h.from_status ? <>{label(h.from_status)} → </> : 'Created as '}<b>{label(h.to_status)}</b>{h.reason && <> · “{h.reason}”</>}</>, kind: 'status' })),
+    ...d.activity.filter((a: any) => a.action !== 'status_changed').map((a: any) => ({ at: a.created_at, who: a.actor_id, text: <>{label(a.action)}{a.detail?.title && <> · {a.detail.title}</>}</>, kind: 'act' })),
+  ].sort((a, b) => b.at.localeCompare(a.at));
+
   return (
-    <div className="card">
-      <div className="row">
-        <h2>{t.title} <Badge v={t.status} /></h2>
-        <span>
-          {manager && <button className="link" onClick={() => setEdit(!edit)}>{edit ? 'Cancel edit' : 'Edit'}</button>}
-          {manager && <button className="link" onClick={() => run(() => must(supabase.from('tt_tasks').update({ archived_at: t.archived_at ? null : new Date().toISOString() }).eq('id', id!)))}>{t.archived_at ? 'Restore' : 'Archive'}</button>}
-        </span>
-      </div>
-      {error && <p role="alert">{error}</p>}
+    <div className="td">
+      <Link to="/tasks" className="back-link"><ArrowLeft size={16} aria-hidden="true" />All tasks</Link>
 
-      {edit ? (
-        <form className="grid" onSubmit={saveEdit}>
-          <label>Title<input name="title" defaultValue={t.title} required /></label>
-          <label>Priority<select name="priority" defaultValue={t.priority}>{['low', 'medium', 'high', 'urgent'].map((p) => <option key={p} value={p}>{label(p)}</option>)}</select></label>
-          <label>Start<input type="date" name="start_date" defaultValue={toDateInput(t.start_date)} /></label>
-          <label>Due<input type="date" name="due_date" defaultValue={toDateInput(t.due_date)} /></label>
-          <label>Estimated hours<input type="number" step="0.25" min="0" name="estimated_hours" defaultValue={t.estimated_hours ?? ''} /></label>
-          <label>Actual hours<input type="number" step="0.25" min="0" name="actual_hours" defaultValue={t.actual_hours ?? ''} /></label>
-          <label>Tags<input name="tags" defaultValue={t.tags.join(', ')} /></label>
-          <label>Description<textarea name="description" rows={3} defaultValue={t.description ?? ''} /></label>
-          <label className="inline"><input type="checkbox" name="client_visible" defaultChecked={t.client_visible} /> Visible to client</label>
-          <button type="submit">Save</button>
-        </form>
-      ) : (
-        <dl>
-          <dt>Description</dt><dd>{t.description ?? '—'}</dd>
-          <dt>Priority</dt><dd>{label(t.priority)}</dd>
-          <dt>Dates</dt><dd>{fmt(t.start_date)} → <span className={isOverdue(t) ? 'overdue' : ''}>{fmt(t.due_date)}{isOverdue(t) && ' (overdue)'}</span></dd>
-          <dt>Effort</dt><dd>{t.estimated_hours ?? '—'}h est. / {t.actual_hours ?? '—'}h actual</dd>
-          <dt>Client</dt><dd>{t.clients ? <Link to={`/clients/${t.client_id}`}>{t.clients.name}</Link> : '—'}</dd>
-          <dt>Project</dt><dd>{t.projects ? <Link to={`/projects/${t.project_id}`}>{t.projects.name}</Link> : '—'}</dd>
-          <dt>Tags</dt><dd>{t.tags.join(', ') || '—'}</dd>
-          <dt>Flags</dt><dd>{[t.client_visible && 'client-visible', t.archived_at && 'archived'].filter(Boolean).join(', ') || '—'}</dd>
-          <dt>Repeats</dt><dd>{d.recur ? `${d.recur.frequency} ×${d.recur.interval_n}, next ${fmt(d.recur.next_run)}${d.recur.active ? '' : ' (ended)'}` : t.recurrence_parent_id ? <>occurrence of <Link to={`/tasks/${t.recurrence_parent_id}`}>recurring task</Link></> : 'No'}</dd>
-          {t.completed_at && <><dt>Completed</dt><dd>{fmtTime(t.completed_at)} by {name(t.completed_by)}</dd></>}
-        </dl>
-      )}
+      <header className={`card td-hero ${overdue ? 'is-overdue' : ''}`}>
+        <div className="td-hero-top">
+          <div className="td-badges"><Badge v={t.status} /><span className={`prio prio-${t.priority}`}>{label(t.priority)} priority</span>{t.archived_at && <span className="prio">Archived</span>}{t.client_visible && <span className="prio"><Eye size={13} aria-hidden="true" />Client can see</span>}</div>
+          {manager && (
+            <div className="td-actions">
+              <button type="button" className="pill-btn ghost" onClick={() => setEdit(!edit)}><Pencil size={15} aria-hidden="true" />{edit ? 'Cancel edit' : 'Edit'}</button>
+              {t.archived_at
+                ? <button type="button" className="pill-btn ghost" onClick={() => run(() => must(supabase.from('tt_tasks').update({ archived_at: null }).eq('id', id!)))}><ArchiveRestore size={15} aria-hidden="true" />Restore</button>
+                : <button type="button" className="pill-btn ghost danger-text" onClick={() => confirmRun('Archive this task?', `“${t.title}” will be hidden from task lists, the calendar and the dashboard. You can restore it from the Archived view.`, 'Archive task',
+                    () => must(supabase.from('tt_tasks').update({ archived_at: new Date().toISOString() }).eq('id', id!)))}><Archive size={15} aria-hidden="true" />Archive</button>}
+            </div>
+          )}
+        </div>
+        <h2 className="td-title">{t.title}</h2>
+        <div className="td-meta">
+          <span className={overdue ? 'overdue' : ''}><CalendarClock size={15} aria-hidden="true" />{dueNote}</span>
+          {t.clients && <Link to={`/clients/${t.client_id}`}><Building2 size={15} aria-hidden="true" />{t.clients.name}</Link>}
+          {t.projects && <Link to={`/projects/${t.project_id}`}><FolderKanban size={15} aria-hidden="true" />{t.projects.name}</Link>}
+          {d.checklist.length > 0 && <span><ListChecks size={15} aria-hidden="true" />{doneCount}/{d.checklist.length} checklist</span>}
+        </div>
+      </header>
+      {error && <p role="alert" className="form-alert">{error}</p>}
 
-      <h3>Status</h3>
-      {t.status === 'escalation' ? (
-        <p>This task is escalated{openEsc ? <> ({label(openEsc.severity)}, {label(openEsc.state)}) — it returns to normal only when the escalation is resolved on the <Link to="/escalations">Escalations</Link> page. Previous status: {label(openEsc.previous_task_status)}.</> : '.'}</p>
-      ) : canStatus && (nexts.length || true) ? (
-        <form className="row filters" onSubmit={changeStatus}>
-          <select aria-label="New status" name="to" required>{nexts.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
-          <input aria-label="Reason for status change" name="reason" placeholder="Reason (optional)" />
-          {manager && <label className="inline"><input type="checkbox" name="override" /> Override dependency block</label>}
-          <button type="submit" disabled={!nexts.length}>Change status</button>
-          {!['completed', 'cancelled'].includes(t.status) && <button type="button" className="danger" onClick={() => setEscForm(!escForm)}>Escalate</button>}
-        </form>
-      ) : <p>Only assignees and managers can change status.</p>}
-      {escForm && (
-        <form className="grid" onSubmit={raise}>
-          <label>Reason (required)<input name="reason" required /></label>
-          <label>Severity<select name="severity" defaultValue="medium">{['low', 'medium', 'high', 'critical'].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select></label>
-          <label>Owner<select name="owner"><option value="">Managers (default)</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-          <label>Target resolution<input type="date" name="target" /></label>
-          <label>Description<textarea name="description" rows={2} /></label>
-          <button type="submit" className="danger">Raise escalation</button>
-        </form>
-      )}
+      <div className="td-grid">
+        <div className="td-col">
+          <section className="card" aria-labelledby="ov-h">
+            <h3 id="ov-h">{edit ? 'Edit task' : 'Description'}</h3>
+            {edit ? (
+              <form className="grid" onSubmit={saveEdit}>
+                <label>Title<input name="title" defaultValue={t.title} required /></label>
+                <label>Priority<select name="priority" defaultValue={t.priority}>{['low', 'medium', 'high', 'urgent'].map((p) => <option key={p} value={p}>{label(p)}</option>)}</select></label>
+                <label>Start<input type="date" name="start_date" defaultValue={toDateInput(t.start_date)} /></label>
+                <label>Due<input type="date" name="due_date" defaultValue={toDateInput(t.due_date)} /></label>
+                <label>Estimated hours<input type="number" step="0.25" min="0" name="estimated_hours" defaultValue={t.estimated_hours ?? ''} /></label>
+                <label>Actual hours<input type="number" step="0.25" min="0" name="actual_hours" defaultValue={t.actual_hours ?? ''} /></label>
+                <label>Tags<input name="tags" defaultValue={t.tags.join(', ')} /></label>
+                <label>Description<textarea name="description" rows={4} defaultValue={t.description ?? ''} /></label>
+                <label className="inline"><input type="checkbox" name="client_visible" defaultChecked={t.client_visible} /> Visible to client</label>
+                <span className="row filters"><button type="submit">Save changes</button><button type="button" className="link" onClick={() => setEdit(false)}>Cancel</button></span>
+              </form>
+            ) : t.description ? <p className="td-desc">{t.description}</p> : <p className="muted">No description yet.{manager && ' Use Edit to add one.'}</p>}
+            {!edit && t.tags.length > 0 && <div className="tag-row">{t.tags.map((g: string) => <span key={g} className="tag">#{g}</span>)}</div>}
+          </section>
 
-      <h3>People</h3>
-      <p>Assignees: {d.assignees.length === 0 ? 'none' : d.assignees.map((a: any) => (
-        <span key={a.user_id} className="chip">{name(a.user_id)}{manager && <button className="link" aria-label={`Remove ${name(a.user_id)}`} onClick={() => run(() => rpc('tt_assign', { p_task: id, p_user: a.user_id, p_add: false }))}>×</button>}</span>))}</p>
-      {manager && unassigned.length > 0 && (
-        <select aria-label="Add assignee" value="" onChange={(e) => e.target.value && run(() => rpc('tt_assign', { p_task: id, p_user: e.target.value, p_add: true }))}>
-          <option value="">+ Add assignee</option>{unassigned.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>)}
+          <section className="card" aria-labelledby="ck-h">
+            <div className="panel-head"><h3 id="ck-h">Checklist</h3>{d.checklist.length > 0 && <small className="muted">{doneCount} of {d.checklist.length} done</small>}</div>
+            {d.checklist.length > 0 && <span className="meter td-meter" role="img" aria-label={`${checkPct}% of checklist done`}><i style={{ width: `${checkPct}%` }} /></span>}
+            {d.checklist.length === 0 ? <p className="muted">Break the work into steps so progress is visible.</p> : (
+              <ul className="check-list">{d.checklist.map((c: any, i: number) => (
+                <li key={c.id} className={c.done ? 'done' : ''}>
+                  <label className="inline"><input type="checkbox" checked={c.done} onChange={(e) => run(async () => {
+                    await must(supabase.from('tt_task_checklist_items').update({ done: e.target.checked, done_by: e.target.checked ? uid : null }).eq('id', c.id));
+                    await supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'task', entity_id: id, action: e.target.checked ? 'checklist_item_done' : 'checklist_item_reopened', detail: { title: c.title } });
+                  })} /> <span>{c.title}</span></label>
+                  <span className="check-tools">
+                    <button type="button" className="icon-btn sm" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp size={14} aria-hidden="true" /></button>
+                    <button type="button" className="icon-btn sm" aria-label="Move down" disabled={i === d.checklist.length - 1} onClick={() => move(i, 1)}><ArrowDown size={14} aria-hidden="true" /></button>
+                    <button type="button" className="icon-btn sm danger-text" aria-label={`Delete ${c.title}`} onClick={() => confirmRun('Delete checklist item?', `“${c.title}” will be removed from this task.`, 'Delete',
+                      () => must(supabase.from('tt_task_checklist_items').delete().eq('id', c.id)))}><Trash2 size={14} aria-hidden="true" /></button>
+                  </span>
+                </li>))}</ul>)}
+            <form className="inline-add" onSubmit={addItem}><input aria-label="New checklist item" name="title" placeholder="Add a step…" /><button type="submit"><Plus size={15} aria-hidden="true" />Add</button></form>
+          </section>
 
-      <h3>Checklist</h3>
-      {d.checklist.length === 0 ? <p>No checklist items.</p> : (
-        <ul className="plain">{d.checklist.map((c: any, i: number) => (
-          <li key={c.id}>
-            <label className="inline"><input type="checkbox" checked={c.done} onChange={(e) => run(async () => {
-              await must(supabase.from('tt_task_checklist_items').update({ done: e.target.checked, done_by: e.target.checked ? uid : null }).eq('id', c.id));
-              await supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'task', entity_id: id, action: e.target.checked ? 'checklist_item_done' : 'checklist_item_reopened', detail: { title: c.title } });
-            })} /> {c.title}</label>
-            <button className="link" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
-            <button className="link" aria-label="Move down" disabled={i === d.checklist.length - 1} onClick={() => move(i, 1)}>↓</button>
-            <button className="link" onClick={() => run(() => must(supabase.from('tt_task_checklist_items').delete().eq('id', c.id)))}>Delete</button>
-          </li>))}</ul>)}
-      <form className="row filters" onSubmit={addItem}><input aria-label="New checklist item" name="title" placeholder="New item" /><button type="submit">Add</button></form>
-
-      <h3>Dependencies</h3>
-      <p>Blocked by: {d.blockedBy.length === 0 ? 'none' : d.blockedBy.map((b: any) => (
-        <span key={b.id} className="chip"><Link to={`/tasks/${b.id}`}>{b.title}</Link> <Badge v={b.status} />
-          {manager && <button className="link" aria-label="Remove dependency" onClick={() => run(() => must(supabase.from('tt_task_dependencies').delete().eq('task_id', id!).eq('blocked_by_id', b.id)))}>×</button>}</span>))}</p>
-      <p>Blocks: {d.blocks.length === 0 ? 'none' : d.blocks.map((b: any) => <span key={b.id} className="chip"><Link to={`/tasks/${b.id}`}>{b.title}</Link></span>)}</p>
-      {manager && (
-        <select aria-label="Add dependency" value="" onChange={(e) => e.target.value && run(() => rpc('tt_add_dependency', { p_task: id, p_blocker: e.target.value }))}>
-          <option value="">+ Blocked by…</option>{otherTasks.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
-        </select>)}
-
-      <h3>Comments</h3>
-      {d.comments.length === 0 ? <p>No comments yet.</p> : d.comments.map((c: any) => (
-        <div key={c.id} className={`note ${c.visibility === 'client' ? 'client' : ''}`}>
-          <strong>{c.author_name ?? name(c.user_id)}</strong> <small>{fmtTime(c.created_at)}{c.edited_at && ' (edited)'} · {c.visibility === 'client' ? 'visible to client' : 'internal'}</small>
-          {c.deleted_at ? <p><em>Deleted</em></p> : editing === c.id ? (
-            <form onSubmit={(e) => { e.preventDefault(); const body = String(new FormData(e.currentTarget).get('body')).trim(); run(async () => { await must(supabase.from('tt_task_comments').update({ body }).eq('id', c.id)); setEditing(null); }); }}>
-              <textarea name="body" defaultValue={c.body} rows={2} required /><button type="submit">Save</button><button type="button" className="link" onClick={() => setEditing(null)}>Cancel</button>
+          <section className="card" aria-labelledby="cm-h">
+            <div className="panel-head"><h3 id="cm-h">Comments</h3><small className="muted">{d.comments.filter((c: any) => !c.deleted_at).length}</small></div>
+            {d.comments.length === 0 ? <p className="muted">No comments yet. Start the conversation below.</p> : (
+              <ul className="thread">{d.comments.map((c: any) => {
+                const who = c.author_name ?? name(c.user_id);
+                return (
+                  <li key={c.id} className={c.user_id === uid ? 'mine' : ''}>
+                    <span className="avatar sm" aria-hidden="true">{initials(who)}</span>
+                    <div className={`bubble ${c.visibility === 'client' ? 'client' : ''}`}>
+                      <div className="bubble-head"><b>{who}</b><small>{fmtTime(c.created_at)}{c.edited_at && ' · edited'}</small>{c.visibility === 'client' && <span className="prio"><Eye size={12} aria-hidden="true" />Client</span>}</div>
+                      {c.deleted_at ? <p className="muted"><em>Comment deleted</em></p> : editing === c.id ? (
+                        <form className="grid" onSubmit={(e) => { e.preventDefault(); const body = String(new FormData(e.currentTarget).get('body')).trim(); run(async () => { await must(supabase.from('tt_task_comments').update({ body }).eq('id', c.id)); setEditing(null); }); }}>
+                          <textarea name="body" defaultValue={c.body} rows={2} required />
+                          <span className="row filters"><button type="submit">Save</button><button type="button" className="link" onClick={() => setEditing(null)}>Cancel</button></span>
+                        </form>
+                      ) : <p>{c.body}</p>}
+                      {!c.deleted_at && (c.user_id === uid || manager) && editing !== c.id && (
+                        <div className="bubble-tools">
+                          {c.user_id === uid && <button type="button" className="link" onClick={() => setEditing(c.id)}>Edit</button>}
+                          <button type="button" className="link danger-text" onClick={() => confirmRun('Delete comment?', 'It will show as “Comment deleted” to everyone on this task.', 'Delete',
+                            () => must(supabase.from('tt_task_comments').update({ deleted_at: new Date().toISOString() }).eq('id', c.id)))}>Delete</button>
+                        </div>)}
+                    </div>
+                  </li>);
+              })}</ul>)}
+            <form className="composer" onSubmit={addComment}>
+              <textarea aria-label="Add comment" name="body" rows={2} required placeholder="Write a comment…" />
+              <div className="composer-bar">
+                <select aria-label="Comment visibility" name="visibility"><option value="internal">Internal only</option>{canClientComment && <option value="client">Visible to client</option>}</select>
+                <button type="submit"><Send size={15} aria-hidden="true" />Post</button>
+              </div>
             </form>
-          ) : <p>{c.body}</p>}
-          {!c.deleted_at && (c.user_id === uid || manager) && editing !== c.id && (
-            <>{c.user_id === uid && <button className="link" onClick={() => setEditing(c.id)}>Edit</button>}
-              <button className="link" onClick={async () => { if ((await ask({ message: 'Delete this comment? It will show as deleted.', confirmLabel: 'Delete', danger: true })).ok) run(() => must(supabase.from('tt_task_comments').update({ deleted_at: new Date().toISOString() }).eq('id', c.id))); }}>Delete</button></>)}
-        </div>))}
-      <form className="grid" onSubmit={addComment}>
-        <label>Add comment<textarea name="body" rows={2} required /></label>
-        <label>Visibility<select name="visibility"><option value="internal">Internal only</option>{canClientComment && <option value="client">Visible to client</option>}</select></label>
-        <button type="submit">Post</button>
-      </form>
+          </section>
 
-      <h3>Files</h3>
-      <FilePanel orgId={orgId} userId={uid} entityType="task" entityId={id!} canUpload canDelete={manager} />
+          <section className="card" aria-labelledby="fl-h">
+            <h3 id="fl-h">Files</h3>
+            <FilePanel orgId={orgId} userId={uid} entityType="task" entityId={id!} canUpload canDelete={manager} />
+          </section>
 
+          <section className="card" aria-labelledby="tl-h">
+            <h3 id="tl-h">History</h3>
+            {timeline.length === 0 ? <p className="muted">No changes recorded yet.</p> : (
+              <ol className="timeline">{timeline.map((x, i) => (
+                <li key={i} className={x.kind}><span className="tl-dot" aria-hidden="true" /><p>{x.text}</p><small>{name(x.who)} · {fmtTime(x.at)}</small></li>))}</ol>)}
+          </section>
+        </div>
 
-      <h3>Escalations</h3>
-      {d.esc.length === 0 ? <p>None.</p> : <ul className="plain">{d.esc.map((e: any) => <li key={e.id}><Badge v={e.state} /> {label(e.severity)} — {e.reason} <small>raised {fmtTime(e.raised_at)} by {name(e.raised_by)}</small></li>)}</ul>}
+        <aside className="td-col">
+          <section className="card td-status" aria-labelledby="st-h">
+            <h3 id="st-h">Status</h3>
+            {t.status === 'escalation' ? (
+              <p className="note">This task is escalated{openEsc ? <> ({label(openEsc.severity)}, {label(openEsc.state)}). It returns to {label(openEsc.previous_task_status)} when the escalation is resolved on the <Link to="/escalations">Escalations</Link> page.</> : '.'}</p>
+            ) : canStatus ? (
+              <form className="stack" onSubmit={changeStatus}>
+                <select aria-label="New status" name="to" required disabled={!nexts.length}>{nexts.map((s) => <option key={s} value={s}>Move to {label(s)}</option>)}</select>
+                <input aria-label="Reason for status change" name="reason" placeholder="Reason (optional)" />
+                {manager && <label className="inline"><input type="checkbox" name="override" /> Override dependency block</label>}
+                <button type="submit" disabled={!nexts.length}>Update status</button>
+                {!['completed', 'cancelled'].includes(t.status) && <button type="button" className="pill-btn ghost danger-text" onClick={() => setEscForm(!escForm)}><Siren size={15} aria-hidden="true" />{escForm ? 'Cancel escalation' : 'Escalate'}</button>}
+              </form>
+            ) : <p className="muted">Only assignees and managers can change status.</p>}
+            {escForm && (
+              <form className="stack esc-form" onSubmit={raise}>
+                <label>Reason<input name="reason" required /></label>
+                <label>Severity<select name="severity" defaultValue="medium">{['low', 'medium', 'high', 'critical'].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select></label>
+                <label>Owner<select name="owner"><option value="">Managers (default)</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+                <label>Target resolution<input type="date" name="target" /></label>
+                <label>Description<textarea name="description" rows={2} /></label>
+                <button type="submit" className="danger">Raise escalation</button>
+              </form>
+            )}
+          </section>
 
-      <h3>Status history</h3>
-      <ul className="plain">{d.history.map((h: any) => <li key={h.id}>{h.from_status ? label(h.from_status) : 'Created'} → {label(h.to_status)} by {name(h.changed_by)} <small>{fmtTime(h.changed_at)}</small>{h.reason && <> — {h.reason}</>}</li>)}</ul>
-      <h3>Activity</h3>
-      <ul className="plain">{d.activity.map((a: any) => <li key={a.id}>{label(a.action)} by {name(a.actor_id)} <small>{fmtTime(a.created_at)}</small></li>)}</ul>
+          <section className="card" aria-labelledby="dt-h">
+            <h3 id="dt-h">Details</h3>
+            <dl className="facts">
+              <dt>Start</dt><dd>{fmt(t.start_date)}</dd>
+              <dt>Due</dt><dd className={overdue ? 'overdue' : ''}>{fmt(t.due_date)}</dd>
+              <dt>Effort</dt><dd>{t.estimated_hours ?? '—'}h est · {t.actual_hours ?? '—'}h actual</dd>
+              <dt>Repeats</dt><dd>{d.recur ? `${label(d.recur.frequency)} ×${d.recur.interval_n}, next ${fmt(d.recur.next_run)}${d.recur.active ? '' : ' (ended)'}` : t.recurrence_parent_id ? <Link to={`/tasks/${t.recurrence_parent_id}`}>Part of a recurring task</Link> : 'No'}</dd>
+              {t.completed_at && <><dt>Completed</dt><dd>{fmtTime(t.completed_at)}<br /><small className="muted">by {name(t.completed_by)}</small></dd></>}
+            </dl>
+          </section>
+
+          <section className="card" aria-labelledby="pp-h">
+            <h3 id="pp-h">Assignees</h3>
+            {d.assignees.length === 0 ? <p className="muted">Nobody is assigned yet.</p> : (
+              <ul className="people">{d.assignees.map((a: any) => (
+                <li key={a.user_id}>
+                  <span className="avatar sm" aria-hidden="true">{initials(name(a.user_id))}</span><span className="grow">{name(a.user_id)}</span>
+                  {manager && <button type="button" className="icon-btn sm" aria-label={`Remove ${name(a.user_id)}`} onClick={() => confirmRun('Remove assignee?', `${name(a.user_id)} will no longer be assigned to this task.`, 'Remove',
+                    () => rpc('tt_assign', { p_task: id, p_user: a.user_id, p_add: false }))}><X size={14} aria-hidden="true" /></button>}
+                </li>))}</ul>)}
+            {manager && unassigned.length > 0 && (
+              <select aria-label="Add assignee" value="" onChange={(e) => e.target.value && run(() => rpc('tt_assign', { p_task: id, p_user: e.target.value, p_add: true }))}>
+                <option value="">+ Add assignee</option>{unassigned.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>)}
+          </section>
+
+          <section className="card" aria-labelledby="dp-h">
+            <h3 id="dp-h">Dependencies</h3>
+            <p className="facts-label">Blocked by</p>
+            {d.blockedBy.length === 0 ? <p className="muted">Nothing. This task can move freely.</p> : (
+              <ul className="people">{d.blockedBy.map((b: any) => (
+                <li key={b.id}><Link to={`/tasks/${b.id}`} className="grow">{b.title}</Link><Badge v={b.status} />
+                  {manager && <button type="button" className="icon-btn sm" aria-label={`Remove dependency on ${b.title}`} onClick={() => confirmRun('Remove dependency?', `This task will no longer wait for “${b.title}”.`, 'Remove',
+                    () => must(supabase.from('tt_task_dependencies').delete().eq('task_id', id!).eq('blocked_by_id', b.id)))}><X size={14} aria-hidden="true" /></button>}
+                </li>))}</ul>)}
+            {d.blocks.length > 0 && <><p className="facts-label">Blocks</p><ul className="people">{d.blocks.map((b: any) => <li key={b.id}><Link to={`/tasks/${b.id}`} className="grow">{b.title}</Link><Badge v={b.status} /></li>)}</ul></>}
+            {manager && (
+              <select aria-label="Add dependency" value="" onChange={(e) => e.target.value && run(() => rpc('tt_add_dependency', { p_task: id, p_blocker: e.target.value }))}>
+                <option value="">+ Blocked by…</option>{otherTasks.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
+              </select>)}
+          </section>
+
+          {d.esc.length > 0 && (
+            <section className="card" aria-labelledby="es-h">
+              <h3 id="es-h">Escalations</h3>
+              <ul className="people">{d.esc.map((e: any) => <li key={e.id} className="esc-row"><Badge v={e.state} /><span className="grow"><b>{label(e.severity)}</b> · {e.reason}<br /><small className="muted">{fmtTime(e.raised_at)} by {name(e.raised_by)}</small></span></li>)}</ul>
+            </section>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

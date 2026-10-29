@@ -6,6 +6,7 @@ import { can } from '../../api/_lib/permissions';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
 import { Badge, Due, dateToTs, label, rpc, usePeople } from '../lib/ui';
 import { ListSkeleton } from '../components/Skeleton';
+import { ask } from '../components/Dialog';
 
 export type Mode = 'all' | 'mine' | 'team';
 const PAGE = 25;
@@ -160,7 +161,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
       {canWrite && selected.length > 0 && (
         <div className="row filters">
           <span>{selected.length} selected</span>
-          <button onClick={() => bulk({ archived_at: new Date().toISOString() })}>Archive</button>
+          <button onClick={async () => { if ((await ask({ title: `Archive ${selected.length} task${selected.length > 1 ? 's' : ''}?`, message: 'They will be hidden from lists, the calendar and the dashboard. You can restore them from the Archived view.', confirmLabel: 'Archive', danger: true })).ok) bulk({ archived_at: new Date().toISOString() }); }}>Archive</button>
           <button onClick={() => bulk({ archived_at: null })}>Restore</button>
           {PRIORITIES.map((p) => <button key={p} className="link" onClick={() => bulk({ priority: p })}>Set {label(p)}</button>)}
         </div>

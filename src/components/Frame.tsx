@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { reducedMotion } from './Liquid';
+import { ask } from './Dialog';
 import { Bell, CheckCheck, ChevronDown, LogOut, Menu, X, type LucideIcon } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -158,6 +159,9 @@ export default function Frame({ brand, groups, footer, title, search, action, be
   const navRef = useRef<HTMLElement>(null);
   const marker = useLiquidMarker(navRef, closeKey);
   usePointerLight();
+  const confirmSignOut = async () => {
+    if ((await ask({ title: 'Log out?', message: 'You will need to sign in again to get back to your workspace.', confirmLabel: 'Log out' })).ok) onSignOut();
+  };
   const first = user.name.includes('@') ? '' : user.name.split(' ')[0];
   // re-render each minute so the greeting rolls over (morning → afternoon) without a reload
   const [now, setNow] = useState(() => new Date());
@@ -177,7 +181,7 @@ export default function Frame({ brand, groups, footer, title, search, action, be
               {g.items.map((i) => <Item key={i.label} i={i} />)}
             </div>
           ))}
-          <button type="button" className="side-link" onClick={onSignOut}><LogOut size={18} aria-hidden="true" /><span>Log out</span></button>
+          <button type="button" className="side-link" onClick={confirmSignOut}><LogOut size={18} aria-hidden="true" /><span>Log out</span></button>
         </nav>
         {footer}
       </aside>
@@ -193,7 +197,7 @@ export default function Frame({ brand, groups, footer, title, search, action, be
             {action}
             <NotificationBell {...bell} />
             <span className="top-divider" aria-hidden="true" />
-            <ProfileMenu user={user} menu={menu} onSignOut={onSignOut} />
+            <ProfileMenu user={user} menu={menu} onSignOut={confirmSignOut} />
           </div>
         </header>
         <main className="content"><div className="page" key={closeKey}>{children}</div></main>

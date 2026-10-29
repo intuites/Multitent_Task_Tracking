@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
@@ -13,6 +14,7 @@ import { PageSkeleton } from '../components/Skeleton';
 export default function ProjectDetail() {
   const { id } = useParams();
   const { membership, session } = useAuth();
+  const navigate = useNavigate();
   const orgId = membership!.org_id;
   const uid = session!.user.id;
   const canWrite = can(membership!.role, 'project:write');
@@ -85,6 +87,22 @@ export default function ProjectDetail() {
   if (loading) return <PageSkeleton />;
   if (!p) return <div className="card">Project not found. <Link to="/projects">Back to projects</Link></div>;
 
+  async function remove() {
+    const n = tasks.length;
+    if (!(await ask({
+      title: 'Delete this project?',
+      message: `“${p.name}” and its milestones will be permanently deleted.${n ? ` Its ${n} task${n > 1 ? 's' : ''} will be kept but no longer linked to a project.` : ''} This can't be undone.`,
+      confirmLabel: 'Delete project', danger: true,
+    })).ok) return;
+    // tasks reference projects without cascade, so unlink them first
+    const un = await supabase.from('tt_tasks').update({ project_id: null }).eq('project_id', id!).eq('org_id', orgId);
+    if (un.error) return setError(un.error.message);
+    const del = await supabase.from('tt_projects').delete().eq('id', id!).eq('org_id', orgId);
+    if (del.error) return setError(del.error.message);
+    await logActivity(orgId, uid, 'project', id!, 'deleted', { name: p.name });
+    navigate('/projects');
+  }
+
   const progress = projectProgress(p.progress_mode as ProgressMode, p.manual_progress, ms, tasks);
   const today = new Date().toISOString().slice(0, 10);
 
@@ -95,10 +113,11 @@ export default function ProjectDetail() {
         {canWrite && (
           <select aria-label="Project status" value={p.status} onChange={async (e) => {
             const to = e.target.value;
-            if (to === 'archived' && !(await ask({ message: 'Archive this project?', confirmLabel: 'Archive', danger: true })).ok) return;
+            if (to === 'archived' && !(await ask({ title: 'Archive this project?', message: 'It will be hidden from the project list. You can change its status back later.', confirmLabel: 'Archive', danger: true })).ok) return;
             update({ status: to }, 'status_changed', { from: p.status, to });
           }}>{PROJECT_STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
         )}
+        {canWrite && <button type="button" className="pill-btn ghost danger-text" onClick={remove}><Trash2 size={15} aria-hidden="true" />Delete project</button>}
       </div>
       {error && <p role="alert">{error}</p>}
       {editing ? (

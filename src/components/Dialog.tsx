@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, HelpCircle } from 'lucide-react';
 
 interface Opts { title?: string; message: string; confirmLabel?: string; input?: string; danger?: boolean }
 interface Result { ok: boolean; value: string }
@@ -19,12 +20,14 @@ export function DialogHost() {
     <dialog ref={ref} aria-labelledby="dlg-title" onCancel={(e) => { e.preventDefault(); close({ ok: false, value: '' }); }}>
       {p && (
         <form onSubmit={(e) => { e.preventDefault(); close({ ok: true, value: String(new FormData(e.currentTarget).get('v') ?? '') }); }}>
+          <span className={p.danger ? 'dlg-ico danger' : 'dlg-ico'} aria-hidden="true">{p.danger ? <AlertTriangle size={22} /> : <HelpCircle size={22} />}</span>
           <h2 id="dlg-title">{p.title ?? 'Please confirm'}</h2>
-          <p>{p.message}</p>
+          <p className="dlg-msg">{p.message}</p>
           {p.input && <label>{p.input}<input name="v" autoFocus /></label>}
           <div className="actions">
-            <button type="button" className="link" onClick={() => close({ ok: false, value: '' })}>Cancel</button>
-            <button type="submit" className={p.danger ? 'danger' : ''}>{p.confirmLabel ?? 'Confirm'}</button>
+            {/* destructive dialogs focus Cancel so a stray Enter doesn't delete anything */}
+            <button type="button" className="pill-btn ghost" autoFocus={p.danger && !p.input} onClick={() => close({ ok: false, value: '' })}>Cancel</button>
+            <button type="submit" className={p.danger ? 'danger' : ''} autoFocus={!p.danger && !p.input}>{p.confirmLabel ?? 'Confirm'}</button>
           </div>
         </form>
       )}

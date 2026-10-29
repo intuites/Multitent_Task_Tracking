@@ -273,10 +273,10 @@ export default function TaskDetail() {
                 <input aria-label="Reason for status change" name="reason" placeholder="Reason (optional)" />
                 {manager && <label className="inline"><input type="checkbox" name="override" /> Override dependency block</label>}
                 <button type="submit" disabled={!nexts.length}>Update status</button>
-                {!['completed', 'cancelled'].includes(t.status) && <button type="button" className="pill-btn ghost danger-text" onClick={() => setEscForm(!escForm)}><Siren size={15} aria-hidden="true" />{escForm ? 'Cancel escalation' : 'Escalate'}</button>}
+                {can(role, 'escalation:manage') && !['completed', 'cancelled'].includes(t.status) && <button type="button" className="pill-btn ghost danger-text" onClick={() => setEscForm(!escForm)}><Siren size={15} aria-hidden="true" />{escForm ? 'Cancel escalation' : 'Escalate'}</button>}
               </form>
             ) : <p className="muted">Only assignees and managers can change status.</p>}
-            {escForm && (
+            {escForm && can(role, 'escalation:manage') && (
               <form className="stack esc-form" onSubmit={raise}>
                 <label>Reason<input name="reason" required /></label>
                 <label>Severity<select name="severity" defaultValue="medium">{['low', 'medium', 'high', 'critical'].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select></label>

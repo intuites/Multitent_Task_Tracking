@@ -11,7 +11,6 @@ import { DashSkeleton } from '../components/Skeleton';
 
 const OPEN = '(completed,completed_cycle)';
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 // deterministic tile colour per name, from the green family
 const TILE = ['#1b5e3b', '#2e7d4f', '#4f9d74', '#0f3d26', '#6aa287'];
 const tileColor = (s: string) => TILE[[...s].reduce((n, c) => n + c.charCodeAt(0), 0) % TILE.length];
@@ -27,28 +26,95 @@ function Kpi({ title, value, note, to, feature }: { title: string; value: number
   );
 }
 
-// Completed tasks per weekday this week; days still ahead are hatched.
-function WeekBars({ counts, today }: { counts: number[]; today: number }) {
-  const max = Math.max(1, ...counts);
-  const best = counts.indexOf(Math.max(...counts));
-  const summary = counts.map((c, i) => `${DAY_NAMES[i]} ${c}`).join(', ');
-  return (
-    <div className="weekbars" role="img" aria-label={`Tasks completed this week: ${summary}`}>
-      {counts.map((c, i) => {
-        const future = i > today;
-        const cls = future ? 'bar future' : c === 0 ? 'bar zero' : i === today ? 'bar today' : i === best ? 'bar best' : 'bar';
+type Range = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
+const RANGES: [Range, string][] = [['this_week', 'This week'], ['last_week', 'Last week'], ['this_month', 'This month'], ['last_month', 'Last month'], ['custom', 'Custom']];
+const day0 = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const addD = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** [from, to) for a preset range, in the viewer's local time. */
+function bounds(r: Range, cFrom: string, cTo: string): [Date, Date] {
+  const t = day0(new Date()), sun = addD(t, -t.getDay());
+  if (r === 'this_week') return [sun, addD(sun, 7)];
+  if (r === 'last_week') return [addD(sun, -7), sun];
+  if (r === 'this_month') return [new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth() + 1, 1)];
+  if (r === 'last_month') return [new Date(t.getFullYear(), t.getMonth() - 1, 1), new Date(t.getFullYear(), t.getMonth(), 1)];
+  const f = cFrom ? new Date(`${cFrom}T00:00:00`) : addD(t, -13), to = cTo ? addD(new Date(`${cTo}T00:00:00`), 1) : addD(t, 1);
+  return f < to ? [f, to] : [to, f];
+}
+
+/** Buckets: a bar per day up to 2 weeks, per week up to ~4 months, otherwise per month. */
+function buckets(from: Date, to: Date) {
+  const days = Math.round((to.getTime() - from.getTime()) / 864e5), out: { start: Date; end: Date; label: string; title: string }[] = [];
+  const md = (d: Date) => d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+  if (days <= 14) {
+    for (let d = from; d < to; d = addD(d, 1))
+      out.push({ start: d, end: addD(d, 1), label: days <= 7 ? DAYS[d.getDay()] : md(d), title: d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) });
+  } else if (days <= 120) {
+    for (let d = from; d < to; d = addD(d, 7)) {
+      const e = addD(d, 7) < to ? addD(d, 7) : to;
+      out.push({ start: d, end: e, label: md(d), title: `${md(d)} – ${md(addD(e, -1))}` });
+    }
+  } else {
+    for (let d = new Date(from.getFullYear(), from.getMonth(), 1); d < to; d = new Date(d.getFullYear(), d.getMonth() + 1, 1))
+      out.push({ start: d < from ? from : d, end: new Date(d.getFullYear(), d.getMonth() + 1, 1), label: d.toLocaleDateString('en-US', { month: 'short' }), title: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) });
+  }
+  return out;
+}
+
+// The signed-in person's completed tasks over a chosen range, a labelled bar per day / week / month.
+function CompletedChart({ orgId, uid, tick }: { orgId: string; uid: string; tick: number }) {
+  const [range, setRange] = useState<Range>('this_week');
+  const [cFrom, setCFrom] = useState(''), [cTo, setCTo] = useState('');
+  const [dates, setDates] = useState<number[] | null>(null);
+  const [from, to] = bounds(range, cFrom, cTo);
+  const key = `${from.getTime()}-${to.getTime()}`;
+  useEffect(() => {
+    let live = true;
+    setDates(null);
+    supabase.from('tt_tasks').select('completed_at, tt_task_assignees!inner(user_id)').eq('org_id', orgId).eq('tt_task_assignees.user_id', uid)
+      .is('archived_at', null).in('status', ['completed', 'completed_cycle']).gte('completed_at', from.toISOString()).lt('completed_at', to.toISOString()).limit(10000)
+      .then(({ data }) => { if (live) setDates((data ?? []).map((r: any) => Date.parse(r.completed_at))); });
+    return () => { live = false; };
+  }, [orgId, uid, key, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const bs = buckets(from, to), now = Date.now();
+  const counts = bs.map((b) => (dates ?? []).filter((t) => t >= b.start.getTime() && t < b.end.getTime()).length);
+  const max = Math.max(1, ...counts), best = counts.indexOf(Math.max(...counts)), total = counts.reduce((a, b) => a + b, 0);
+  const title = range === 'custom' ? `${from.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${addD(to, -1).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : RANGES.find(([r]) => r === range)![1];
+
+  return (<>
+    <div className="cc-head">
+      <div><h3 id="an-h">My completed tasks</h3><small className="muted">{dates === null ? 'Loading…' : `${total} in ${title.toLowerCase()}`}</small></div>
+      <Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link>
+    </div>
+    <div className="cc-ranges" role="group" aria-label="Date range">
+      {RANGES.map(([r, l]) => <button key={r} type="button" aria-pressed={range === r} onClick={() => setRange(r)}>{l}</button>)}
+    </div>
+    {range === 'custom' && (
+      <div className="cc-custom">
+        <label>From<input type="date" value={cFrom || isoDay(from)} max={isoDay(new Date())} onChange={(e) => setCFrom(e.target.value)} /></label>
+        <label>To<input type="date" value={cTo || isoDay(addD(to, -1))} onChange={(e) => setCTo(e.target.value)} /></label>
+      </div>)}
+    <div key={key} className={`weekbars cc-bars ${bs.length > 10 ? 'dense' : ''}`} style={{ gridTemplateColumns: `repeat(${bs.length}, 1fr)` }}
+      role="img" aria-label={`Tasks completed, ${title}: ${bs.map((b, i) => `${b.title} ${counts[i]}`).join(', ')}`}>
+      {bs.map((b, i) => {
+        const c = counts[i], future = b.start.getTime() > now, current = b.start.getTime() <= now && now < b.end.getTime();
+        const cls = future ? 'bar future' : c === 0 ? 'bar zero' : current ? 'bar today' : i === best ? 'bar best' : 'bar';
         return (
-          <div key={i} className="bar-col" style={{ '--i': i } as React.CSSProperties}>
+          <div key={b.start.getTime()} className="bar-col" style={{ '--i': i } as React.CSSProperties} title={`${b.title}: ${c} completed`}>
             <div className="bar-track">
-              {i === today && <span className="bar-tip">{c}</span>}
-              <span className={cls} style={{ height: future ? '100%' : c === 0 ? '8%' : `${Math.max(16, (c / max) * 100)}%` }} />
+              <span className="bar-stack" style={{ height: future ? '100%' : c === 0 ? '8%' : `${Math.max(16, (c / max) * 100)}%` }}>
+                {!future && dates !== null && <span className={`bar-val ${current ? 'now' : ''}`}>{c}</span>}
+                <span className={cls} />
+              </span>
             </div>
-            <span className="bar-day">{DAYS[i]}</span>
+            <span className={`bar-day ${current ? 'now' : ''}`}>{b.label}</span>
           </div>
         );
       })}
     </div>
-  );
+  </>);
 }
 
 // Half-donut of completed / in progress / pending, drawn with dash offsets on one arc.
@@ -105,15 +171,13 @@ export default function Dashboard() {
       const now = new Date();
       const start = new Date(now); start.setHours(0, 0, 0, 0);
       const end = new Date(start); end.setDate(end.getDate() + 1);
-      const weekStart = new Date(start); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
       // the week chart and the progress gauge count only the signed-in person's own tasks (what My Tasks shows)
       const myTasks = (cols: string) => supabase.from('tt_tasks').select(`${cols}, tt_task_assignees!inner(user_id)`).eq('org_id', orgId)
         .eq('tt_task_assignees.user_id', uid).is('archived_at', null);
       try {
-        const [sum, myAll, week, next, projects, current, mine, esc, escCrit, escLate] = await Promise.all([
+        const [sum, myAll, next, projects, current, mine, esc, escCrit, escLate] = await Promise.all([
           rpc('tt_org_summary', { p_org: orgId, p_day_start: start.toISOString(), p_day_end: end.toISOString() }),
           myTasks('status, due_date').limit(5000),
-          myTasks('completed_at').in('status', ['completed', 'completed_cycle']).gte('completed_at', weekStart.toISOString()).limit(5000),
           myTasks('id, title, status, due_date').not('status', 'in', OPEN).gte('due_date', now.toISOString()).order('due_date').limit(1),
           supabase.from('tt_projects').select('id, name, due_date, status').eq('org_id', orgId).in('status', ['planning', 'not_started', 'in_progress', 'in_review'])
             .order('due_date', { nullsFirst: false }).limit(5),
@@ -125,8 +189,6 @@ export default function Dashboard() {
           supabase.from('tt_escalations').select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('severity', 'critical').not('state', 'in', '(resolved,closed)'),
           supabase.from('tt_escalations').select('id', { count: 'exact', head: true }).eq('org_id', orgId).lt('target_date', now.toISOString()).not('state', 'in', '(resolved,closed)'),
         ]);
-        const counts = [0, 0, 0, 0, 0, 0, 0];
-        for (const r of (week.data ?? []) as any[]) counts[new Date(r.completed_at).getDay()]++;
         // every number on this page is the signed-in person's own tasks
         const own = { done: 0, active: 0, pending: 0, open: 0, overdue: 0, dueToday: 0, waiting: 0 };
         for (const r of (myAll.data ?? []) as any[]) {
@@ -140,7 +202,7 @@ export default function Dashboard() {
         const working = new Map<string, any>();
         for (const t of current.data ?? []) for (const a of t.tt_task_assignees) if (!working.has(a.user_id)) working.set(a.user_id, t);
         setD({
-          sum, counts, today: now.getDay(), next: next.data?.[0], projects: projects.data ?? [], mine: mine.data ?? [],
+          sum, next: next.data?.[0], projects: projects.data ?? [], mine: mine.data ?? [],
           team: (sum.workload as any[]).filter((w) => w.open).slice(0, 4).map((w) => ({ ...w, task: working.get(w.user_id) })),
           ...own,
           esc: esc.count ?? 0, escCrit: escCrit.count ?? 0, escLate: escLate.count ?? 0,
@@ -172,8 +234,7 @@ export default function Dashboard() {
         <div className="a-k4"><Kpi title="Pending" value={d.waiting} note="Waiting on something" to="/my-tasks?view=pending" /></div>
 
         <section className="card a-an" aria-labelledby="an-h">
-          <div className="panel-head"><h3 id="an-h">My completed this week</h3><Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link></div>
-          <WeekBars counts={d.counts} today={d.today} />
+          <CompletedChart orgId={orgId} uid={uid} tick={tick} />
         </section>
 
         <section className="card a-re" aria-labelledby="re-h">

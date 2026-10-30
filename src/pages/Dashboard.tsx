@@ -106,16 +106,15 @@ export default function Dashboard() {
       const start = new Date(now); start.setHours(0, 0, 0, 0);
       const end = new Date(start); end.setDate(end.getDate() + 1);
       const weekStart = new Date(start); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      const tasks = () => supabase.from('tt_tasks').select('id, title, status, due_date').eq('org_id', orgId).is('archived_at', null);
       // the week chart and the progress gauge count only the signed-in person's own tasks (what My Tasks shows)
       const myTasks = (cols: string) => supabase.from('tt_tasks').select(`${cols}, tt_task_assignees!inner(user_id)`).eq('org_id', orgId)
         .eq('tt_task_assignees.user_id', uid).is('archived_at', null);
       try {
         const [sum, myAll, week, next, projects, current, mine, esc, escCrit, escLate] = await Promise.all([
           rpc('tt_org_summary', { p_org: orgId, p_day_start: start.toISOString(), p_day_end: end.toISOString() }),
-          myTasks('status').limit(5000),
+          myTasks('status, due_date').limit(5000),
           myTasks('completed_at').in('status', ['completed', 'completed_cycle']).gte('completed_at', weekStart.toISOString()).limit(5000),
-          tasks().not('status', 'in', OPEN).gte('due_date', now.toISOString()).order('due_date').limit(1),
+          myTasks('id, title, status, due_date').not('status', 'in', OPEN).gte('due_date', now.toISOString()).order('due_date').limit(1),
           supabase.from('tt_projects').select('id, name, due_date, status').eq('org_id', orgId).in('status', ['planning', 'not_started', 'in_progress', 'in_review'])
             .order('due_date', { nullsFirst: false }).limit(5),
           supabase.from('tt_tasks').select('id, title, status, tt_task_assignees(user_id)').eq('org_id', orgId).is('archived_at', null)
@@ -128,9 +127,14 @@ export default function Dashboard() {
         ]);
         const counts = [0, 0, 0, 0, 0, 0, 0];
         for (const r of (week.data ?? []) as any[]) counts[new Date(r.completed_at).getDay()]++;
-        const own = { done: 0, active: 0, pending: 0 };
+        // every number on this page is the signed-in person's own tasks
+        const own = { done: 0, active: 0, pending: 0, open: 0, overdue: 0, dueToday: 0, waiting: 0 };
         for (const r of (myAll.data ?? []) as any[]) {
-          if (r.status === 'completed' || r.status === 'completed_cycle') own.done++; else if (r.status === 'started') own.active++; else own.pending++;
+          if (r.status === 'completed' || r.status === 'completed_cycle') { own.done++; continue; }
+          own.open++;
+          if (r.status === 'started') own.active++; else own.pending++;
+          if (r.status === 'pending') own.waiting++;
+          if (r.due_date) { const due = Date.parse(r.due_date); if (due < now.getTime()) own.overdue++; if (due >= start.getTime() && due < end.getTime()) own.dueToday++; }
         }
         // one "currently working on" task per person, most recently updated first
         const working = new Map<string, any>();
@@ -147,14 +151,13 @@ export default function Dashboard() {
 
   if (error) return <div className="card"><p role="alert">{error}</p></div>;
   if (!d) return <DashSkeleton />;
-  const st = d.sum.by_status as Record<string, number>;
 
   return (
     <>
       <div className="page-head">
         <div>
           <h2 className="page-title">Dashboard</h2>
-          <p className="page-sub">What needs attention across {membership!.org_name} today.</p>
+          <p className="page-sub">What needs your attention today.</p>
         </div>
         <div className="page-actions">
           {manager && <Link to="/tasks?new=1" className="pill-btn"><Plus size={16} aria-hidden="true" />Add task</Link>}
@@ -163,10 +166,10 @@ export default function Dashboard() {
       </div>
 
       <div className="dash">
-        <div className="a-k1"><Kpi feature title="Open tasks" value={d.sum.open} note={`${st.started ?? 0} started`} to="/tasks" /></div>
-        <div className="a-k2"><Kpi title="Overdue" value={d.sum.overdue} note={d.sum.overdue ? 'Past their due date' : 'Everything is on time'} to="/tasks?view=overdue" /></div>
-        <div className="a-k3"><Kpi title="Due today" value={d.sum.due_today} note="Before midnight" to="/tasks?view=due_today" /></div>
-        <div className="a-k4"><Kpi title="Pending" value={d.sum.pending ?? d.sum.in_review ?? 0} note="Waiting on something" to="/tasks?view=pending" /></div>
+        <div className="a-k1"><Kpi feature title="My open tasks" value={d.open} note={`${d.active} started`} to="/my-tasks" /></div>
+        <div className="a-k2"><Kpi title="Overdue" value={d.overdue} note={d.overdue ? 'Past their due date' : 'Everything is on time'} to="/my-tasks?view=overdue" /></div>
+        <div className="a-k3"><Kpi title="Due today" value={d.dueToday} note="Before midnight" to="/my-tasks?view=due_today" /></div>
+        <div className="a-k4"><Kpi title="Pending" value={d.waiting} note="Waiting on something" to="/my-tasks?view=pending" /></div>
 
         <section className="card a-an" aria-labelledby="an-h">
           <div className="panel-head"><h3 id="an-h">My completed this week</h3><Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link></div>

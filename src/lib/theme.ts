@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 
 export type ThemePref = 'light' | 'dark' | 'system';
 const KEY = 'tt-theme';
+let wipe: { skipTransition(): void } | null = null;
 const media = () => window.matchMedia('(prefers-color-scheme: dark)');
 
 const read = (): ThemePref => {
@@ -24,9 +26,18 @@ export function useTheme() {
   const set = (p: ThemePref) => {
     try { if (p === 'system') localStorage.removeItem(KEY); else localStorage.setItem(KEY, p); } catch { /* private mode: still applies for this page */ }
     const root = document.documentElement;
-    root.classList.add('theme-anim'); // brief cross-fade; removed so normal hover transitions aren't slowed
-    apply(p); setPref(p);
-    setTimeout(() => root.classList.remove('theme-anim'), 450);
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => { finished: Promise<void>; skipTransition(): void } };
+    if (doc.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // slow left-to-right wipe: the browser snapshots old and new themes and animates only a clip-path (see styles.css)
+      wipe?.skipTransition();
+      const t = doc.startViewTransition(() => flushSync(() => { apply(p); setPref(p); }));
+      wipe = t;
+      t.finished.finally(() => { if (wipe === t) wipe = null; });
+    } else {
+      root.classList.add('theme-anim'); // brief cross-fade; removed so normal hover transitions aren't slowed
+      apply(p); setPref(p);
+      setTimeout(() => root.classList.remove('theme-anim'), 450);
+    }
     window.dispatchEvent(new Event('tt-theme'));
   };
   return { pref, theme: resolve(pref), set, toggle: () => set(resolve(pref) === 'dark' ? 'light' : 'dark') };

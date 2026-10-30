@@ -1313,3 +1313,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity
 :root[data-theme="dark"] .dp { box-shadow: 0 22px 50px rgb(0 0 0 / .55), inset 0 1px 0 rgb(255 255 255 / .06); }
 :root[data-theme="dark"] .dp-blob { opacity: .32; }
 @media (prefers-reduced-motion: reduce) { .dp, .dp-grid, .dp-blob { animation: none !important; } }
+
+/* theme switch: the new theme wipes in slowly from left to right. Only clip-path animates, on the compositor. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-new(root) { animation: theme-wipe 2.6s cubic-bezier(.45, 0, .2, 1) both; will-change: clip-path; }
+@keyframes theme-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, BarChart3, BellRing, Building2, CalendarDays, CopyPlus, LayoutDashboard, ListChecks, RotateCcw, Siren, UserRoundCheck, type LucideIcon,
+  ArrowRight, BarChart3, BellRing, Building2, Briefcase, CalendarDays, CopyPlus, FolderKanban, LayoutDashboard, Layers, ListChecks, ListTree, RotateCcw, Siren, UserRoundCheck, type LucideIcon,
 } from 'lucide-react';
 import { LiquidBg, reducedMotion } from '../components/Liquid';
 import { ThemeToggle } from '../components/Frame';
@@ -68,6 +68,14 @@ const FEATURES: Feature[] = [
     steps: ['Filter by person, priority or status.', 'Click a day to see its plan.'], visual: <CalMock /> },
   { id: 'reports', icon: BarChart3, name: 'Reports', short: 'Export in a click', line: 'Completion, workload and overdue work, ready to export.',
     steps: ['Pick a report and filter it.', 'Export the result as CSV.'], visual: <DashMock /> },
+];
+const LAYERS: [LucideIcon, string, string][] = [
+  [Building2, 'Organization', 'Your company. Switch between several.'],
+  [Layers, 'Departments and teams', 'Who does the work, and who leads it.'],
+  [Briefcase, 'Clients', 'Each with its own sub-clients.'],
+  [FolderKanban, 'Projects', 'Grouped work with a progress bar.'],
+  [ListChecks, 'Tasks', 'One owner, one status, one due date.'],
+  [ListTree, 'Subtasks', 'Steps owned by different people.'],
 ];
 const HEADLINE = 'Run client work, tasks and escalations in one calm place.';
 
@@ -143,9 +151,16 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
           </div>
         </div>
         <div className="g-hero-art" aria-hidden="true">
-          <div className="g-float f1" style={css({ '--d': 1.6 })}><span className="dot ev-ms" />Task completed<small>Design landing page</small></div>
-          <div className="g-float f2" style={css({ '--d': -2.2 })}><span className="dot ev-due" />Due tomorrow<small>QA sign-off</small></div>
-          <div className="g-float f3" style={css({ '--d': 1 })}><span className="dot ev-esc" />Escalation resolved<small>Server outage</small></div>
+          <div className="g-scene"><div className="g-scene-in">
+            <div className="g-board">
+              <span className="gb-bar"><i /><i /><i /></span>
+              <span className="gb-kpis"><i className="on" /><i /><i /></span>
+              <span className="gb-chart">{[40, 70, 55, 90, 65, 35, 50].map((h, i) => <i key={i} style={css({ height: `${h}%`, '--i': i })} />)}</span>
+            </div>
+            <div className="g-float f1"><span className="dot ev-ms" />Task completed<small>Design landing page</small></div>
+            <div className="g-float f2"><span className="dot ev-due" />Due tomorrow<small>QA sign-off</small></div>
+            <div className="g-float f3"><span className="dot ev-esc" />Escalation resolved<small>Server outage</small></div>
+          </div></div>
         </div>
       </section>
 
@@ -157,6 +172,18 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
             <ArrowRight className="g-tile-go" size={16} aria-hidden="true" />
           </button>
         ))}
+      </section>
+
+      <section className="g-stack-sec" aria-labelledby="stack-h">
+        <div className="g-stack-copy reveal">
+          <h2 id="stack-h">How it fits together</h2>
+          <p className="g-line">Everything in Taskify sits in one of six layers. Work flows down; progress rolls back up.</p>
+          <ol className="g-layer-list">{LAYERS.map(([Icon, n, note]) => <li key={n}><Icon size={16} aria-hidden="true" /><span><b>{n}</b><small>{note}</small></span></li>)}</ol>
+        </div>
+        <div className="g-stack-stage" data-fx aria-hidden="true">
+          <div className="g-stack">{LAYERS.map(([Icon, n], i) => (
+            <div key={n} className="g-layer" style={css({ '--i': i, '--n': LAYERS.length })}><Icon size={18} /><b>{n}</b></div>))}</div>
+        </div>
       </section>
 
       <nav className="g-nav" aria-label="Features" ref={navRef}>

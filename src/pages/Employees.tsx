@@ -208,70 +208,100 @@ export default function Employees() {
 
         {tab === 'teams' && (<>
           {can(role, 'task:write') && (newTeam ? (
-            <section className="card tpl-edit" aria-labelledby="nt-h">
-              <h3 id="nt-h"><Users size={16} aria-hidden="true" /> New team</h3>
-              <form className="inv-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const n = String(f.get('name')).trim(); add('tt_teams', { org_id: orgId, name: n, department_id: f.get('dept') || null, manager_id: f.get('manager') || null }, `Team ${n} created.`); setNewTeam(false); }}>
-                <label>Team name<input name="name" required maxLength={120} autoFocus /></label>
+            <section className="card glass-form" aria-labelledby="nt-h">
+              <div className="panel-head"><h3 id="nt-h"><Users size={16} aria-hidden="true" /> New team</h3><button type="button" className="icon-btn sm" aria-label="Close" onClick={() => setNewTeam(false)}><X size={16} aria-hidden="true" /></button></div>
+              <form className="gf-grid" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const n = String(f.get('name')).trim(); add('tt_teams', { org_id: orgId, name: n, department_id: f.get('dept') || null, manager_id: f.get('manager') || null }, `Team ${n} created.`); setNewTeam(false); }}>
+                <label>Team name<input name="name" required maxLength={120} autoFocus placeholder="e.g. Platform" /></label>
                 <label>Department<select name="dept"><option value="">None</option>{depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
                 <label>Team lead<select name="manager"><option value="">None</option>{managers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-                <span className="row filters"><button type="submit">Create team</button><button type="button" className="link" onClick={() => setNewTeam(false)}>Cancel</button></span>
+                <span className="gf-actions"><button type="submit"><Check size={15} aria-hidden="true" />Create team</button></span>
               </form>
             </section>
           ) : <p><button type="button" className="pill-btn ghost" onClick={() => setNewTeam(true)}><Plus size={15} aria-hidden="true" />New team</button></p>)}
           {teams.length === 0 ? <div className="card rp-empty"><Users size={28} aria-hidden="true" /><p>No teams yet. Teams decide who a task’s lead is.</p></div> : (
-            <div className="tpl-grid">{teams.map((t, i) => {
+            <div className="team-grid">{teams.map((t, i) => {
               const members = tm.filter((m) => m.team_id === t.id);
+              const dept = depts.find((d) => d.id === t.department_id);
+              const editing = editTeam === t.id;
               return (
-                <article key={t.id} className="tpl-card" style={{ '--i': i } as React.CSSProperties}>
-                  <div className="tpl-top"><h3>{t.name}</h3>{can(role, 'task:write') && <span className="row-actions">
-                    <button type="button" className="icon-btn sm" aria-label={`Edit team ${t.name}`} onClick={() => setEditTeam(editTeam === t.id ? null : t.id)}><Pencil size={14} aria-hidden="true" /></button>
-                    <button type="button" className="icon-btn sm danger-text" aria-label={`Delete team ${t.name}`} onClick={() => removeTeam(t)}><Trash2 size={14} aria-hidden="true" /></button></span>}</div>
-                  {editTeam === t.id && (
-                    <form className="pp-form team-edit" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); update('tt_teams', t.id, { name: String(f.get('name')).trim(), department_id: f.get('dept') || null, manager_id: f.get('manager') || null }, 'Team updated.'); setEditTeam(null); }}>
-                      <label>Name<input name="name" defaultValue={t.name} required maxLength={120} /></label>
+                <article key={t.id} className={`team-card ${editing ? 'editing' : ''}`} style={{ '--i': i } as React.CSSProperties}>
+                  <header className="tc-head">
+                    <span className="tc-ico"><Users size={18} aria-hidden="true" /></span>
+                    <span className="grow"><h3>{t.name}</h3><small className="tc-dept"><Building size={12} aria-hidden="true" />{dept?.name ?? 'No department'}</small></span>
+                    {can(role, 'task:write') && <span className="row-actions">
+                      <button type="button" className={`icon-btn sm ${editing ? 'on' : ''}`} aria-label={`Edit team ${t.name}`} aria-pressed={editing} onClick={() => setEditTeam(editing ? null : t.id)}><Pencil size={14} aria-hidden="true" /></button>
+                      <button type="button" className="icon-btn sm danger-text" aria-label={`Delete team ${t.name}`} onClick={() => removeTeam(t)}><Trash2 size={14} aria-hidden="true" /></button></span>}
+                  </header>
+                  {editing ? (
+                    <form className="gf-grid one" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); update('tt_teams', t.id, { name: String(f.get('name')).trim(), department_id: f.get('dept') || null, manager_id: f.get('manager') || null }, 'Team updated.'); setEditTeam(null); }}>
+                      <label>Name<input name="name" defaultValue={t.name} required maxLength={120} autoFocus /></label>
                       <label>Department<select name="dept" defaultValue={t.department_id ?? ''}><option value="">None</option>{depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
                       <label>Team lead<select name="manager" defaultValue={t.manager_id ?? ''}><option value="">None</option>{managers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-                      <span className="row filters"><button type="submit">Save team</button><button type="button" className="link" onClick={() => setEditTeam(null)}>Cancel</button></span>
-                    </form>)}
-                  <ul className="tpl-meta">
-                    <li><Building size={14} aria-hidden="true" />{depts.find((d) => d.id === t.department_id)?.name ?? 'No department'}</li>
-                    <li><Users size={14} aria-hidden="true" />{members.length} member{members.length === 1 ? '' : 's'}</li>
-                  </ul>
-                  <p className="team-lead">Lead: <b>{t.manager_id ? nameOf(t.manager_id) : 'not set'}</b></p>
-                  <ul className="people">{members.map((m) => (
-                    <li key={m.user_id}><Avatar name={nameOf(m.user_id)} className="avatar xs" /><span className="grow">{nameOf(m.user_id)}</span>
-                      {can(role, 'task:write') && <button type="button" className="icon-btn sm" aria-label={`Remove ${nameOf(m.user_id)} from ${t.name}`} onClick={async () => {
-                        if (!(await ask({ title: 'Remove from team?', message: `${nameOf(m.user_id)} will be removed from ${t.name}. Their tasks stay assigned.`, confirmLabel: 'Remove', danger: true })).ok) return;
-                        await supabase.from('tt_team_members').delete().eq('team_id', t.id).eq('user_id', m.user_id); refresh();
-                      }}><X size={14} aria-hidden="true" /></button>}
-                    </li>))}</ul>
-                  {can(role, 'task:write') && (
-                    <select aria-label={`Add member to ${t.name}`} value="" onChange={(e) => e.target.value && add('tt_team_members', { team_id: t.id, user_id: e.target.value }, 'Member added.')}>
-                      <option value="">+ Add member</option>{(people ?? []).filter((p) => p.active && !members.some((m) => m.user_id === p.id)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>)}
+                      <span className="gf-actions"><button type="button" className="link" onClick={() => setEditTeam(null)}>Cancel</button><button type="submit"><Check size={15} aria-hidden="true" />Save team</button></span>
+                    </form>
+                  ) : (<>
+                    <div className="tc-lead">{t.manager_id ? <><Avatar name={nameOf(t.manager_id)} className="avatar xs" /><span><small>Team lead</small><b>{nameOf(t.manager_id)}</b></span></> : <span className="muted">No team lead yet</span>}</div>
+                    <p className="tc-count">{members.length} member{members.length === 1 ? '' : 's'}</p>
+                    {members.length > 0 && <ul className="tc-members">{members.map((m) => (
+                      <li key={m.user_id}><Avatar name={nameOf(m.user_id)} className="avatar xs" /><span className="grow">{nameOf(m.user_id)}</span>
+                        {can(role, 'task:write') && <button type="button" className="tc-x" aria-label={`Remove ${nameOf(m.user_id)} from ${t.name}`} onClick={async () => {
+                          if (!(await ask({ title: 'Remove from team?', message: `${nameOf(m.user_id)} will be removed from ${t.name}. Their tasks stay assigned.`, confirmLabel: 'Remove', danger: true })).ok) return;
+                          await supabase.from('tt_team_members').delete().eq('team_id', t.id).eq('user_id', m.user_id); refresh();
+                        }}><X size={13} aria-hidden="true" /></button>}
+                      </li>))}</ul>}
+                    {can(role, 'task:write') && (
+                      <select className="tc-add" aria-label={`Add member to ${t.name}`} value="" onChange={(e) => e.target.value && add('tt_team_members', { team_id: t.id, user_id: e.target.value }, 'Member added.')}>
+                        <option value="">+ Add member</option>{(people ?? []).filter((p) => p.active && !members.some((m) => m.user_id === p.id)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>)}
+                  </>)}
                 </article>);
             })}</div>)}
         </>)}
 
-        {tab === 'departments' && (
-          <section className="card" aria-label="Departments">
-            {admin && <form className="inline-add" onSubmit={(e) => { e.preventDefault(); const form = e.currentTarget, n = String(new FormData(form).get('name')).trim(); if (n) { add('tt_departments', { org_id: orgId, name: n }, `Department ${n} added.`); form.reset(); } }}>
-              <input aria-label="New department name" name="name" placeholder="New department, e.g. Finance" maxLength={120} /><button type="submit"><Plus size={15} aria-hidden="true" />Add department</button></form>}
-            {depts.length === 0 ? <p className="muted">No departments yet.</p> : (
-              <ul className="people dept-list">{depts.map((d) => {
-                const dt = teams.filter((t) => t.department_id === d.id);
-                return (
-                  <li key={d.id}><Layers size={16} className="muted" aria-hidden="true" />
+        {tab === 'departments' && (<>
+          {admin && <form className="card dept-new" onSubmit={(e) => { e.preventDefault(); const form = e.currentTarget, n = String(new FormData(form).get('name')).trim(); if (n) { add('tt_departments', { org_id: orgId, name: n }, `Department ${n} added.`); form.reset(); } }}>
+            <span className="tc-ico"><Layers size={18} aria-hidden="true" /></span>
+            <input aria-label="New department name" name="name" placeholder="New department, e.g. Finance" maxLength={120} /><button type="submit"><Plus size={15} aria-hidden="true" />Add department</button></form>}
+          {depts.length === 0 ? <div className="card rp-empty"><Layers size={28} aria-hidden="true" /><p>No departments yet.</p></div> : (
+            <div className="team-grid">{depts.map((d, i) => {
+              const dt = teams.filter((t) => t.department_id === d.id);
+              const people = new Set(tm.filter((m) => dt.some((t) => t.id === m.team_id)).map((m) => m.user_id)).size;
+              const others = teams.filter((t) => t.department_id !== d.id);
+              return (
+                <article key={d.id} className="team-card dept-card" style={{ '--i': i } as React.CSSProperties}>
+                  <header className="tc-head">
+                    <span className="tc-ico alt"><Layers size={18} aria-hidden="true" /></span>
                     {editDept === d.id
-                      ? <form className="inline-add grow" onSubmit={(e) => { e.preventDefault(); const n = String(new FormData(e.currentTarget).get('name')).trim(); if (n) update('tt_departments', d.id, { name: n }, 'Department renamed.'); setEditDept(null); }}>
-                          <input aria-label={`New name for ${d.name}`} name="name" defaultValue={d.name} maxLength={120} autoFocus /><button type="submit">Save</button><button type="button" className="link" onClick={() => setEditDept(null)}>Cancel</button></form>
-                      : <span className="grow"><b>{d.name}</b><br /><small className="muted">{dt.length ? dt.map((t) => t.name).join(', ') : 'No teams'}</small></span>}
-                    {admin && editDept !== d.id && <button type="button" className="icon-btn sm" aria-label={`Rename ${d.name}`} onClick={() => setEditDept(d.id)}><Pencil size={14} aria-hidden="true" /></button>}
-                    {admin && <button type="button" className="icon-btn sm danger-text" aria-label={`Delete ${d.name}`} onClick={() => removeDept(d)}><Trash2 size={14} aria-hidden="true" /></button>}
-                  </li>);
-              })}</ul>)}
-          </section>
-        )}
+                      ? <form className="dept-rename grow" onSubmit={(e) => { e.preventDefault(); const n = String(new FormData(e.currentTarget).get('name')).trim(); if (n) update('tt_departments', d.id, { name: n }, 'Department renamed.'); setEditDept(null); }}>
+                          <input aria-label={`New name for ${d.name}`} name="name" defaultValue={d.name} maxLength={120} autoFocus />
+                          <button type="submit" className="icon-btn sm" aria-label="Save name"><Check size={15} aria-hidden="true" /></button>
+                          <button type="button" className="icon-btn sm" aria-label="Cancel" onClick={() => setEditDept(null)}><X size={15} aria-hidden="true" /></button></form>
+                      : <span className="grow"><h3>{d.name}</h3><small className="muted">{dt.length} team{dt.length === 1 ? '' : 's'} · {people} {people === 1 ? 'person' : 'people'}</small></span>}
+                    {admin && editDept !== d.id && <span className="row-actions">
+                      <button type="button" className="icon-btn sm" aria-label={`Rename ${d.name}`} onClick={() => setEditDept(d.id)}><Pencil size={14} aria-hidden="true" /></button>
+                      <button type="button" className="icon-btn sm danger-text" aria-label={`Delete ${d.name}`} onClick={() => removeDept(d)}><Trash2 size={14} aria-hidden="true" /></button></span>}
+                  </header>
+                  {dt.length === 0 ? <p className="muted tc-count">No teams in this department yet.</p> : (
+                    <ul className="dept-teams">{dt.map((t) => {
+                      const n = tm.filter((m) => m.team_id === t.id).length;
+                      return (
+                        <li key={t.id}><Users size={14} aria-hidden="true" /><span className="grow"><b>{t.name}</b><small className="muted">{n} member{n === 1 ? '' : 's'}{t.manager_id ? ` · lead ${nameOf(t.manager_id)}` : ''}</small></span>
+                          {can(role, 'task:write') && <button type="button" className="tc-x" aria-label={`Take ${t.name} out of ${d.name}`} title="Take out of this department"
+                            onClick={() => update('tt_teams', t.id, { department_id: null }, `${t.name} is no longer in ${d.name}.`)}><X size={13} aria-hidden="true" /></button>}
+                        </li>);
+                    })}</ul>)}
+                  {can(role, 'task:write') && (
+                    <div className="dept-add">
+                      {others.length > 0 && <select aria-label={`Add a team to ${d.name}`} value="" onChange={(e) => { const t = teams.find((x) => x.id === e.target.value); if (t) update('tt_teams', t.id, { department_id: d.id }, `${t.name} moved to ${d.name}.`); }}>
+                        <option value="">+ Add existing team</option>{others.map((t) => <option key={t.id} value={t.id}>{t.name}{t.department_id ? ` (now in ${depts.find((x) => x.id === t.department_id)?.name ?? 'another'})` : ''}</option>)}
+                      </select>}
+                      <form className="dept-quick" onSubmit={(e) => { e.preventDefault(); const form = e.currentTarget, n = String(new FormData(form).get('team')).trim(); if (n) { add('tt_teams', { org_id: orgId, name: n, department_id: d.id }, `Team ${n} created in ${d.name}.`); form.reset(); } }}>
+                        <input name="team" aria-label={`New team in ${d.name}`} placeholder="New team name" maxLength={120} /><button type="submit" className="icon-btn sm" aria-label="Create team"><Plus size={15} aria-hidden="true" /></button>
+                      </form>
+                    </div>)}
+                </article>);
+            })}</div>)}
+        </>)}
       </div>
       {selected && <PersonPanel person={selected} perf={perfOf(selected.id)} orgId={orgId} myRole={role} isMe={selected.id === uid} teams={teams} teamMembers={tm} depts={depts}
         onClose={() => setSel(null)} onChanged={changed} setRole={setRole} setActive={setActive} />}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, BarChart3, CalendarClock, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -59,7 +59,7 @@ function Gauge({ done, active, pending }: { done: number; active: number; pendin
   const arc = 'M 20 110 A 90 90 0 0 1 200 110';
   return (
     <div className="gauge">
-      <svg viewBox="0 0 220 125" role="img" aria-label={`${pct}% of tasks completed: ${done} completed, ${active} in progress, ${pending} pending`}>
+      <svg viewBox="0 0 220 125" role="img" aria-label={`${pct}% of tasks completed: ${done} completed, ${active} started, ${pending} not started or pending`}>
         <defs>
           <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="6" height="6" fill="var(--hatch-bg)" /><line x1="0" y1="0" x2="0" y2="6" stroke="var(--hatch)" strokeWidth="2.5" />
@@ -71,7 +71,7 @@ function Gauge({ done, active, pending }: { done: number; active: number; pendin
       </svg>
       <div className="gauge-num"><b>{total ? `${pct}%` : '—'}</b><small>{total ? `${done} of ${total} tasks done` : 'No tasks yet'}</small></div>
       <ul className="legend">
-        <li><i className="sw done" />Completed <b>{done}</b></li><li><i className="sw active" />In progress <b>{active}</b></li><li><i className="sw pending" />Pending <b>{pending}</b></li>
+        <li><i className="sw done" />Completed <b>{done}</b></li><li><i className="sw active" />Started <b>{active}</b></li><li><i className="sw pending" />Pending <b>{pending}</b></li>
       </ul>
     </div>
   );
@@ -84,6 +84,21 @@ export default function Dashboard() {
   const { name } = usePeople(orgId);
   const [d, setD] = useState<any>(null);
   const [error, setError] = useState('');
+  const [tick, setTick] = useState(0);
+
+  // live: reload when any task in this org changes (Supabase Realtime, migration 0016), when the tab comes back, and every 2 minutes
+  const timer = useRef(0);
+  useEffect(() => {
+    const soon = () => { clearTimeout(timer.current); timer.current = window.setTimeout(() => setTick((n) => n + 1), 600); };
+    const ch = supabase.channel(`dash-${orgId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tt_tasks', filter: `org_id=eq.${orgId}` }, soon)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tt_task_assignees' }, soon)
+      .subscribe();
+    const vis = () => { if (document.visibilityState === 'visible') soon(); };
+    document.addEventListener('visibilitychange', vis);
+    const iv = window.setInterval(() => { if (document.visibilityState === 'visible') soon(); }, 120_000);
+    return () => { supabase.removeChannel(ch); document.removeEventListener('visibilitychange', vis); clearInterval(iv); clearTimeout(timer.current); };
+  }, [orgId]);
 
   useEffect(() => {
     (async () => {
@@ -92,11 +107,14 @@ export default function Dashboard() {
       const end = new Date(start); end.setDate(end.getDate() + 1);
       const weekStart = new Date(start); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
       const tasks = () => supabase.from('tt_tasks').select('id, title, status, due_date').eq('org_id', orgId).is('archived_at', null);
+      // the week chart and the progress gauge count only the signed-in person's own tasks (what My Tasks shows)
+      const myTasks = (cols: string) => supabase.from('tt_tasks').select(`${cols}, tt_task_assignees!inner(user_id)`).eq('org_id', orgId)
+        .eq('tt_task_assignees.user_id', uid).is('archived_at', null);
       try {
-        const [sum, done, week, next, projects, current, mine, esc, escCrit, escLate] = await Promise.all([
+        const [sum, myAll, week, next, projects, current, mine, esc, escCrit, escLate] = await Promise.all([
           rpc('tt_org_summary', { p_org: orgId, p_day_start: start.toISOString(), p_day_end: end.toISOString() }),
-          supabase.from('tt_tasks').select('id', { count: 'exact', head: true }).eq('org_id', orgId).in('status', ['completed', 'completed_cycle']).is('archived_at', null),
-          supabase.from('tt_tasks').select('completed_at').eq('org_id', orgId).in('status', ['completed', 'completed_cycle']).gte('completed_at', weekStart.toISOString()).limit(5000),
+          myTasks('status').limit(5000),
+          myTasks('completed_at').in('status', ['completed', 'completed_cycle']).gte('completed_at', weekStart.toISOString()).limit(5000),
           tasks().not('status', 'in', OPEN).gte('due_date', now.toISOString()).order('due_date').limit(1),
           supabase.from('tt_projects').select('id, name, due_date, status').eq('org_id', orgId).in('status', ['planning', 'not_started', 'in_progress', 'in_review'])
             .order('due_date', { nullsFirst: false }).limit(5),
@@ -109,21 +127,23 @@ export default function Dashboard() {
           supabase.from('tt_escalations').select('id', { count: 'exact', head: true }).eq('org_id', orgId).lt('target_date', now.toISOString()).not('state', 'in', '(resolved,closed)'),
         ]);
         const counts = [0, 0, 0, 0, 0, 0, 0];
-        for (const r of week.data ?? []) counts[new Date(r.completed_at).getDay()]++;
+        for (const r of (week.data ?? []) as any[]) counts[new Date(r.completed_at).getDay()]++;
+        const own = { done: 0, active: 0, pending: 0 };
+        for (const r of (myAll.data ?? []) as any[]) {
+          if (r.status === 'completed' || r.status === 'completed_cycle') own.done++; else if (r.status === 'started') own.active++; else own.pending++;
+        }
         // one "currently working on" task per person, most recently updated first
         const working = new Map<string, any>();
         for (const t of current.data ?? []) for (const a of t.tt_task_assignees) if (!working.has(a.user_id)) working.set(a.user_id, t);
-        const st = sum.by_status as Record<string, number>;
         setD({
           sum, counts, today: now.getDay(), next: next.data?.[0], projects: projects.data ?? [], mine: mine.data ?? [],
           team: (sum.workload as any[]).filter((w) => w.open).slice(0, 4).map((w) => ({ ...w, task: working.get(w.user_id) })),
-          done: done.count ?? 0, active: st.started ?? 0,
-          pending: (st.not_yet_started ?? 0) + (st.pending ?? 0) + (st.escalation ?? 0),
+          ...own,
           esc: esc.count ?? 0, escCrit: escCrit.count ?? 0, escLate: escLate.count ?? 0,
         });
       } catch (x) { setError((x as Error).message); }
     })();
-  }, [orgId, uid]);
+  }, [orgId, uid, tick]);
 
   if (error) return <div className="card"><p role="alert">{error}</p></div>;
   if (!d) return <DashSkeleton />;
@@ -149,7 +169,7 @@ export default function Dashboard() {
         <div className="a-k4"><Kpi title="Pending" value={d.sum.pending ?? d.sum.in_review ?? 0} note="Waiting on something" to="/tasks?view=pending" /></div>
 
         <section className="card a-an" aria-labelledby="an-h">
-          <div className="panel-head"><h3 id="an-h">Completed this week</h3><Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link></div>
+          <div className="panel-head"><h3 id="an-h">My completed this week</h3><Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link></div>
           <WeekBars counts={d.counts} today={d.today} />
         </section>
 
@@ -190,7 +210,7 @@ export default function Dashboard() {
         </section>
 
         <section className="card a-pg" aria-labelledby="pg-h">
-          <h3 id="pg-h">Task progress</h3>
+          <h3 id="pg-h">My task progress</h3>
           <Gauge done={d.done} active={d.active} pending={d.pending} />
         </section>
 

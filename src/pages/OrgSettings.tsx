@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRightLeft, Building2, Check, Globe2, Layers, Lock, Pencil, Plus, ShieldCheck, Trash2, Users, X } from 'lucide-react';
+import { ArrowRightLeft, Building2, Check, Globe2, LifeBuoy, Layers, Lock, Mail, Pencil, Plus, ShieldCheck, Trash2, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
-import { fmt, label } from '../lib/ui';
+import { fmt, label, usePeople } from '../lib/ui';
 import { ROLE_TEXT } from '../lib/roles';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
@@ -25,6 +25,8 @@ export default function OrgSettings() {
   const [teams, setTeams] = useState<any[]>([]);
   const [roles, setRoles] = useState<Record<string, number>>({});
   const [renaming, setRenaming] = useState<string | null>(null);
+  const { active: people } = usePeople(orgId);
+  const admins = people.filter((p) => p.role === 'owner' || p.role === 'admin');
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -100,6 +102,12 @@ export default function OrgSettings() {
             <p><span className="prio prio-low">{label(role)}</span></p>
             <p className="muted">{ROLE_TEXT[role as keyof typeof ROLE_TEXT]?.blurb}</p>
           </section>
+          {admins.length > 0 && <section className="card" aria-labelledby="help-h">
+            <h3 id="help-h"><LifeBuoy size={16} aria-hidden="true" /> Need help?</h3>
+            <p className="muted">For access, data or organization problems, contact an admin. Admins have full control of this organization.</p>
+            <ul className="help-list">{admins.map((p) => <li key={p.id}><span className="grow"><b>{p.name}</b><small className="muted">{label(p.role)}</small></span>
+              {p.email && <a className="mini-link" href={`mailto:${p.email}?subject=${encodeURIComponent(`Taskify help: ${membership!.org_name}`)}`}><Mail size={14} aria-hidden="true" />Email</a>}</li>)}</ul>
+          </section>}
           {can(role, 'task:write') && <section className="card" aria-labelledby="ppl-h">
             <div className="panel-head"><h3 id="ppl-h"><Users size={16} aria-hidden="true" /> People</h3>{can(role, 'members:manage') && <Link to="/employees" className="mini-link">Manage people</Link>}</div>
             <ul className="role-counts">{ROLES.map((r) => <li key={r}><b>{roles[r] ?? 0}</b><small>{label(r)}{(roles[r] ?? 0) === 1 ? '' : 's'}</small></li>)}</ul>

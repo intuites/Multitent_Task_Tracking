@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Building, Check, Layers, Plus, Search, Trash2, UserPlus, Users, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Building, Check, Download, Layers, Pencil, Plus, Search, Trash2, UserPlus, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
-import { Badge, label, loadPeople, rpc, type Person } from '../lib/ui';
+import { Badge, download, label, loadPeople, rpc, type Person } from '../lib/ui';
+import PersonPanel, { type Perf } from '../components/PersonPanel';
 import { ask } from '../components/Dialog';
 import { Avatar } from '../components/Frame';
 import { ListSkeleton } from '../components/Skeleton';
 
-type Tab = 'people' | 'teams' | 'departments';
+type Tab = 'people' | 'performance' | 'teams' | 'departments';
 const ROLES = ['owner', 'admin', 'manager', 'employee'];
 
 export default function Employees() {
@@ -25,21 +26,27 @@ export default function Employees() {
   const [newTeam, setNewTeam] = useState(false);
   const [q, setQ] = useState(''), [roleFilter, setRoleFilter] = useState('');
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [sel, setSel] = useState<string | null>(null);
+  const [editTeam, setEditTeam] = useState<string | null>(null), [editDept, setEditDept] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setPeople(await loadPeople(orgId, true));
     const day = new Date(); day.setHours(0, 0, 0, 0);
-    const [sum, d, t, m] = await Promise.all([
+    const [sum, d, t, m, tk] = await Promise.all([
       rpc('tt_org_summary', { p_org: orgId, p_day_start: day.toISOString(), p_day_end: new Date(day.getTime() + 864e5).toISOString() }),
       supabase.from('tt_departments').select('*').eq('org_id', orgId).order('name'),
       supabase.from('tt_teams').select('*').eq('org_id', orgId).order('name'),
       supabase.from('tt_team_members').select('*'),
+      // owners/admins get per-person performance, computed from the org's tasks
+      admin ? supabase.from('tt_tasks').select('status, due_date, completed_at, tt_task_assignees(user_id)').eq('org_id', orgId).is('archived_at', null).limit(10000) : Promise.resolve({ data: [] as any[] }),
     ]);
+    setTasks(tk.data ?? []);
     // workload is aggregated in SQL instead of pulling every assignment to the browser
     const w: Record<string, { open: number; overdue: number }> = {};
     for (const r of sum.workload as any[]) w[r.user_id] = { open: r.open, overdue: r.overdue };
     setLoad(w); setDepts(d.data ?? []); setTeams(t.data ?? []); setTm(m.data ?? []);
-  }, [orgId]);
+  }, [orgId, admin]);
   useEffect(() => { refresh(); }, [refresh]);
 
   const fail = (text: string) => setMsg({ kind: 'error', text });
@@ -86,10 +93,42 @@ export default function Employees() {
     if (error) fail(error.message); else refresh();
   }
 
+  // per-person performance: assigned, open, completed, overdue, on-time rate, completed in the last 30 days
+  const perf = useMemo(() => {
+    const m: Record<string, Perf & { late: number }> = {}, now = Date.now(), month = now - 30 * 864e5;
+    for (const t of tasks) for (const a of t.tt_task_assignees ?? []) {
+      const p = (m[a.user_id] ??= { assigned: 0, open: 0, done: 0, overdue: 0, onTime: null, last30: 0, late: 0 });
+      p.assigned++;
+      if (t.status === 'completed' || t.status === 'completed_cycle') {
+        p.done++;
+        if (t.completed_at && Date.parse(t.completed_at) >= month) p.last30++;
+        if (t.due_date && t.completed_at && Date.parse(t.completed_at) > Date.parse(t.due_date)) p.late++;
+      } else { p.open++; if (t.due_date && Date.parse(t.due_date) < now) p.overdue++; }
+    }
+    for (const p of Object.values(m)) p.onTime = p.done ? Math.round(((p.done - p.late) / p.done) * 100) : null;
+    return m;
+  }, [tasks]);
+  const perfOf = (id: string): Perf => perf[id] ?? { assigned: 0, open: 0, done: 0, overdue: 0, onTime: null, last30: 0 };
+  const selected = sel ? people?.find((p) => p.id === sel) : undefined;
+  const changed = (text?: string) => { if (text) setMsg({ kind: 'ok', text }); refresh(); };
+  async function update(table: string, id: string, row: object, ok: string) {
+    const { error } = await supabase.from(table).update(row).eq('id', id);
+    if (error) fail(/duplicate|unique/i.test(error.message) ? 'That name is already used.' : error.message); else { setMsg({ kind: 'ok', text: ok }); refresh(); }
+  }
+
   const nameOf = (id: string) => people?.find((p) => p.id === id)?.name ?? 'Unknown';
   const shown = (people ?? []).filter((p) => (!roleFilter || p.role === roleFilter) && (!q || `${p.name} ${p.email}`.toLowerCase().includes(q.toLowerCase())));
   const managers = (people ?? []).filter((p) => p.active && p.role !== 'employee');
-  const TABS: { id: Tab; name: string; n: number }[] = [{ id: 'people', name: 'People', n: people?.length ?? 0 }, { id: 'teams', name: 'Teams', n: teams.length }, { id: 'departments', name: 'Departments', n: depts.length }];
+  const TABS: { id: Tab; name: string; n?: number }[] = [{ id: 'people', name: 'People', n: people?.length ?? 0 }, ...(admin ? [{ id: 'performance' as Tab, name: 'Performance' }] : []),
+    { id: 'teams', name: 'Teams', n: teams.length }, { id: 'departments', name: 'Departments', n: depts.length }];
+  const perfRows = (people ?? []).map((p) => ({ p, s: perfOf(p.id) }));
+  const sumOf = (rows: typeof perfRows) => {
+    const done = rows.reduce((n, { s }) => n + s.done, 0), ok = rows.reduce((n, { s }) => n + (s.onTime === null ? 0 : Math.round((s.onTime / 100) * s.done)), 0);
+    return { assigned: rows.reduce((n, { s }) => n + s.assigned, 0), open: rows.reduce((n, { s }) => n + s.open, 0), done, overdue: rows.reduce((n, { s }) => n + s.overdue, 0), onTime: done ? Math.round((ok / done) * 100) : null };
+  };
+  const tot = sumOf(perfRows);
+  const byRole = ROLES.map((r) => { const rs = perfRows.filter(({ p }) => p.role === r); return { r, people: rs.length, ...sumOf(rs) }; }).filter((x) => x.people);
+  const pct = (s: Perf) => (s.assigned ? Math.round((s.done / s.assigned) * 100) : 0);
 
   return (
     <>
@@ -113,7 +152,7 @@ export default function Employees() {
       {msg && <p key={msg.text} role={msg.kind === 'error' ? 'alert' : 'status'} className={`auth-msg ${msg.kind}`}>{msg.kind === 'error' ? <X size={17} aria-hidden="true" /> : <Check size={17} aria-hidden="true" />}<span>{msg.text}</span></p>}
 
       <div className="rp-tabs" role="tablist" aria-label="Sections">
-        {TABS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>{t.name}<span className="tab-n">{t.n}</span></button>)}
+        {TABS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>{t.name}{t.n !== undefined && <span className="tab-n">{t.n}</span>}</button>)}
       </div>
 
       <div key={tab} className="pf-panel">
@@ -128,7 +167,9 @@ export default function Employees() {
                 <thead><tr><th>Person</th><th>Role</th><th>Open</th><th>Overdue</th><th>Status</th>{admin && <th><span className="sr-only">Actions</span></th>}</tr></thead>
                 <tbody>{shown.map((p) => (
                   <tr key={p.id} className={p.active ? '' : 'inactive'}>
-                    <td><span className="emp-person"><Avatar name={p.name} /><span><b>{p.name}{p.id === uid && <small className="muted"> (you)</small>}</b><small className="muted">{p.email}</small></span></span></td>
+                    <td>{admin
+                      ? <button type="button" className="emp-person emp-open" onClick={() => setSel(p.id)} aria-label={`Manage ${p.name}`}><Avatar name={p.name} /><span><b>{p.name}{p.id === uid && <small className="muted"> (you)</small>}</b><small className="muted">{p.email}</small></span></button>
+                      : <span className="emp-person"><Avatar name={p.name} /><span><b>{p.name}{p.id === uid && <small className="muted"> (you)</small>}</b><small className="muted">{p.email}</small></span></span>}</td>
                     <td>{admin && p.id !== uid ? (
                       <select aria-label={`Role for ${p.name}`} value={p.role} onChange={(e) => setRole(p, e.target.value)}>
                         {ROLES.map((r) => <option key={r} value={r}>{label(r)}</option>)}
@@ -141,6 +182,29 @@ export default function Employees() {
               </table>)}
           </section>
         )}
+
+        {tab === 'performance' && admin && (<>
+          <div className="perf-kpis">
+            {([['People', (people ?? []).filter((p) => p.active).length], ['Tasks assigned', tot.assigned], ['Open', tot.open], ['Completed', tot.done], ['Overdue', tot.overdue], ['On time', tot.onTime === null ? '—' : `${tot.onTime}%`]] as const)
+              .map(([k, v], i) => <div key={k} className="perf-kpi" style={{ '--i': i } as React.CSSProperties}><b>{v}</b><small>{k}</small></div>)}
+          </div>
+          <section className="card" aria-labelledby="pr-h">
+            <div className="panel-head"><h3 id="pr-h">By role</h3></div>
+            <table className="emp-table"><thead><tr><th>Role</th><th>People</th><th>Open</th><th>Completed</th><th>Overdue</th><th>On time</th></tr></thead>
+              <tbody>{byRole.map((x) => <tr key={x.r}><td><span className="prio">{label(x.r)}</span></td><td>{x.people}</td><td>{x.open}</td><td>{x.done}</td><td className={x.overdue ? 'overdue' : ''}>{x.overdue}</td><td>{x.onTime === null ? '—' : `${x.onTime}%`}</td></tr>)}</tbody></table>
+          </section>
+          <section className="card" aria-labelledby="pi-h">
+            <div className="panel-head"><h3 id="pi-h">Everyone</h3>
+              <button type="button" className="mini-link" onClick={() => download('performance.csv', perfRows.map(({ p, s }) => ({ Name: p.name, Email: p.email, Role: label(p.role), Active: p.active ? 'Yes' : 'No', Assigned: s.assigned, Open: s.open, Completed: s.done, Overdue: s.overdue, 'On time %': s.onTime ?? '', 'Completed last 30 days': s.last30 })))}><Download size={15} aria-hidden="true" />Export CSV</button></div>
+            <table className="emp-table"><thead><tr><th>Person</th><th>Role</th><th>Assigned</th><th>Completed</th><th>Overdue</th><th>On time</th><th>Progress</th></tr></thead>
+              <tbody>{[...perfRows].sort((a, b) => b.s.done - a.s.done).map(({ p, s }) => (
+                <tr key={p.id} className={p.active ? '' : 'inactive'}>
+                  <td><button type="button" className="emp-person emp-open" onClick={() => setSel(p.id)} aria-label={`Manage ${p.name}`}><Avatar name={p.name} /><span><b>{p.name}</b><small className="muted">{p.email}</small></span></button></td>
+                  <td><span className="prio">{label(p.role)}</span></td><td>{s.assigned}</td><td>{s.done}</td><td className={s.overdue ? 'overdue' : ''}>{s.overdue}</td><td>{s.onTime === null ? '—' : `${s.onTime}%`}</td>
+                  <td className="perf-bar"><span className="meter" role="img" aria-label={`${pct(s)}% completed`}><i style={{ width: `${pct(s)}%` }} /></span></td>
+                </tr>))}</tbody></table>
+          </section>
+        </>)}
 
         {tab === 'teams' && (<>
           {can(role, 'task:write') && (newTeam ? (
@@ -159,7 +223,16 @@ export default function Employees() {
               const members = tm.filter((m) => m.team_id === t.id);
               return (
                 <article key={t.id} className="tpl-card" style={{ '--i': i } as React.CSSProperties}>
-                  <div className="tpl-top"><h3>{t.name}</h3>{can(role, 'task:write') && <button type="button" className="icon-btn sm danger-text" aria-label={`Delete team ${t.name}`} onClick={() => removeTeam(t)}><Trash2 size={14} aria-hidden="true" /></button>}</div>
+                  <div className="tpl-top"><h3>{t.name}</h3>{can(role, 'task:write') && <span className="row-actions">
+                    <button type="button" className="icon-btn sm" aria-label={`Edit team ${t.name}`} onClick={() => setEditTeam(editTeam === t.id ? null : t.id)}><Pencil size={14} aria-hidden="true" /></button>
+                    <button type="button" className="icon-btn sm danger-text" aria-label={`Delete team ${t.name}`} onClick={() => removeTeam(t)}><Trash2 size={14} aria-hidden="true" /></button></span>}</div>
+                  {editTeam === t.id && (
+                    <form className="pp-form team-edit" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); update('tt_teams', t.id, { name: String(f.get('name')).trim(), department_id: f.get('dept') || null, manager_id: f.get('manager') || null }, 'Team updated.'); setEditTeam(null); }}>
+                      <label>Name<input name="name" defaultValue={t.name} required maxLength={120} /></label>
+                      <label>Department<select name="dept" defaultValue={t.department_id ?? ''}><option value="">None</option>{depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+                      <label>Team lead<select name="manager" defaultValue={t.manager_id ?? ''}><option value="">None</option>{managers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+                      <span className="row filters"><button type="submit">Save team</button><button type="button" className="link" onClick={() => setEditTeam(null)}>Cancel</button></span>
+                    </form>)}
                   <ul className="tpl-meta">
                     <li><Building size={14} aria-hidden="true" />{depts.find((d) => d.id === t.department_id)?.name ?? 'No department'}</li>
                     <li><Users size={14} aria-hidden="true" />{members.length} member{members.length === 1 ? '' : 's'}</li>
@@ -188,13 +261,20 @@ export default function Employees() {
               <ul className="people dept-list">{depts.map((d) => {
                 const dt = teams.filter((t) => t.department_id === d.id);
                 return (
-                  <li key={d.id}><Layers size={16} className="muted" aria-hidden="true" /><span className="grow"><b>{d.name}</b><br /><small className="muted">{dt.length ? dt.map((t) => t.name).join(', ') : 'No teams'}</small></span>
+                  <li key={d.id}><Layers size={16} className="muted" aria-hidden="true" />
+                    {editDept === d.id
+                      ? <form className="inline-add grow" onSubmit={(e) => { e.preventDefault(); const n = String(new FormData(e.currentTarget).get('name')).trim(); if (n) update('tt_departments', d.id, { name: n }, 'Department renamed.'); setEditDept(null); }}>
+                          <input aria-label={`New name for ${d.name}`} name="name" defaultValue={d.name} maxLength={120} autoFocus /><button type="submit">Save</button><button type="button" className="link" onClick={() => setEditDept(null)}>Cancel</button></form>
+                      : <span className="grow"><b>{d.name}</b><br /><small className="muted">{dt.length ? dt.map((t) => t.name).join(', ') : 'No teams'}</small></span>}
+                    {admin && editDept !== d.id && <button type="button" className="icon-btn sm" aria-label={`Rename ${d.name}`} onClick={() => setEditDept(d.id)}><Pencil size={14} aria-hidden="true" /></button>}
                     {admin && <button type="button" className="icon-btn sm danger-text" aria-label={`Delete ${d.name}`} onClick={() => removeDept(d)}><Trash2 size={14} aria-hidden="true" /></button>}
                   </li>);
               })}</ul>)}
           </section>
         )}
       </div>
+      {selected && <PersonPanel person={selected} perf={perfOf(selected.id)} orgId={orgId} myRole={role} isMe={selected.id === uid} teams={teams} teamMembers={tm} depts={depts}
+        onClose={() => setSel(null)} onChanged={changed} setRole={setRole} setActive={setActive} />}
     </>
   );
 }

@@ -27,6 +27,7 @@ const Tasks = lazy(() => import('./pages/Tasks'));
 const TaskDetail = lazy(() => import('./pages/TaskDetail'));
 const Escalations = lazy(() => import('./pages/Escalations'));
 const Employees = lazy(() => import('./pages/Employees'));
+const PersonPage = lazy(() => import('./pages/Person'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const Reports = lazy(() => import('./pages/Reports'));
@@ -140,6 +141,7 @@ function Gate() {
         <Route path="/escalations" element={<Escalations />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/employees" element={<Guard need="task:write"><Employees /></Guard>} />
+        <Route path="/employees/:id" element={<Guard need="task:write"><PersonPage /></Guard>} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/reports" element={<Guard need="report:read"><Reports /></Guard>} />
         <Route path="/activity" element={<Guard need="task:write"><ActivityLogs /></Guard>} />

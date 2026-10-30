@@ -1551,3 +1551,36 @@ li:hover > .tc-x { opacity: 1; } .tc-x:hover { filter: none; background: color-m
 @property --gap { syntax: '<length>'; inherits: true; initial-value: 58px; }
 .g-stack { --gap: 58px; }
 @keyframes g-explode { from { --gap: 8px; } to { --gap: 58px; } }
+
+/* ───────── person profile page (admin view) */
+.person { display: grid; gap: 0; }
+.ps-hero { align-items: center; padding: clamp(26px, 4vw, 40px); border-radius: 28px; }
+.ps-hero .pf-avatar { width: 104px; height: 104px; border-radius: 32px; object-fit: cover; }
+.ps-you { font-size: .55em; font-weight: 500; color: #cfe3d7; }
+.ps-dot { width: 8px; height: 8px; border-radius: 50%; background: #b9c4be; } .ps-dot.on { background: #8fe3b4; box-shadow: 0 0 0 3px rgb(143 227 180 / .25); }
+a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { background: rgb(255 255 255 / .2); }
+.ps-ring { --p: 0; position: relative; z-index: 1; display: grid; place-items: center; align-content: center; width: 132px; aspect-ratio: 1; border-radius: 50%; flex: none;
+  background: radial-gradient(circle, #0f3a25 60%, transparent 61%), conic-gradient(#8fe3b4 calc(var(--p) * 1%), rgb(255 255 255 / .12) 0);
+  box-shadow: 0 18px 40px -16px rgb(0 0 0 / .5); animation: pf-pop .8s var(--ease) .2s both; }
+.ps-ring b { font-size: 28px; letter-spacing: -.03em; } .ps-ring small { color: #cfe3d7; font-size: 12px; }
+.ps-stats { margin-top: 16px; }
+.pf-stat.bad b { color: var(--danger); }
+.ps-kv { list-style: none; margin: 0 0 18px; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.ps-kv li { display: grid; gap: 2px; padding: 14px; border-radius: 16px; background: var(--surface-2); }
+.ps-kv small { color: var(--muted); font-size: 12px; } .ps-kv b { font-size: 22px; font-variant-numeric: proportional-nums; }
+.ps-sub { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+.ps-weeks { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; height: 150px; }
+.ps-weeks span { display: grid; grid-template-rows: 1fr auto; gap: 6px; text-align: center; }
+.ps-weeks i { align-self: end; width: 100%; border-radius: 999px; background: var(--brand-grad); transform-origin: bottom; animation: bar-grow .9s var(--ease) both; animation-delay: calc(var(--i) * 60ms); }
+.ps-weeks i.zero { background: var(--line); }
+.ps-weeks small { font-size: 11px; color: var(--muted); }
+.ps-meta { display: inline-flex; gap: 8px; align-items: center; margin-left: auto; }
+.pf-tasks li a { display: flex; align-items: center; gap: 10px; }
+.ps-seg { margin-bottom: 14px; }
+.ps-form { grid-template-columns: repeat(3, 1fr); }
+.ps-form .gf-actions, .ps-form .ps-bio, .ps-form > p { grid-column: 1 / -1; }
+.ps-danger { border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
+.ps-foot { margin: 16px 0 0; font-size: 12.5px; }
+.emp-open { text-decoration: none; display: inline-flex; }
+@media (max-width: 900px) { .ps-form { grid-template-columns: 1fr; } .ps-kv { grid-template-columns: 1fr 1fr; } .ps-ring { width: 110px; } }
+@media (prefers-reduced-motion: reduce) { .ps-ring, .ps-weeks i { animation: none; } }

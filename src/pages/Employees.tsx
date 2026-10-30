@@ -4,7 +4,9 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { Badge, download, label, loadPeople, rpc, type Person } from '../lib/ui';
-import PersonPanel, { type Perf } from '../components/PersonPanel';
+import { Link } from 'react-router-dom';
+
+interface Perf { assigned: number; open: number; done: number; overdue: number; onTime: number | null; last30: number }
 import { ask } from '../components/Dialog';
 import { Avatar } from '../components/Frame';
 import { ListSkeleton } from '../components/Skeleton';
@@ -27,7 +29,6 @@ export default function Employees() {
   const [q, setQ] = useState(''), [roleFilter, setRoleFilter] = useState('');
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [tasks, setTasks] = useState<any[]>([]);
-  const [sel, setSel] = useState<string | null>(null);
   const [editTeam, setEditTeam] = useState<string | null>(null), [editDept, setEditDept] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -109,8 +110,6 @@ export default function Employees() {
     return m;
   }, [tasks]);
   const perfOf = (id: string): Perf => perf[id] ?? { assigned: 0, open: 0, done: 0, overdue: 0, onTime: null, last30: 0 };
-  const selected = sel ? people?.find((p) => p.id === sel) : undefined;
-  const changed = (text?: string) => { if (text) setMsg({ kind: 'ok', text }); refresh(); };
   async function update(table: string, id: string, row: object, ok: string) {
     const { error } = await supabase.from(table).update(row).eq('id', id);
     if (error) fail(/duplicate|unique/i.test(error.message) ? 'That name is already used.' : error.message); else { setMsg({ kind: 'ok', text: ok }); refresh(); }
@@ -167,9 +166,7 @@ export default function Employees() {
                 <thead><tr><th>Person</th><th>Role</th><th>Open</th><th>Overdue</th><th>Status</th>{admin && <th><span className="sr-only">Actions</span></th>}</tr></thead>
                 <tbody>{shown.map((p) => (
                   <tr key={p.id} className={p.active ? '' : 'inactive'}>
-                    <td>{admin
-                      ? <button type="button" className="emp-person emp-open" onClick={() => setSel(p.id)} aria-label={`Manage ${p.name}`}><Avatar name={p.name} /><span><b>{p.name}{p.id === uid && <small className="muted"> (you)</small>}</b><small className="muted">{p.email}</small></span></button>
-                      : <span className="emp-person"><Avatar name={p.name} /><span><b>{p.name}{p.id === uid && <small className="muted"> (you)</small>}</b><small className="muted">{p.email}</small></span></span>}</td>
+                    <td><Link to={`/employees/${p.id}`} className="emp-person emp-open" title={`Open ${p.name}'s profile`}><Avatar name={p.name} /><span><b>{p.name}{p.id === uid && <small className="muted"> (you)</small>}</b><small className="muted">{p.email}</small></span></Link></td>
                     <td>{admin && p.id !== uid ? (
                       <select aria-label={`Role for ${p.name}`} value={p.role} onChange={(e) => setRole(p, e.target.value)}>
                         {ROLES.map((r) => <option key={r} value={r}>{label(r)}</option>)}
@@ -199,7 +196,7 @@ export default function Employees() {
             <table className="emp-table"><thead><tr><th>Person</th><th>Role</th><th>Assigned</th><th>Completed</th><th>Overdue</th><th>On time</th><th>Progress</th></tr></thead>
               <tbody>{[...perfRows].sort((a, b) => b.s.done - a.s.done).map(({ p, s }) => (
                 <tr key={p.id} className={p.active ? '' : 'inactive'}>
-                  <td><button type="button" className="emp-person emp-open" onClick={() => setSel(p.id)} aria-label={`Manage ${p.name}`}><Avatar name={p.name} /><span><b>{p.name}</b><small className="muted">{p.email}</small></span></button></td>
+                  <td><Link to={`/employees/${p.id}`} className="emp-person emp-open" title={`Open ${p.name}'s profile`}><Avatar name={p.name} /><span><b>{p.name}</b><small className="muted">{p.email}</small></span></Link></td>
                   <td><span className="prio">{label(p.role)}</span></td><td>{s.assigned}</td><td>{s.done}</td><td className={s.overdue ? 'overdue' : ''}>{s.overdue}</td><td>{s.onTime === null ? '—' : `${s.onTime}%`}</td>
                   <td className="perf-bar"><span className="meter" role="img" aria-label={`${pct(s)}% completed`}><i style={{ width: `${pct(s)}%` }} /></span></td>
                 </tr>))}</tbody></table>
@@ -303,8 +300,6 @@ export default function Employees() {
             })}</div>)}
         </>)}
       </div>
-      {selected && <PersonPanel person={selected} perf={perfOf(selected.id)} orgId={orgId} myRole={role} isMe={selected.id === uid} teams={teams} teamMembers={tm} depts={depts}
-        onClose={() => setSel(null)} onChanged={changed} setRole={setRole} setActive={setActive} />}
     </>
   );
 }

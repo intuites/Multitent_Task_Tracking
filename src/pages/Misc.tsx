@@ -92,7 +92,7 @@ export function Platform() {
   return (
     <>
       <div className="page-head">
-        <div><h2 className="page-title">Platform</h2><p className="page-sub">Everything across the CRM. Platform admins can open and manage every organization.</p></div>
+        <div><h2 className="page-title">Admin site</h2><p className="page-sub">Everything across the CRM. Platform admins can open and manage every organization.</p></div>
         <div className="page-actions"><Link to="/organizations/new" className="pill-btn">New organization</Link></div>
       </div>
       {msg && <p role={msg.kind === 'error' ? 'alert' : 'status'} className={`auth-msg ${msg.kind}`}><span>{msg.text}</span></p>}

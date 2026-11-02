@@ -53,7 +53,7 @@ function Shell() {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState<string | null>(null);
   const items = navFor(membership?.role);
-  const crumb = NAV.find((n) => n.path === pathname || (n.path !== '/' && pathname.startsWith(n.path + '/')))?.label ?? (pathname === '/platform' ? 'Platform' : 'Not found');
+  const crumb = NAV.find((n) => n.path === pathname || (n.path !== '/' && pathname.startsWith(n.path + '/')))?.label ?? (pathname === '/admin-site' ? 'Admin site' : 'Not found');
   useEffect(() => { document.title = `${crumb} · ${membership?.org_name || 'Taskify'}`; }, [crumb, membership?.org_name]);
   useEffect(() => {
     // select('*') so this works before migration 0010 adds avatar_url
@@ -81,7 +81,7 @@ function Shell() {
       label: n.label, icon: n.icon, to: n.path, badge: n.path === '/my-tasks' ? mine : n.path === '/notifications' ? unread : undefined,
     })),
   }));
-  if (platformAdmin) groups[3].items.push({ label: 'Platform', icon: Shield, to: '/platform' });
+  if (platformAdmin) groups[3].items.push({ label: 'Admin site', icon: Shield, to: '/admin-site' });
 
   return (
     <Frame brand={membership?.org_name || 'Taskify'} groups={groups} title={crumb} search={<Search />}
@@ -150,7 +150,8 @@ function Gate() {
         <Route path="/guide" element={<Guide />} />
         <Route path="/organizations/new" element={<NewOrg />} />
         <Route path="/templates" element={<Guard need="task:write"><Templates /></Guard>} />
-        <Route path="/platform" element={platformAdmin ? <Platform /> : <Navigate to="/" replace />} />
+        <Route path="/admin-site" element={platformAdmin ? <Platform /> : <Navigate to="/" replace />} />
+        <Route path="/platform" element={<Navigate to="/admin-site" replace />} />
         <Route path="*" element={<Pending name="Not found" />} />
       </Route>
     </Routes>

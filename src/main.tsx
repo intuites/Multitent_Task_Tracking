@@ -87,8 +87,8 @@ function Shell() {
     <Frame brand={membership?.org_name || 'Taskify'} groups={groups} title={crumb} search={<Search />}
       action={can(membership!.role, 'task:write') ? <Link to="/tasks?new=1" className="pill-btn top-new"><Plus size={16} aria-hidden="true" /><span>New task</span></Link> : undefined}
       bell={{ userId: uid, unread, onChanged: refresh, allTo: '/notifications' }}
-      user={{ name: name || session!.user.email!, email: session!.user.email!, role: `${label(membership!.role)} · ${membership!.org_name}`, avatar }}
-      orgs={memberships.map((m) => ({ id: m.org_id, name: m.org_name, role: label(m.role) }))} currentOrg={membership!.org_id}
+      user={{ name: name || session!.user.email!, email: session!.user.email!, role: `${membership!.platform ? 'Platform admin' : label(membership!.role)} · ${membership!.org_name}`, avatar }}
+      orgs={memberships.map((m) => ({ id: m.org_id, name: m.org_name, role: m.platform ? 'Platform admin' : label(m.role) }))} currentOrg={membership!.org_id}
       onSwitchOrg={switchOrg} onCreateOrg={memberships.some((m) => m.role === 'owner' || m.role === 'admin') ? () => navigate('/organizations/new') : undefined}
       menu={[
         { label: 'My profile', icon: UserCircle, to: '/profile' },
@@ -100,7 +100,7 @@ function Shell() {
       footer={(
         <div className="side-card">
           <b>{membership?.org_name}</b>
-          <p>You are signed in as {label(membership!.role)}.</p>
+          <p>You are signed in as {membership!.platform ? 'Platform admin' : label(membership!.role)}.</p>
           {can(membership!.role, 'members:manage') ? <Link to="/employees" className="pill-btn light">Invite teammates</Link> : <Link to="/profile" className="pill-btn light">Your profile</Link>}
         </div>
       )}>

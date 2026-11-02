@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Building2, Check, Download, Layers, Pencil, Plus, Search, Trash2, UserPlus, X } from 'lucide-react';
+import { Building2, Check, Layers, Pencil, Plus, Search, Trash2, UserPlus, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
-import { Badge, download, label, loadPeople, rpc, type Person } from '../lib/ui';
+import { Badge, fetchAll, fileStamp, label, loadPeople, rpc, saveBlob, type Person } from '../lib/ui';
+import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { Link } from 'react-router-dom';
 import { ask } from '../components/Dialog';
 import { Avatar } from '../components/Frame';
@@ -32,7 +33,7 @@ export default function Employees() {
     const [sum, tk] = await Promise.all([
       rpc('tt_org_summary', { p_org: orgId, p_day_start: day.toISOString(), p_day_end: new Date(day.getTime() + 864e5).toISOString() }),
       // owners/admins get per-person performance, computed from the org's tasks
-      admin ? supabase.from('tt_tasks').select('status, due_date, completed_at, tt_task_assignees(user_id)').eq('org_id', orgId).is('archived_at', null).limit(10000) : Promise.resolve({ data: [] as any[] }),
+      admin ? fetchAll(() => supabase.from('tt_tasks').select('id, title, status, priority, department_id, due_date, start_date, created_at, completed_at, tt_task_assignees(user_id)').eq('org_id', orgId).is('archived_at', null).order('id')).then((data) => ({ data }), () => ({ data: [] as any[] })) : Promise.resolve({ data: [] as any[] }),
     ]);
     setTasks(tk.data ?? []);
     // workload is aggregated in SQL instead of pulling every assignment to the browser
@@ -87,6 +88,15 @@ export default function Employees() {
     for (const p of Object.values(m)) p.onTime = p.done ? Math.round(((p.done - p.late) / p.done) * 100) : null;
     return m;
   }, [tasks]);
+  // the organization report (its People sheet / section is this table) as Excel or PDF
+  async function exportPerf(f: ExportFormat) {
+    try {
+      const [r, d] = await Promise.all([import('../lib/reportWorkbook'), supabase.from('tt_departments').select('id, name').eq('org_id', orgId).order('name')]);
+      const input = { org: membership!.org_name, filters: 'All tasks', tasks, depts: d.data ?? [], people: (people ?? []).map((p) => ({ id: p.id, name: p.name, email: p.email, role: p.role })), label };
+      if (f === 'xlsx') saveBlob(`${fileStamp(`${membership!.org_name}_performance`)}.xlsx`, r.reportWorkbook(input));
+      else (await import('../lib/printReport')).printReport(r.reportPdf(input));
+    } catch (x) { fail((x as Error).message); }
+  }
   const perfOf = (id: string): Perf => perf[id] ?? { assigned: 0, open: 0, done: 0, overdue: 0, onTime: null, last30: 0 };
 
   const shown = (people ?? []).filter((p) => (!roleFilter || p.role === roleFilter) && (!q || `${p.name} ${p.email}`.toLowerCase().includes(q.toLowerCase())));
@@ -164,7 +174,7 @@ export default function Employees() {
           </section>
           <section className="card" aria-labelledby="pi-h">
             <div className="panel-head"><h3 id="pi-h">Everyone</h3>
-              <button type="button" className="mini-link" onClick={() => download('performance.csv', perfRows.map(({ p, s }) => ({ Name: p.name, Email: p.email, Role: label(p.role), Active: p.active ? 'Yes' : 'No', Assigned: s.assigned, Open: s.open, Completed: s.done, Overdue: s.overdue, 'On time %': s.onTime ?? '', 'Completed last 30 days': s.last30 })))}><Download size={15} aria-hidden="true" />Export CSV</button></div>
+              <ExportMenu onExport={exportPerf} label="Export" /></div>
             <table className="emp-table"><thead><tr><th>Person</th><th>Role</th><th>Assigned</th><th>Completed</th><th>Overdue</th><th>On time</th><th>Progress</th></tr></thead>
               <tbody>{[...perfRows].sort((a, b) => b.s.done - a.s.done).map(({ p, s }) => (
                 <tr key={p.id} className={p.active ? '' : 'inactive'}>

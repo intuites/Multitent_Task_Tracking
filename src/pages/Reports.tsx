@@ -3,7 +3,7 @@ import { BarChart3, CheckCircle2, Clock, Hourglass, Layers, PieChart, Repeat, Us
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
-import { download, fetchAll, fileStamp, isOpen, isOverdue, label, saveBlob, usePeople } from '../lib/ui';
+import { fetchAll, fileStamp, isOpen, isOverdue, label, saveBlob, usePeople } from '../lib/ui';
 import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { ListSkeleton } from '../components/Skeleton';
 import { CountUp } from '../components/Liquid';
@@ -121,7 +121,7 @@ export default function Reports() {
   const rate = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
   const filtered = !!(from || to || dept || emp || status || priority);
   const clear = () => { setFrom(''); setTo(''); setDept(''); setEmp(''); setStatus(''); setPriority(''); };
-  // every format covers the filtered tasks; CSV is the report tab you're looking at
+  // both formats cover the filtered tasks
   async function exportAs(f: ExportFormat) {
     try {
       const r = await import('../lib/reportWorkbook');
@@ -129,7 +129,6 @@ export default function Reports() {
       const input = { org: membership!.org_name, filters: fl.length ? `Filters: ${fl.join(', ')}` : 'All tasks', tasks, depts: data.d, people, label };
       const file = fileStamp(`${membership!.org_name}_report`);
       if (f === 'xlsx') saveBlob(`${file}.xlsx`, r.reportWorkbook(input));
-      else if (f === 'csv') download(`${fileStamp(`${membership!.org_name}_${report}`)}.csv`, rows);
       else (await import('../lib/printReport')).printReport(r.reportPdf(input));
     } catch (x) { setError((x as Error).message); }
   }

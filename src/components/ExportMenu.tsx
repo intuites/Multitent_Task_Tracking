@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Download, FileSpreadsheet, FileText, Sheet } from 'lucide-react';
+import { ChevronDown, Download, FileSpreadsheet, FileText } from 'lucide-react';
 
-export type ExportFormat = 'xlsx' | 'csv' | 'pdf';
-const FORMATS: { id: ExportFormat; name: string; hint: string; icon: typeof Sheet }[] = [
+export type ExportFormat = 'xlsx' | 'pdf';
+const FORMATS: { id: ExportFormat; name: string; hint: string; icon: typeof FileText }[] = [
   { id: 'xlsx', name: 'Excel (.xlsx)', hint: 'Coloured sheets with charts', icon: FileSpreadsheet },
-  { id: 'csv', name: 'CSV (.csv)', hint: 'Plain data for any tool', icon: Sheet },
   { id: 'pdf', name: 'PDF', hint: 'Print-ready report, then “Save as PDF”', icon: FileText },
 ];
 
@@ -26,7 +25,7 @@ export default function ExportMenu({ onExport, disabled, label = 'Export' }: { o
   return (
     <div className="pop-wrap" ref={ref}>
       <button type="button" className="pill-btn" aria-haspopup="menu" aria-expanded={open} disabled={disabled || !!busy} onClick={() => setOpen(!open)}>
-        <Download size={16} aria-hidden="true" />{busy ? `Preparing ${busy === 'xlsx' ? 'Excel' : busy.toUpperCase()}…` : label}<ChevronDown size={15} aria-hidden="true" />
+        <Download size={16} aria-hidden="true" />{busy ? `Preparing ${busy === 'xlsx' ? 'Excel' : 'PDF'}…` : label}<ChevronDown size={15} aria-hidden="true" />
       </button>
       {open && (
         <div className="pop menu-pop export-pop" role="menu" aria-label="Choose export format">

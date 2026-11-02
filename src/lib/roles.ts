@@ -12,7 +12,7 @@ export const ACTION_TEXT: Record<Action, string> = {
   'task:read': 'View tasks',
   'task:status': 'Update the status of their tasks',
   'escalation:manage': 'Raise and resolve escalations',
-  'report:read': 'View reports and export CSV',
+  'report:read': 'View reports and export them to Excel or PDF',
   'activity:read': 'See the activity log',
   'internal_comment:read': 'Read internal comments',
 };

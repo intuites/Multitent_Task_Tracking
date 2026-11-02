@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
-import { Badge, download, Due, fetchAll, fileStamp, isOpen as isOpenStatus, label, saveBlob, usePeople } from '../lib/ui';
+import { Badge, Due, fetchAll, fileStamp, isOpen as isOpenStatus, label, saveBlob, usePeople } from '../lib/ui';
 import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { ListSkeleton } from '../components/Skeleton';
 import { ask } from '../components/Dialog';
@@ -97,8 +97,6 @@ export default function Tasks({ mode }: { mode: Mode }) {
       const who = `${membership!.org_name} · ${view_}`, file = fileStamp(`${membership!.org_name}_${title}`);
       const dept = (t: any) => t.departments?.name ?? 'No department';
       if (f === 'xlsx') saveBlob(`${file}.xlsx`, r.taskListWorkbook(title, who, all, label, dept, name));
-      else if (f === 'csv') download(`${file}.csv`, all.map((t: any) => ({ Task: t.title, Status: label(t.status), Priority: label(t.priority), Department: dept(t),
-        'Assigned to': names(t), Created: t.created_at?.slice(0, 10), Starts: t.start_date?.slice(0, 10) ?? '', Due: t.due_date?.slice(0, 10) ?? '', Completed: t.completed_at?.slice(0, 10) ?? '' })));
       else (await import('../lib/printReport')).printReport(r.taskListPdf(title, who, all, label, dept, name));
     } catch (x) { setError((x as Error).message); }
   }

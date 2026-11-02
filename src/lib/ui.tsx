@@ -67,18 +67,6 @@ export async function fetchAll<T = any>(query: () => any, cap = 100000): Promise
 
 export const fileStamp = (name: string) => `${name.replace(/[^\w-]+/g, '_')}_${new Date().toISOString().slice(0, 10)}`;
 
-export function download(filename: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) return;
-  const cols = Object.keys(rows[0]);
-  // prefix formula-triggering characters so spreadsheets do not execute cell content
-  const cell = (v: unknown) => { let s = v == null ? '' : String(v); if (/^[=+\-@]/.test(s)) s = "'" + s; return `"${s.replace(/"/g, '""')}"`; };
-  const csv = [cols.join(','), ...rows.map((r) => cols.map((c) => cell(r[c])).join(','))].join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
 
 export const Due = ({ t }: { t: { due_date?: string | null; status: string } }) =>
   <span className={isOverdue(t) ? 'overdue' : ''}>{fmt(t.due_date)}{isOverdue(t) && ' (overdue)'}</span>;

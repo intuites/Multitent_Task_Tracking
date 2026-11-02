@@ -62,7 +62,7 @@ const FEATURES: Feature[] = [
     steps: ['Admins manage members, departments, organizations and settings.', 'Managers create tasks and assign them to anyone.', 'Employees work on their own tasks.'],
     visual: <ListMock rows={[['Admin', 'People, departments, settings'], ['Manager', 'Assigns to anyone'], ['Employee', 'Works on their tasks'], ['Platform admin', 'Looks after every organization']]} /> },
   { id: 'reports', icon: BarChart3, name: 'Reports', short: 'Export in a click', line: 'Completion, workload, departments and overdue work, ready to export.',
-    steps: ['Pick a report and filter it.', 'Export the result as CSV.'], visual: <DashMock /> },
+    steps: ['Pick a report and filter it.', 'Export it to Excel (with charts) or PDF.'], visual: <DashMock /> },
 ];
 const HEADLINE = 'Your organization, its departments and every task in one calm place.';
 

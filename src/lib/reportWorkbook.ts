@@ -320,14 +320,6 @@ export function platformPdf({ orgs, members, profiles, depts, tasks, label }: Pl
   };
 }
 
-/** Every organization side by side, for CSV export. */
-export const platformRows = ({ orgs, members, depts, tasks }: PlatformInput) => orgs.map((o) => {
-  const s = stats(tasks.filter((t) => t.org_id === o.id));
-  return { Organization: o.name, Members: members.filter((m) => m.org_id === o.id && m.active).length, Departments: depts.filter((x) => x.org_id === o.id).length,
-    Tasks: s.total, Open: s.open, Completed: s.done, Overdue: s.overdue, 'Completion %': Math.round(s.rate * 100), 'On time %': Math.round(s.onTime * 100),
-    'Completed (30 days)': s.done30, 'Created (30 days)': s.new30, 'Created on': o.created_at.slice(0, 10) };
-}).sort((a, b) => b['Completion %'] - a['Completion %']);
-
 /** A plain task list (what a Tasks / My Tasks view shows) as Excel and PDF. */
 export function taskListWorkbook(title: string, who: string, tasks: Task[], label: Label, deptName: (t: Task) => string, personName: (id: string) => string): Blob {
   const sheet = taskSheet(tasks, who, title, label, deptName, personName);

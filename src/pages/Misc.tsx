@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { download, fetchAll, fileStamp, fmtTime, label, rpc, saveBlob, usePeople } from '../lib/ui';
+import { fetchAll, fileStamp, fmtTime, label, rpc, saveBlob, usePeople } from '../lib/ui';
 
 export function ActivityLogs() {
   const { membership } = useAuth();
@@ -66,7 +66,6 @@ export function Platform() {
       const r = await import('../lib/reportWorkbook');
       const input = { orgs, members, profiles, depts, tasks, label }, file = fileStamp('Taskify_all_organizations');
       if (f === 'xlsx') saveBlob(`${file}.xlsx`, r.platformWorkbook(input));
-      else if (f === 'csv') download(`${file}.csv`, r.platformRows(input));
       else (await import('../lib/printReport')).printReport(r.platformPdf(input));
       setMsg({ kind: 'ok', text: `Exported ${orgs.length} organizations and ${tasks.length} tasks.` });
     } catch (e) { setMsg({ kind: 'error', text: (e as Error).message }); }

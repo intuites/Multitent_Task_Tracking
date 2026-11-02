@@ -140,8 +140,9 @@ function ManageOrgs({ say }: { say: (m: Msg) => void }) {
     // before migration 0020 there is no created_by; fall back to every organization you administer
     const noCol = (data ?? []).some((o) => !('created_by' in o));
     setLegacy(noCol);
-    setOrgs(noCol ? data ?? [] : (data ?? []).filter((o) => o.created_by === uid));
-  }, [memberships, uid, say]);
+    // platform admins manage every organization
+    setOrgs(noCol || membership!.platform ? data ?? [] : (data ?? []).filter((o) => o.created_by === uid));
+  }, [memberships, membership, uid, say]);
   useEffect(() => { load(); }, [load]);
 
   async function save(e: FormEvent<HTMLFormElement>, o: any) {
@@ -163,7 +164,7 @@ function ManageOrgs({ say }: { say: (m: Msg) => void }) {
 
   return (
     <section className="card" aria-labelledby="mo-h">
-      <div className="panel-head"><h3 id="mo-h"><Building2 size={16} aria-hidden="true" /> {legacy ? 'Organizations you administer' : 'Organizations you created'}</h3>
+      <div className="panel-head"><h3 id="mo-h"><Building2 size={16} aria-hidden="true" /> {membership!.platform ? 'All organizations' : legacy ? 'Organizations you administer' : 'Organizations you created'}</h3>
         <button type="button" className="pill-btn ghost" onClick={() => navigate('/organizations/new')}><Plus size={15} aria-hidden="true" />New organization</button></div>
       {orgs === null ? <PageSkeleton /> : orgs.length === 0 ? <p className="muted">You haven’t created an organization yet.</p> : (
         <ul className="mo-list">{orgs.map((o) => (

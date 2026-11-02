@@ -21,8 +21,8 @@ export default function NewOrg() {
     } catch (x) { setErr((x as Error).message); setBusy(false); }
   }
 
-  // owners and admins can start another organization (they become its owner)
-  if (!memberships.some((m) => m.role === 'owner' || m.role === 'admin')) return <div className="card rp-empty"><Building2 size={28} aria-hidden="true" /><p>Only organization owners and admins can create a new organization.</p></div>;
+  // admins can start another organization (they become its admin); platform admins create it without joining
+  if (!memberships.some((m) => m.role === 'owner' || m.role === 'admin')) return <div className="card rp-empty"><Building2 size={28} aria-hidden="true" /><p>Only admins can create a new organization.</p></div>;
   return (
     <>
       <div className="page-head"><div><h2 className="page-title">Create organization</h2><p className="page-sub">You’ll be its owner. Switch between organizations from the name at the top of the sidebar.</p></div></div>

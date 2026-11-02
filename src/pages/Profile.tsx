@@ -251,11 +251,11 @@ export default function Profile() {
                 <p className="muted">Lost a laptop or used a shared computer? Sign out of every device at once.</p>
                 <div className="row filters"><button type="button" className="pill-btn ghost" onClick={signOut}>Log out here</button><button type="button" className="pill-btn ghost danger-text" onClick={signOutEverywhere}>Sign out everywhere</button></div>
               </section>
-              <section className="card pf-danger" aria-labelledby="dz-h">
+              {!membership!.platform && <section className="card pf-danger" aria-labelledby="dz-h">
                 <h3 id="dz-h"><AlertTriangle size={16} aria-hidden="true" /> Leave organization</h3>
                 <p className="muted">Removes your access to {membership!.org_name}. Your completed work stays in the history.</p>
                 <button type="button" className="danger" onClick={leave}>Leave {membership!.org_name}</button>
-              </section>
+              </section>}
             </div>
           </div>
         )}

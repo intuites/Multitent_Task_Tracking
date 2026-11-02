@@ -81,6 +81,7 @@ export function Platform() {
         <form className="inline-add" onSubmit={(e: FormEvent<HTMLFormElement>) => { e.preventDefault(); const f = e.currentTarget, em = String(new FormData(f).get('email')).trim(); if (em) { setAdmin(em, true); f.reset(); } }}>
           <input name="email" type="email" required placeholder="Email of an existing account" aria-label="Email of new platform admin" /><button type="submit">Make platform admin</button>
         </form>
+        <p className="muted">Platform admins don’t belong to any organization. Making someone a platform admin takes them out of every organization they were in; they keep full access to all of them from here.</p>
       </section>
     </>
   );

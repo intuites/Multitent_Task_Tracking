@@ -61,12 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // RLS limits these reads to the caller's own rows; roles are never taken from the browser.
       const { data } = await supabase.from('tt_org_members').select('org_id, role, organizations:tt_organizations(name, time_zone)')
         .eq('user_id', session.user.id).eq('active', true).order('created_at');
-      const all: Membership[] = (data ?? []).map((m: any) => ({ org_id: m.org_id, role: m.role, org_name: m.organizations?.name ?? '', time_zone: m.organizations?.time_zone ?? 'UTC' }));
-      // platform admins (whole-CRM admins) can open every organization
+      let all: Membership[] = (data ?? []).map((m: any) => ({ org_id: m.org_id, role: m.role, org_name: m.organizations?.name ?? '', time_zone: m.organizations?.time_zone ?? 'UTC' }));
+      // platform admins belong to no organization: they open every one with full control, never through a membership
       const pa = (await supabase.rpc('tt_is_platform_admin')).data === true;
       if (pa) {
         const { data: orgs } = await supabase.from('tt_organizations').select('id, name, time_zone').order('name');
-        for (const o of orgs ?? []) if (!all.some((m) => m.org_id === o.id)) all.push({ org_id: o.id, role: 'owner', org_name: o.name, time_zone: o.time_zone ?? 'UTC', platform: true });
+        all = (orgs ?? []).map((o) => ({ org_id: o.id, role: 'owner', org_name: o.name, time_zone: o.time_zone ?? 'UTC', platform: true }));
       }
       let saved: string | null = null;
       try { saved = localStorage.getItem(ORG_KEY); } catch { /* storage blocked: fall back to the first org */ }

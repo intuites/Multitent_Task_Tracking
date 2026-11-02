@@ -1080,9 +1080,6 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
     .reveal { animation: g-reveal linear both; animation-timeline: view(); animation-range: entry 0% entry 65%; }
     .g-feature:not(.flip) .g-text.reveal { --from: -32px; }
     .g-visual { animation: g-liquid linear both; animation-timeline: view(); animation-range: entry 5% cover 35%; }
-    .g-steps::after { animation: g-line linear both; animation-timeline: view(); animation-range: entry 40% cover 50%; }
-    .gv-bars i, .gv-track i, .gv-timeline::before { animation-timeline: view(); animation-range: entry 20% cover 40%; animation-delay: 0s; }
-    .gv-row { animation: g-row linear both; animation-timeline: view(); animation-range: entry 10% cover 35%; }
   }
 }
 @keyframes g-reveal { from { opacity: 0; transform: translateX(var(--from, 32px)) translateY(24px); } }
@@ -1582,43 +1579,59 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .bar-day.now { color: var(--brand); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .bar-val, .cc-custom { animation: none; } }
 
-/* ───────── guide: 3D scroll + flowing liquid. Scroll-linked where supported (transform/opacity/clip-path only); static otherwise. */
-.g-feature { position: relative; transform-style: preserve-3d; }
-/* two liquid waves flow between sections, at different speeds */
-.g-feature + .g-feature::before, .g-feature + .g-feature::after { content: ''; position: absolute; left: 0; right: 0; top: -14px; height: 28px; pointer-events: none;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='28' viewBox='0 0 240 28'%3E%3Cpath d='M0 14 C 40 0 80 0 120 14 S 200 28 240 14' fill='none' stroke='%235cb886' stroke-width='2'/%3E%3C/svg%3E") repeat-x 0 50% / 240px 28px;
-  opacity: .45; animation: g-wave 7s linear infinite; }
-.g-feature + .g-feature::after { opacity: .25; background-size: 360px 28px; animation-duration: 11s; animation-direction: reverse; top: -10px; }
-@keyframes g-wave { to { background-position-x: 240px; } }
-.g-feature h2 { background: linear-gradient(100deg, var(--text) 30%, var(--brand-2) 50%, var(--text) 70%) 0 0 / 250% 100%; -webkit-background-clip: text; background-clip: text;
-  color: transparent; animation: g-sheen 7s ease-in-out infinite; }
+
+/* ───────── guide: scrollytelling showcase. Steps scroll on the left; one pinned 3D app window on the right switches screens. */
+.g-story { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: clamp(24px, 5vw, 72px); max-width: var(--g-max); margin: 0 auto; padding: 24px clamp(8px, 2vw, 24px) 40px; }
+.g-step { min-height: 72vh; display: flex; flex-direction: column; justify-content: center; scroll-margin-top: 160px; opacity: .28; filter: blur(.5px);
+  transform: translateX(-10px); transition: opacity .6s var(--ease), transform .6s var(--ease), filter .6s var(--ease); }
+.g-step.on { opacity: 1; filter: none; transform: none; }
+.g-step h2 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.5rem); letter-spacing: -0.035em; line-height: 1.1; }
+.g-step.on h2 { background: linear-gradient(100deg, var(--text) 35%, var(--brand-2) 50%, var(--text) 65%) 0 0 / 250% 100%; -webkit-background-clip: text; background-clip: text;
+  color: transparent; animation: g-sheen 6s ease-in-out infinite; }
 @keyframes g-sheen { 50% { background-position: 100% 0; } }
+.g-step .g-steps::after { transform: scaleY(0); transition: transform 1s var(--ease) .2s; }
+.g-step.on .g-steps::after { transform: none; }
+.g-step-visual { display: none; }
+
+.g-stage { position: sticky; top: max(150px, calc(50vh - 200px)); height: 440px; align-self: start; perspective: 1400px; display: grid; justify-items: center; align-content: center; gap: 18px; }
+.g-window { --px: 0; --py: 0; position: relative; width: 100%; max-width: 560px; border-radius: 26px; overflow: hidden; isolation: isolate;
+  background: var(--glass-bg-float); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border: 1px solid var(--glass-line);
+  box-shadow: var(--glass-shadow), 0 50px 90px -40px rgb(14 58 36 / .55), 0 0 0 1px rgb(255 255 255 / .04);
+  transform: rotateX(calc(8deg + var(--py) * -10deg)) rotateY(calc(-14deg + var(--px) * 16deg)); transition: transform .7s var(--ease); animation: g-win-float 7s ease-in-out infinite alternate; }
+@keyframes g-win-float { to { translate: 0 -12px; } }
+.g-window::before { content: ''; position: absolute; z-index: -1; inset: -30% -30% auto auto; width: 70%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle, rgb(92 184 134 / .35), transparent 65%); animation: ga-drift 12s ease-in-out infinite alternate; }
+.g-win-bar { display: flex; align-items: center; gap: 7px; padding: 12px 16px; border-bottom: 1px solid var(--glass-line); }
+.g-win-bar i { width: 10px; height: 10px; border-radius: 50%; background: #e7766a; } .g-win-bar i:nth-child(2) { background: #e9c25b; } .g-win-bar i:nth-child(3) { background: #5cb886; }
+.g-win-title { margin-left: 10px; font-size: 12.5px; font-weight: 650; color: var(--muted); animation: fade-in-up .45s var(--ease) both; }
+.g-win-body { position: relative; min-height: 330px; display: grid; padding: 18px; perspective: 1000px; }
+.g-screen.gv { background: none; border: 0; box-shadow: none; padding: 8px; transform: none; animation: g-flip .7s var(--settle, var(--ease)) both; transform-origin: 50% 50% -120px; }
+@keyframes g-flip { from { opacity: 0; transform: rotateY(-28deg) translateZ(-80px) scale(.94); filter: blur(6px); } }
+.g-dots { display: flex; gap: 6px; } .g-dots span { width: 7px; height: 7px; border-radius: 99px; background: var(--line); transition: width .4s var(--ease), background .4s; }
+.g-dots span.on { width: 22px; background: var(--brand-2); }
+
+@media (max-width: 900px) {
+  .g-story { grid-template-columns: 1fr; } .g-stage { display: none; }
+  .g-step { min-height: 0; padding: 36px 0; opacity: 1; filter: none; transform: none; }
+  .g-step-visual { display: block; margin-top: 20px; }
+}
 
 @media (prefers-reduced-motion: no-preference) {
   @supports (animation-timeline: view()) {
-    /* hero tips back into the screen as you leave it */
     .g-hero { transform-origin: 50% 100%; animation: g-hero-out linear both; animation-timeline: scroll(root); animation-range: 0 75vh; }
-    /* background liquid drifts at different depths */
     .ga { animation: ga-drift 26s ease-in-out infinite alternate, ga-par linear both; animation-timeline: auto, scroll(root); }
     .ga.a2, .ga.a4 { --pz: -1; }
-    /* tiles flip up into place */
     .g-tile { transform-origin: 50% 0; animation: g-tile-3d linear both; animation-timeline: view(); animation-range: entry 0% entry 85%; }
-    /* text swings in from its side, the illustration rises out of depth, pours in, then keeps turning as you scroll past */
-    .g-text.reveal { animation: g-text-3d linear both; animation-timeline: view(); animation-range: entry 0% cover 40%; }
-    .g-feature.flip .g-text.reveal { --ry: -22deg; }
-    .g-visual { animation: g-flow3d linear both; animation-timeline: view(); animation-range: entry 0% exit 100%; }
-    .g-feature.flip .g-visual { --vy: 24deg; }
+    .g-stage { animation: g-stage-in linear both; animation-timeline: view(); animation-range: entry 0% entry 60%; }
     .g-end { animation: g-end-3d linear both; animation-timeline: view(); animation-range: entry 0% entry 90%; transform-origin: 50% 100%; }
   }
 }
 @keyframes g-hero-out { to { transform: perspective(1400px) rotateX(16deg) scale(.9) translateY(40px); opacity: .25; } }
 @keyframes ga-par { to { translate: 0 calc(var(--pz, 1) * -35vh); } }
 @keyframes g-tile-3d { from { opacity: 0; transform: perspective(900px) rotateX(-70deg) translateY(30px); } }
-@keyframes g-text-3d { from { opacity: 0; transform: perspective(1100px) translateZ(-220px) rotateY(var(--ry, 22deg)); } }
-@keyframes g-flow3d {
-  0% { opacity: 0; clip-path: circle(0% at 15% 85%); transform: perspective(1300px) translateZ(-260px) rotateX(30deg) rotateY(var(--vy, -24deg)) translateY(80px); }
-  32% { opacity: 1; clip-path: circle(150% at 15% 85%); transform: perspective(1300px) translateZ(0) rotateX(0) rotateY(0); }
-  100% { opacity: .9; clip-path: circle(150% at 15% 85%); transform: perspective(1300px) translateZ(-90px) rotateX(-14deg) rotateY(calc(var(--vy, -24deg) * -.5)); }
-}
+@keyframes g-stage-in { from { opacity: 0; transform: translateY(80px) scale(.92); } }
 @keyframes g-end-3d { from { opacity: 0; transform: perspective(1100px) rotateX(40deg) translateY(90px) scale(.9); } }
-@media (prefers-reduced-motion: reduce) { .g-feature::before, .g-feature::after, .g-feature h2 { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  .g-step, .g-window, .g-screen.gv, .g-dots span, .g-steps::after { transition: none !important; animation: none !important; }
+  .g-step { opacity: 1; filter: none; transform: none; }
+}

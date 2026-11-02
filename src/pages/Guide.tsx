@@ -176,19 +176,29 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
         <span className="g-progress" aria-hidden="true" />
       </nav>
 
-      {FEATURES.map((f, i) => (
-        <section key={f.id} id={f.id} className={`g-feature ${i % 2 ? 'flip' : ''}`} aria-labelledby={`${f.id}-h`}>
-          <div className="g-text reveal">
-            <span className="g-ico"><f.icon size={22} aria-hidden="true" /></span>
-            <h2 id={`${f.id}-h`}>{f.name}</h2>
-            <p className="g-line">{f.line}</p>
-            <ol className="g-steps">{f.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+      {/* scrollytelling: explanations scroll on the left, one pinned 3D app window on the right switches to the feature being read */}
+      <section className="g-story" aria-label="Features in detail">
+        <div className="g-story-steps">
+          {FEATURES.map((f) => (
+            <article key={f.id} id={f.id} className={`g-step ${active === f.id ? 'on' : ''}`} aria-labelledby={`${f.id}-h`}>
+              <span className="g-ico"><f.icon size={22} aria-hidden="true" /></span>
+              <h2 id={`${f.id}-h`}>{f.name}</h2>
+              <p className="g-line">{f.line}</p>
+              <ol className="g-steps">{f.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+              <div className="g-step-visual" aria-hidden="true"><div className="gv">{f.visual}</div></div>
+            </article>
+          ))}
+        </div>
+        <div className="g-stage" aria-hidden="true">
+          <div className="g-window" data-fx>
+            <div className="g-win-bar"><i /><i /><i /><span key={active} className="g-win-title">{FEATURES.find((f) => f.id === active)?.name}</span></div>
+            <div className="g-win-body">
+              {FEATURES.filter((f) => f.id === active).map((f) => <div key={f.id} className="g-screen gv">{f.visual}<span className="gv-sheen" /></div>)}
+            </div>
           </div>
-          <div className="g-visual" data-fx aria-hidden="true">
-            <div className="gv">{f.visual}<span className="gv-sheen" /></div>
-          </div>
-        </section>
-      ))}
+          <div className="g-dots">{FEATURES.map((f) => <span key={f.id} className={active === f.id ? 'on' : ''} />)}</div>
+        </div>
+      </section>
 
       <section className="g-end" data-fx>
         <LiquidBg />

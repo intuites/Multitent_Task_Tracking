@@ -253,7 +253,7 @@ export default function Profile() {
               </section>
               <section className="card pf-danger" aria-labelledby="dz-h">
                 <h3 id="dz-h"><AlertTriangle size={16} aria-hidden="true" /> Leave organization</h3>
-                <p className="muted">Removes your access to {membership!.org_name}. {role === 'owner' ? 'If you are the only owner, make someone else an owner first.' : 'Your completed work stays in the history.'}</p>
+                <p className="muted">Removes your access to {membership!.org_name}. Your completed work stays in the history.</p>
                 <button type="button" className="danger" onClick={leave}>Leave {membership!.org_name}</button>
               </section>
             </div>

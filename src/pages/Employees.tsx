@@ -10,9 +10,9 @@ import { Avatar } from '../components/Frame';
 import { ListSkeleton } from '../components/Skeleton';
 
 interface Perf { assigned: number; open: number; done: number; overdue: number; onTime: number | null; last30: number }
-type Msg = { kind: 'ok' | 'error'; text: string } | null;
+export type Msg = { kind: 'ok' | 'error'; text: string } | null;
 type Tab = 'people' | 'performance' | 'departments';
-const ROLES = ['owner', 'admin', 'manager', 'employee'];
+const ROLES = ['admin', 'manager', 'employee'];
 
 export default function Employees() {
   const { membership, session } = useAuth();
@@ -114,7 +114,7 @@ export default function Employees() {
           <form className="inv-form" onSubmit={invite}>
             <label>Email<input name="email" type="email" required placeholder="name@company.com" autoFocus /></label>
             <label>Full name<input name="full_name" placeholder="Optional" /></label>
-            <label>Role<select name="role" defaultValue="employee">{['employee', 'manager', 'admin', ...(role === 'owner' ? ['owner'] : [])].map((r) => <option key={r} value={r}>{label(r)}</option>)}</select></label>
+            <label>Role<select name="role" defaultValue="employee">{['employee', 'manager', 'admin'].map((r) => <option key={r} value={r}>{label(r)}</option>)}</select></label>
             <button type="submit">Send invite</button>
           </form>
           <p className="muted tpl-note">They get an email to set a password, then land straight in this organization.</p>
@@ -182,7 +182,7 @@ export default function Employees() {
 }
 
 /** Organization → its departments → each department's members. Owners and admins of that organization can edit. */
-function Departments({ say }: { say: (m: Msg) => void }) {
+export function Departments({ say }: { say: (m: Msg) => void }) {
   const { membership, memberships } = useAuth();
   const orgs = memberships.filter((m) => can(m.role, 'task:write'));
   const [orgId, setOrgId] = useState(membership!.org_id);

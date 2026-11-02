@@ -1,6 +1,6 @@
 import { admin, authUser, handler, HttpError } from './_lib/http';
 
-const ROLES = ['owner', 'admin', 'manager', 'employee'];
+const ROLES = ['admin', 'manager', 'employee'];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // POST { org_id, email, full_name?, role }            -> invite an employee
@@ -22,7 +22,6 @@ export default handler('POST', async (req) => {
   } else {
     if (!ROLES.includes(role)) throw new HttpError(400, 'Invalid role');
     if (!['owner', 'admin'].includes(me.role)) throw new HttpError(403, 'Not authorized');
-    if (role === 'owner' && me.role !== 'owner') throw new HttpError(403, 'Only an owner can invite owners');
   }
 
   const invited = await db.auth.admin.inviteUserByEmail(email, { redirectTo: process.env.APP_URL || process.env.RENDER_EXTERNAL_URL, data: { full_name } });

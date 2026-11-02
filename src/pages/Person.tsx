@@ -17,7 +17,7 @@ type Tab = 'overview' | 'tasks' | 'details' | 'access' | 'activity';
 const DONE = ['completed', 'completed_cycle'];
 const isDone = (s: string) => DONE.includes(s);
 
-/** Full profile of one member, for owners/admins (edit everything) and managers (view). */
+/** Full profile of one member, for admins (edit everything) and managers (view). */
 export default function PersonPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -28,6 +28,7 @@ export default function PersonPage() {
   const [pr, setPr] = useState<any>({});
   const [tasks, setTasks] = useState<any[]>([]);
   const [dm, setDm] = useState<string[]>([]);
+  const [creator, setCreator] = useState<string | null>(null);
   const [depts, setDepts] = useState<any[]>([]);
   const [acts, setActs] = useState<any[]>([]);
   const [tab, setTab] = useState<Tab>('overview');
@@ -37,14 +38,16 @@ export default function PersonPage() {
   const load = useCallback(async () => {
     const ppl = await loadPeople(orgId, true);
     setPerson(ppl.find((p) => p.id === id) ?? null);
-    const [p, t, m, d, a] = await Promise.all([
+    const [p, t, m, d, a, o] = await Promise.all([
       supabase.from('tt_profiles').select('*').eq('user_id', id!).maybeSingle(),
       supabase.from('tt_tasks').select('id, title, status, priority, due_date, completed_at, created_at, departments:tt_departments(name), tt_task_assignees!inner(user_id)')
         .eq('org_id', orgId).eq('tt_task_assignees.user_id', id!).is('archived_at', null).order('due_date', { nullsFirst: false }).limit(2000),
       supabase.from('tt_department_members').select('department_id').eq('org_id', orgId).eq('user_id', id!),
       supabase.from('tt_departments').select('id, name').eq('org_id', orgId).order('name'),
       supabase.from('tt_activity_logs').select('*').eq('org_id', orgId).eq('actor_id', id!).order('created_at', { ascending: false }).limit(60),
+      supabase.from('tt_organizations').select('*').eq('id', orgId).maybeSingle(),
     ]);
+    setCreator(o.data?.created_by ?? null);
     setPr(p.data ?? {}); setTasks(t.data ?? []); setDm((m.data ?? []).map((x: any) => x.department_id)); setDepts(d.data ?? []); setActs(a.data ?? []);
   }, [orgId, id]);
   useEffect(() => { load(); }, [load]);
@@ -73,7 +76,9 @@ export default function PersonPage() {
   if (person === null) return <div className="card">This person isn't in {membership!.org_name}. <Link to="/employees">Back to people</Link></div>;
 
   const isMe = person.id === uid;
-  const canEdit = admin && (myRole === 'owner' || person.role !== 'owner' || isMe);
+  const canEdit = admin;
+  // the organization's creator always stays an active admin (enforced in the database too)
+  const isCreator = person.id === creator;
   const myDepts = depts.filter((d) => dm.includes(d.id));
   const ok = (text: string) => { setMsg({ kind: 'ok', text }); load(); };
   const fail = (text: string) => setMsg({ kind: 'error', text });
@@ -227,7 +232,7 @@ export default function PersonPage() {
               <label>Email<input value={person.email} disabled readOnly /></label>
               {pr.bio && <p className="pf-bio ps-bio">{pr.bio}</p>}
               {canEdit ? <span className="gf-actions"><button type="submit"><CheckCircle2 size={15} aria-hidden="true" />Save details</button></span>
-                : <p className="muted">{admin ? "Only an owner can change an owner's details." : 'Only owners and admins can change these details.'}</p>}
+                : <p className="muted">Only admins can change these details.</p>}
             </form>
           </section>
         )}
@@ -237,10 +242,10 @@ export default function PersonPage() {
             <section className="card" aria-labelledby="ac-h">
               <h3 id="ac-h">Role and access</h3>
               <p className="muted">{ROLE_TEXT[person.role as keyof typeof ROLE_TEXT]?.blurb}</p>
-              {isMe || !canEdit ? <p className="muted">{isMe ? "You can't change your own role or access." : 'Only an owner can change an owner.'}</p> : (
+              {isMe || isCreator ? <p className="muted">{isCreator ? `${isMe ? 'You' : person.name} created this organization, so ${isMe ? 'you stay' : 'they stay'} an active admin.` : "You can't change your own role or access."}</p> : (
                 <div className="pp-row">
                   <label>Role<select value={person.role} onChange={(e) => setRole(e.target.value)}>
-                    {['employee', 'manager', 'admin', ...(myRole === 'owner' ? ['owner'] : [])].map((r) => <option key={r} value={r}>{label(r)}</option>)}</select></label>
+                    {['employee', 'manager', 'admin'].map((r) => <option key={r} value={r}>{label(r)}</option>)}</select></label>
                   <button type="button" className={`pill-btn ghost ${person.active ? 'danger-text' : ''}`} onClick={() => setActive(!person.active)}>{person.active ? 'Deactivate' : 'Activate'}</button>
                 </div>)}
             </section>
@@ -253,7 +258,7 @@ export default function PersonPage() {
                   <option value="">+ Add to a department</option>{depts.filter((d) => !dm.includes(d.id)).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>)}
             </section>
-            {!isMe && canEdit && (
+            {!isMe && !isCreator && canEdit && (
               <section className="card ps-danger" aria-labelledby="dz-h">
                 <h3 id="dz-h">Remove from organization</h3>
                 <p className="muted">They lose access right away. Their tasks, comments and history stay.</p>

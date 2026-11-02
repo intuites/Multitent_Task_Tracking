@@ -20,7 +20,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
   const orgId = membership!.org_id, uid = session!.user.id;
   const canWrite = can(membership!.role, 'task:write');
   const { active, name } = usePeople(orgId);
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -32,6 +32,16 @@ export default function Tasks({ mode }: { mode: Mode }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (id: string) => setOpen((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const [showForm, setShowForm] = useState(params.get('new') === '1');
+  // links like the top bar's "New task" (?new=1) or a dashboard card (?view=…) also land here while the page is already open
+  useEffect(() => {
+    const v = params.get('view');
+    if (v) setView(v);
+    if (params.get('new') === '1') {
+      setShowForm(true);
+      const next = new URLSearchParams(params); next.delete('new');
+      setParams(next, { replace: true }); // drop it so the next click opens the form again
+    }
+  }, [params]); // eslint-disable-line react-hooks/exhaustive-deps
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const clientFilter = params.get('client'), projectFilter = params.get('project');

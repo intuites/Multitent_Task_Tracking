@@ -10,7 +10,7 @@ import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { Departments, type Msg } from './Employees';
 
-const ROLES = ['admin', 'manager', 'employee'] as const;
+const ROLES = ['admin', 'employee'] as const;
 // every IANA zone the browser knows; falls back to a short US-first list on old browsers
 const ZONES: string[] = (() => {
   try { return (Intl as any).supportedValuesOf('timeZone'); } catch { return ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'UTC', 'Europe/London', 'Asia/Kolkata']; }

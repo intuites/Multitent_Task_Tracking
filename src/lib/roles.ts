@@ -19,7 +19,6 @@ export const ACTION_TEXT: Record<Action, string> = {
 
 export const ROLE_TEXT: Record<Exclude<Role, 'platform_admin' | 'client_user'>, { title: string; blurb: string }> = {
   owner: { title: 'Owner', blurb: 'Created this organization. Full control, including who else is an owner.' },
-  admin: { title: 'Admin', blurb: 'Full control of this organization: people, departments, tasks and settings.' },
-  manager: { title: 'Manager', blurb: 'Runs the work day to day: creates tasks and assigns them to anyone in the organization.' },
+  admin: { title: 'Admin', blurb: 'Full control of this organization: people, departments, settings, and creating and assigning tasks to anyone.' },
   employee: { title: 'Employee', blurb: 'Works on assigned tasks, updates their status and comments.' },
 };

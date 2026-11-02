@@ -168,7 +168,7 @@ function useTilt() {
 export default function Dashboard() {
   const { membership, session } = useAuth();
   const orgId = membership!.org_id, uid = session!.user.id;
-  const manager = can(membership!.role, 'task:write');
+  const canAssign = can(membership!.role, 'task:write');
   const { name } = usePeople(orgId);
   const [d, setD] = useState<any>(null);
   useTilt();
@@ -239,7 +239,7 @@ export default function Dashboard() {
           <p className="page-sub">What needs your attention today.</p>
         </div>
         <div className="page-actions">
-          {manager && <Link to="/tasks?new=1" className="pill-btn"><Plus size={16} aria-hidden="true" />Add task</Link>}
+          {canAssign && <Link to="/tasks?new=1" className="pill-btn"><Plus size={16} aria-hidden="true" />Add task</Link>}
           {can(membership!.role, 'report:read') && <Link to="/reports" className="pill-btn ghost">View reports</Link>}
         </div>
       </div>
@@ -264,7 +264,7 @@ export default function Dashboard() {
         </section>
 
         <section className="card a-tm" aria-labelledby="tm-h">
-          {manager ? (<>
+          {canAssign ? (<>
             <div className="panel-head"><h3 id="tm-h">Team at work</h3>{can(membership!.role, 'members:manage') && <Link to="/employees" className="pill-btn ghost sm"><Plus size={14} aria-hidden="true" />Add member</Link>}</div>
             {d.team.length === 0 ? <p className="muted">Nobody has open work assigned.</p> : (
               <ul className="team">{d.team.map((w: any) => (

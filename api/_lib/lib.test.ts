@@ -7,9 +7,10 @@ describe('permissions', () => {
     expect(can(undefined, 'task:read')).toBe(false);
     expect(can('client_user', 'task:read')).toBe(false);
   });
-  it('employee cannot write clients; manager can', () => {
-    expect(can('employee', 'client:write')).toBe(false);
-    expect(can('manager', 'client:write')).toBe(true);
+  it('employee cannot create or assign tasks; admin can', () => {
+    expect(can('employee', 'task:write')).toBe(false);
+    expect(can('employee', 'task:status')).toBe(true);
+    expect(can('admin', 'task:write')).toBe(true);
   });
 });
 describe('task status', () => {

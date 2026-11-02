@@ -1,5 +1,5 @@
 export type Role =
-  | 'platform_admin' | 'owner' | 'admin' | 'manager' | 'employee' | 'client_user';
+  | 'platform_admin' | 'owner' | 'admin' | 'employee' | 'client_user';
 
 export type Action =
   | 'org:manage' | 'members:manage' | 'client:write' | 'client:read'
@@ -16,13 +16,13 @@ const ALL: Action[] = [
 export const MATRIX: Record<Role, Action[]> = {
   platform_admin: [],
   owner: ALL,
-  admin: ALL, // full access; only owner-role changes stay owner-only (enforced in the database)
-  manager: ['client:read', 'client:write', 'project:read', 'project:write', 'task:read',
-    'task:write', 'task:status', 'escalation:manage', 'report:read', 'internal_comment:read'],
+  // organizations have two roles, admin and employee; 'owner' is how a platform admin acts inside any organization
+  admin: ALL,
   employee: ['client:read', 'project:read', 'task:read', 'task:status', 'internal_comment:read'],
   client_user: [], // portal access is checked per-record, never via this matrix
 };
 
 /** Role must come from a verified org_members row, never from the request. */
 export const can = (role: Role | undefined, action: Action): boolean =>
-  !!role && MATRIX[role].includes(action);
+  // an unknown role (e.g. a leftover 'manager' before migration 0023 runs) gets no permissions instead of crashing
+  !!role && (MATRIX[role] ?? []).includes(action);

@@ -19,7 +19,7 @@ export default function TaskDetail() {
   const navigate = useNavigate();
   const { membership, session } = useAuth();
   const orgId = membership!.org_id, uid = session!.user.id, role = membership!.role;
-  const manager = can(role, 'task:write');
+  const canAssign = can(role, 'task:write');
   const { active, name } = usePeople(orgId);
   const [t, setT] = useState<any>(null);
   const [d, setD] = useState<any>({ assignees: [], subtasks: [], parent: null, comments: [], history: [], esc: [], activity: [], contacts: [], recur: null });
@@ -65,7 +65,7 @@ export default function TaskDetail() {
   if (!t) return <div className="card">Task not found. <Link to="/tasks">Back to tasks</Link></div>;
 
   const isAssignee = d.assignees.some((a: any) => a.user_id === uid);
-  const canStatus = manager || isAssignee;
+  const canStatus = canAssign || isAssignee;
   // "Completed this cycle" needs a repeating schedule to come back on; ask for one when the task has none
   const repeats = !!t.reminder_frequency && t.reminder_frequency !== 'once';
   const nexts = TASK_STATUSES.filter((s) => canTransition(t.status as TaskStatus, s));
@@ -154,7 +154,7 @@ export default function TaskDetail() {
       <header className={`card td-hero ${overdue ? 'is-overdue' : ''}`}>
         <div className="td-hero-top">
           <div className="td-badges"><Badge v={t.status} /><span className={`prio prio-${t.priority}`}>{label(t.priority)} priority</span>{t.archived_at && <span className="prio">Archived</span>}</div>
-          {manager && (
+          {canAssign && (
             <div className="td-actions">
               <button type="button" className="pill-btn ghost" onClick={() => setEdit(!edit)}><Pencil size={15} aria-hidden="true" />{edit ? 'Cancel edit' : 'Edit'}</button>
               {t.archived_at
@@ -189,13 +189,13 @@ export default function TaskDetail() {
                 <span className="row filters span-all td-edit-actions"><button type="submit">Save changes</button><button type="button" className="link" onClick={() => setEdit(false)}>Cancel</button>
                   <button type="button" className="pill-btn ghost danger-text" onClick={deleteTask}><Trash2 size={15} aria-hidden="true" />Delete task</button></span>
               </form>
-            ) : t.description ? <p className="td-desc">{t.description}</p> : <p className="muted">No description yet.{manager && ' Use Edit to add one.'}</p>}
+            ) : t.description ? <p className="td-desc">{t.description}</p> : <p className="muted">No description yet.{canAssign && ' Use Edit to add one.'}</p>}
             {!edit && t.tags.length > 0 && <div className="tag-row">{t.tags.map((g: string) => <span key={g} className="tag">#{g}</span>)}</div>}
           </section>
 
           <section className="card" aria-labelledby="sub-h">
             <div className="panel-head"><h3 id="sub-h">Subtasks</h3>{d.subtasks.length > 0 && <small className="muted">{d.subtasks.filter((s: any) => ['completed', 'completed_cycle'].includes(s.status)).length} of {d.subtasks.length} done</small>}</div>
-            {d.subtasks.length === 0 ? <p className="muted">{manager ? 'Split this work into subtasks, each with its own owner and start date.' : 'No subtasks.'}</p> : (
+            {d.subtasks.length === 0 ? <p className="muted">{canAssign ? 'Split this work into subtasks, each with its own owner and start date.' : 'No subtasks.'}</p> : (
               <ul className="sub-list">{d.subtasks.map((s: any, i: number) => (
                 <li key={s.id} style={{ '--i': i } as React.CSSProperties}>
                   <Link to={`/tasks/${s.id}`} className="sub-item">
@@ -206,7 +206,7 @@ export default function TaskDetail() {
                     <Badge v={s.status} />
                   </Link>
                 </li>))}</ul>)}
-            {manager && (subForm ? (
+            {canAssign && (subForm ? (
               <form className="sub-add" onSubmit={addSubtask}>
                 <input name="title" aria-label="Subtask title" placeholder="Subtask title" required maxLength={200} autoFocus />
                 <select name="assignee" aria-label="Subtask assignee" defaultValue=""><option value="">Unassigned</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
@@ -233,7 +233,7 @@ export default function TaskDetail() {
                           <span className="row filters"><button type="submit">Save</button><button type="button" className="link" onClick={() => setEditing(null)}>Cancel</button></span>
                         </form>
                       ) : <p>{c.body}</p>}
-                      {!c.deleted_at && (c.user_id === uid || manager) && editing !== c.id && (
+                      {!c.deleted_at && (c.user_id === uid || canAssign) && editing !== c.id && (
                         <div className="bubble-tools">
                           {c.user_id === uid && <button type="button" className="link" onClick={() => setEditing(c.id)}>Edit</button>}
                           <button type="button" className="link danger-text" onClick={() => confirmRun('Delete comment?', 'It will show as “Comment deleted” to everyone on this task.', 'Delete',
@@ -252,7 +252,7 @@ export default function TaskDetail() {
 
           <section className="card" aria-labelledby="fl-h">
             <h3 id="fl-h">Files</h3>
-            <FilePanel orgId={orgId} userId={uid} entityType="task" entityId={id!} canUpload canDelete={manager} />
+            <FilePanel orgId={orgId} userId={uid} entityType="task" entityId={id!} canUpload canDelete={canAssign} />
           </section>
 
           <section className="card" aria-labelledby="tl-h">
@@ -269,7 +269,7 @@ export default function TaskDetail() {
             {t.status === 'escalation' ? (
               // escalations were retired; a task left in that state can be put straight back into the normal flow
               <div className="stack"><p className="note">This task was escalated before escalations were removed.</p>
-                {manager && openEsc && <button type="button" onClick={() => run(() => rpc('tt_resolve_escalation', { p_esc: openEsc.id, p_next_status: openEsc.previous_task_status ?? 'pending', p_resolution: 'Returned to work' }))}>Return to {label(openEsc.previous_task_status ?? 'pending')}</button>}</div>
+                {canAssign && openEsc && <button type="button" onClick={() => run(() => rpc('tt_resolve_escalation', { p_esc: openEsc.id, p_next_status: openEsc.previous_task_status ?? 'pending', p_resolution: 'Returned to work' }))}>Return to {label(openEsc.previous_task_status ?? 'pending')}</button>}</div>
             ) : canStatus ? (
               <form className="stack" onSubmit={changeStatus}>
                 <select aria-label="New status" value={to} onChange={(e) => setToSel(e.target.value)} required disabled={!nexts.length}>{nexts.map((s) => <option key={s} value={s}>{s === 'completed' ? 'Completed permanently' : s === 'completed_cycle' ? 'Completed this cycle' : label(s)}</option>)}</select>
@@ -279,7 +279,7 @@ export default function TaskDetail() {
                 <input aria-label="Reason for status change" name="reason" placeholder="Reason (optional)" />
                 <button type="submit" disabled={!nexts.length}>Update status</button>
               </form>
-            ) : <p className="muted">Only assignees and managers can change status.</p>}
+            ) : <p className="muted">Only assignees and admins can change status.</p>}
           </section>
 
           <section className="card" aria-labelledby="dt-h">
@@ -299,10 +299,10 @@ export default function TaskDetail() {
               <ul className="people">{d.assignees.map((a: any) => (
                 <li key={a.user_id}>
                   <span className="avatar sm" aria-hidden="true">{initials(name(a.user_id))}</span><span className="grow">{name(a.user_id)}</span>
-                  {manager && <button type="button" className="icon-btn sm" aria-label={`Remove ${name(a.user_id)}`} onClick={() => confirmRun('Remove assignee?', `${name(a.user_id)} will no longer be assigned to this task.`, 'Remove',
+                  {canAssign && <button type="button" className="icon-btn sm" aria-label={`Remove ${name(a.user_id)}`} onClick={() => confirmRun('Remove assignee?', `${name(a.user_id)} will no longer be assigned to this task.`, 'Remove',
                     () => rpc('tt_assign', { p_task: id, p_user: a.user_id, p_add: false }))}><X size={14} aria-hidden="true" /></button>}
                 </li>))}</ul>)}
-            {manager && unassigned.length > 0 && (
+            {canAssign && unassigned.length > 0 && (
               <select aria-label="Add assignee" value="" onChange={(e) => e.target.value && run(() => rpc('tt_assign', { p_task: id, p_user: e.target.value, p_add: true }))}>
                 <option value="">+ Add assignee</option>{unassigned.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>)}

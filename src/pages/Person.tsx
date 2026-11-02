@@ -17,7 +17,7 @@ type Tab = 'overview' | 'tasks' | 'details' | 'access' | 'activity';
 const DONE = ['completed', 'completed_cycle'];
 const isDone = (s: string) => DONE.includes(s);
 
-/** Full profile of one member, for admins (edit everything) and managers (view). */
+/** Full profile of one member, for admins. */
 export default function PersonPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -245,7 +245,7 @@ export default function PersonPage() {
               {isMe || isCreator ? <p className="muted">{isCreator ? `${isMe ? 'You' : person.name} created this organization, so ${isMe ? 'you stay' : 'they stay'} an active admin.` : "You can't change your own role or access."}</p> : (
                 <div className="pp-row">
                   <label>Role<select value={person.role} onChange={(e) => setRole(e.target.value)}>
-                    {['employee', 'manager', 'admin'].map((r) => <option key={r} value={r}>{label(r)}</option>)}</select></label>
+                    {['employee', 'admin'].map((r) => <option key={r} value={r}>{label(r)}</option>)}</select></label>
                   <button type="button" className={`pill-btn ghost ${person.active ? 'danger-text' : ''}`} onClick={() => setActive(!person.active)}>{person.active ? 'Deactivate' : 'Activate'}</button>
                 </div>)}
             </section>

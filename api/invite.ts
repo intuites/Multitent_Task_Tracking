@@ -1,6 +1,6 @@
 import { admin, authUser, handler, HttpError } from './_lib/http';
 
-const ROLES = ['admin', 'manager', 'employee'];
+const ROLES = ['admin', 'employee'];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // POST { org_id, email, full_name?, role }            -> invite an employee
@@ -24,7 +24,7 @@ export default handler('POST', async (req) => {
   if (!me) throw new HttpError(403, 'Not authorized');
 
   if (client_contact_id) {
-    if (!['owner', 'admin', 'manager'].includes(me.role)) throw new HttpError(403, 'Not authorized');
+    if (!['owner', 'admin'].includes(me.role)) throw new HttpError(403, 'Not authorized');
     const { data: c } = await db.from('tt_client_contacts').select('id').eq('id', client_contact_id).eq('org_id', org_id).maybeSingle();
     if (!c) throw new HttpError(404, 'Contact not found');
   } else {

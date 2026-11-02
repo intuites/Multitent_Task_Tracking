@@ -46,7 +46,7 @@ describe('xlsx writer', () => {
 
   it('builds the platform workbook with one sheet per organization and safe, unique sheet names', async () => {
     const orgs = ['Apple Inc', 'ABC Pvt Ltd', 'Northwind: East/West', 'Apple Inc'].map((name, i) => ({ id: `o${i}`, name, created_at: day(-100 * (i + 1)) }));
-    const members = orgs.flatMap((o, i) => [0, 1, 2].map((k) => ({ org_id: o.id, user_id: `u${i}${k}`, role: ['admin', 'manager', 'employee'][k], active: true })));
+    const members = orgs.flatMap((o, i) => [0, 1, 2].map((k) => ({ org_id: o.id, user_id: `u${i}${k}`, role: ['admin', 'employee', 'employee'][k], active: true })));
     const profiles = members.map((m) => ({ user_id: m.user_id, full_name: `Person ${m.user_id}`, email: `${m.user_id}@x.com` }));
     const depts = orgs.flatMap((o) => [{ id: `${o.id}d1`, org_id: o.id, name: 'Finance' }, { id: `${o.id}d2`, org_id: o.id, name: 'Sales' }]);
     const statuses = ['not_yet_started', 'started', 'pending', 'completed_cycle', 'completed'];

@@ -5,7 +5,8 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
-import { Badge, Due, isOpen as isOpenStatus, label, usePeople } from '../lib/ui';
+import { Badge, download, Due, fetchAll, fileStamp, isOpen as isOpenStatus, label, saveBlob, usePeople } from '../lib/ui';
+import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { ListSkeleton } from '../components/Skeleton';
 import { ask } from '../components/Dialog';
 import NewTaskForm from '../components/NewTaskForm';
@@ -45,11 +46,11 @@ export default function Tasks({ mode }: { mode: Mode }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true); setError('');
+  // the list's query (filters + order, no paging), shared by the page and by exports
+  const query = useCallback((count = false) => {
     const inner = mode === 'mine';
     let qy = supabase.from('tt_tasks')
-      .select(`*, departments:tt_departments(name), tt_task_assignees${inner ? '!inner' : ''}(user_id)`, { count: 'exact' })
+      .select(`*, departments:tt_departments(name), tt_task_assignees${inner ? '!inner' : ''}(user_id)`, count ? { count: 'exact' } : undefined)
       .eq('org_id', orgId);
     if (mode === 'mine') qy = qy.eq('tt_task_assignees.user_id', uid);
     if (q.trim()) qy = qy.ilike('title', `%${q.trim().replace(/[%,()*]/g, ' ')}%`);
@@ -69,9 +70,12 @@ export default function Tasks({ mode }: { mode: Mode }) {
     else if (view === 'upcoming') qy = qy.gte('due_date', end.toISOString()).lt('due_date', week.toISOString()).not('status', 'in', open);
     else if ((TASK_STATUSES as readonly string[]).includes(view)) qy = qy.eq('status', view);
 
-    qy = qy.order(view === 'overdue' || view === 'upcoming' ? 'due_date' : 'created_at', { ascending: view === 'overdue' || view === 'upcoming' });
-    qy = qy.range(page * PAGE, page * PAGE + PAGE - 1);
-    const { data, count, error } = await qy;
+    return qy.order(view === 'overdue' || view === 'upcoming' ? 'due_date' : 'created_at', { ascending: view === 'overdue' || view === 'upcoming' }).order('id');
+  }, [orgId, uid, mode, view, q, priority]);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
+    const { data, count, error } = await query(true).range(page * PAGE, page * PAGE + PAGE - 1);
     if (error) setError(error.message);
     const ids = (data ?? []).map((t: any) => t.id);
     const { data: kids } = ids.length
@@ -81,8 +85,23 @@ export default function Tasks({ mode }: { mode: Mode }) {
     for (const k of kids ?? []) (bySub[k.parent_task_id] ??= []).push(k);
     setSubs(bySub);
     setRows(data ?? []); setTotal(count ?? 0); setSelected([]); setLoading(false);
-  }, [orgId, uid, mode, view, q, priority, page]);
+  }, [query, page]);
   useEffect(() => { load(); }, [load]);
+
+  // exports cover every task matching the current view and filters, not just this page
+  async function exportAs(f: ExportFormat) {
+    try {
+      const all = await fetchAll(() => query());
+      const r = await import('../lib/reportWorkbook');
+      const view_ = `${label(view)} view${priority ? `, ${label(priority)} priority` : ''}${q.trim() ? `, matching “${q.trim()}”` : ''}`;
+      const who = `${membership!.org_name} · ${view_}`, file = fileStamp(`${membership!.org_name}_${title}`);
+      const dept = (t: any) => t.departments?.name ?? 'No department';
+      if (f === 'xlsx') saveBlob(`${file}.xlsx`, r.taskListWorkbook(title, who, all, label, dept, name));
+      else if (f === 'csv') download(`${file}.csv`, all.map((t: any) => ({ Task: t.title, Status: label(t.status), Priority: label(t.priority), Department: dept(t),
+        'Assigned to': names(t), Created: t.created_at?.slice(0, 10), Starts: t.start_date?.slice(0, 10) ?? '', Due: t.due_date?.slice(0, 10) ?? '', Completed: t.completed_at?.slice(0, 10) ?? '' })));
+      else (await import('../lib/printReport')).printReport(r.taskListPdf(title, who, all, label, dept, name));
+    } catch (x) { setError((x as Error).message); }
+  }
 
 
   async function bulk(patch: object) {
@@ -99,7 +118,8 @@ export default function Tasks({ mode }: { mode: Mode }) {
     <div className="card">
       <div className="row">
         <h2>{title}</h2>
-        <span>
+        <span className="row-actions">
+          <ExportMenu onExport={exportAs} disabled={!total} />
           {canWrite && <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'New task'}</button>}
         </span>
       </div>

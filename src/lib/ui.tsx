@@ -44,6 +44,29 @@ export function usePeople(orgId: string) {
   return { people, active: people.filter((p) => p.active), name };
 }
 
+/** Saves a generated file (Excel workbook etc.) through the browser's download. */
+export function saveBlob(filename: string, blob: Blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/** Reads every row of a query; PostgREST returns at most 1,000 rows per request. Pass a factory: a query builder can only run once. */
+export async function fetchAll<T = any>(query: () => any, cap = 100000): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; out.length < cap; from += 1000) {
+    const { data, error } = await query().range(from, from + 999);
+    if (error) throw new Error(error.message);
+    out.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+
+export const fileStamp = (name: string) => `${name.replace(/[^\w-]+/g, '_')}_${new Date().toISOString().slice(0, 10)}`;
+
 export function download(filename: string, rows: Record<string, unknown>[]) {
   if (!rows.length) return;
   const cols = Object.keys(rows[0]);

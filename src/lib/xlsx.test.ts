@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { writeFileSync } from 'node:fs';
 import { crc32, zip } from './xlsx';
-import { platformWorkbook, reportWorkbook } from './reportWorkbook';
+import { platformWorkbook, reportPdf, reportWorkbook } from './reportWorkbook';
+import { reportHtml } from './printReport';
 
 const label = (s: string) => s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 const day = (n: number) => new Date(Date.now() + n * 864e5).toISOString();
@@ -35,6 +36,12 @@ describe('xlsx writer', () => {
     // user text is stored as an inline string, never as a formula
     expect(text).not.toContain('<f>');
     if (process.env.XLSX_OUT) writeFileSync(process.env.XLSX_OUT, bytes);
+    // PDF version: same data as a print page, user text escaped
+    const html = reportHtml(reportPdf({ org: 'ABC Pvt Ltd', filters: 'All tasks', tasks, depts, people, label }));
+    expect(html).toContain('Task report — ABC Pvt Ltd');
+    expect(html).toContain('Ravi &lt;QA&gt; &amp; Co');
+    expect(html).not.toContain('<QA>');
+    if (process.env.XLSX_OUT) writeFileSync(process.env.XLSX_OUT.replace('.xlsx', '.html'), html);
   });
 
   it('builds the platform workbook with one sheet per organization and safe, unique sheet names', async () => {

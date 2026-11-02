@@ -1729,3 +1729,9 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 @keyframes bar-wave { 0%, 100% { transform: translateX(-12%) scaleY(.8); } 50% { transform: translateX(12%) scaleY(1.25); } }
 @keyframes arc-glow { 50% { filter: drop-shadow(0 0 10px var(--liq-glow)); } }
 @keyframes num-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* export format menu */
+.export-pop { width: 290px; }
+.export-item { align-items: flex-start; text-align: left; }
+.export-item svg { margin-top: 2px; color: var(--brand-2); }
+.export-item span { display: grid; gap: 1px; } .export-item b { font-weight: 600; } .export-item small { color: var(--muted); font-size: 12px; }

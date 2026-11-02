@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, CheckCircle2, Clock, Download, Hourglass, Layers, PieChart, Repeat, Users, X, type LucideIcon } from 'lucide-react';
+import { BarChart3, CheckCircle2, Clock, Hourglass, Layers, PieChart, Repeat, Users, X, type LucideIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
-import { download, isOpen, isOverdue, label, usePeople } from '../lib/ui';
+import { download, fetchAll, fileStamp, isOpen, isOverdue, label, saveBlob, usePeople } from '../lib/ui';
+import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { ListSkeleton } from '../components/Skeleton';
 import { CountUp } from '../components/Liquid';
 
@@ -62,7 +63,7 @@ export default function Reports() {
   useEffect(() => {
     (async () => {
       const [t, d] = await Promise.all([
-        supabase.from('tt_tasks').select('id, title, status, priority, department_id, due_date, start_date, created_at, completed_at, recurrence_parent_id, tt_task_assignees(user_id)').eq('org_id', orgId).limit(5000),
+        fetchAll(() => supabase.from('tt_tasks').select('id, title, status, priority, department_id, due_date, start_date, created_at, completed_at, recurrence_parent_id, tt_task_assignees(user_id)').eq('org_id', orgId).order('id')).then((data) => ({ data, error: null }), (e) => ({ data: [], error: e as Error })),
         supabase.from('tt_departments').select('id, name').eq('org_id', orgId).order('name'),
       ]);
       const err = [t, d].find((x) => x.error)?.error;
@@ -120,21 +121,17 @@ export default function Reports() {
   const rate = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
   const filtered = !!(from || to || dept || emp || status || priority);
   const clear = () => { setFrom(''); setTo(''); setDept(''); setEmp(''); setStatus(''); setPriority(''); };
-  const [exporting, setExporting] = useState(false);
-  // full organization workbook (summary, people, departments, every task) with charts; loaded only when asked for
-  async function exportExcel() {
-    setExporting(true);
+  // every format covers the filtered tasks; CSV is the report tab you're looking at
+  async function exportAs(f: ExportFormat) {
     try {
-      const { reportWorkbook } = await import('../lib/reportWorkbook');
-      const f = [from && `from ${from}`, to && `to ${to}`, dept && (data.d.find((x: any) => x.id === dept)?.name ?? ''), emp && name(emp), status && label(status), priority && `${label(priority)} priority`].filter(Boolean);
-      const blob = reportWorkbook({ org: membership!.org_name, filters: f.length ? `Filters: ${f.join(', ')}` : 'All tasks', tasks, depts: data.d, people, label });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `${membership!.org_name.replace(/[^\w-]+/g, '_')}_report_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(a.href);
+      const r = await import('../lib/reportWorkbook');
+      const fl = [from && `from ${from}`, to && `to ${to}`, dept && (data.d.find((x: any) => x.id === dept)?.name ?? ''), emp && name(emp), status && label(status), priority && `${label(priority)} priority`].filter(Boolean);
+      const input = { org: membership!.org_name, filters: fl.length ? `Filters: ${fl.join(', ')}` : 'All tasks', tasks, depts: data.d, people, label };
+      const file = fileStamp(`${membership!.org_name}_report`);
+      if (f === 'xlsx') saveBlob(`${file}.xlsx`, r.reportWorkbook(input));
+      else if (f === 'csv') download(`${fileStamp(`${membership!.org_name}_${report}`)}.csv`, rows);
+      else (await import('../lib/printReport')).printReport(r.reportPdf(input));
     } catch (x) { setError((x as Error).message); }
-    setExporting(false);
   }
   const val = (m: string) => Number(rows.find((r) => r.Metric === m)?.Value ?? 0);
 
@@ -146,8 +143,7 @@ export default function Reports() {
           <p className="page-sub">How work is moving across {membership!.org_name}. Filters apply to every report.</p>
         </div>
         <div className="page-actions">
-          <button type="button" className="pill-btn ghost" onClick={() => download(`${report}.csv`, rows)} disabled={!rows.length}>CSV</button>
-          <button type="button" className="pill-btn" onClick={exportExcel} disabled={!data || exporting}><Download size={16} aria-hidden="true" />{exporting ? 'Preparing…' : 'Export Excel'}</button>
+          <ExportMenu onExport={exportAs} disabled={!data} />
         </div>
       </div>
 
@@ -202,7 +198,7 @@ export default function Reports() {
           )}
         </>)}
       </section>
-      <p className="muted rp-note">Based on up to 5,000 most recent records per table. Dates use the browser time zone.</p>
+      <p className="muted rp-note">Covers every task in this organization. Dates use the browser time zone.</p>
     </>
   );
 }

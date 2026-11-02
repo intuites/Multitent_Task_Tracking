@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Download } from 'lucide-react';
+import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { fmtTime, label, rpc, usePeople } from '../lib/ui';
+import { download, fetchAll, fileStamp, fmtTime, label, rpc, saveBlob, usePeople } from '../lib/ui';
 
 export function ActivityLogs() {
   const { membership } = useAuth();
@@ -52,45 +52,31 @@ export function Platform() {
     catch (e) { setMsg({ kind: 'error', text: (e as Error).message }); }
   };
   const shown = (orgs ?? []).filter((o) => !q || o.name.toLowerCase().includes(q.toLowerCase()));
-  const [exporting, setExporting] = useState(false);
-  // every organization side by side in one Excel workbook; reads go through RLS, which lets platform admins see all organizations
-  async function exportAll() {
-    setExporting(true); setMsg(null);
+  // every organization side by side; reads go through RLS, which lets platform admins see all organizations
+  async function exportAs(f: ExportFormat) {
+    setMsg(null);
     try {
-      // PostgREST returns at most 1,000 rows per request, so read in pages
-      const pages = async (q: () => any) => {
-        const out: any[] = [];
-        for (let from = 0; out.length < 100000; from += 1000) {
-          const { data, error } = await q().range(from, from + 999);
-          if (error) throw new Error(error.message);
-          out.push(...(data ?? []));
-          if (!data || data.length < 1000) break;
-        }
-        return out;
-      };
-      const [os, ms, ps, ds, ts] = await Promise.all([
-        pages(() => supabase.from('tt_organizations').select('id, name, created_at').order('id')),
-        pages(() => supabase.from('tt_org_members').select('org_id, user_id, role, active').order('org_id').order('user_id')),
-        pages(() => supabase.from('tt_profiles').select('user_id, full_name, email').order('user_id')),
-        pages(() => supabase.from('tt_departments').select('id, org_id, name').order('id')),
-        pages(() => supabase.from('tt_tasks').select('id, org_id, title, status, priority, department_id, due_date, start_date, created_at, completed_at, tt_task_assignees(user_id)').is('archived_at', null).order('id')),
+      const [orgs, members, profiles, depts, tasks] = await Promise.all([
+        fetchAll(() => supabase.from('tt_organizations').select('id, name, created_at').order('id')),
+        fetchAll(() => supabase.from('tt_org_members').select('org_id, user_id, role, active').order('org_id').order('user_id')),
+        fetchAll(() => supabase.from('tt_profiles').select('user_id, full_name, email').order('user_id')),
+        fetchAll(() => supabase.from('tt_departments').select('id, org_id, name').order('id')),
+        fetchAll(() => supabase.from('tt_tasks').select('id, org_id, title, status, priority, department_id, due_date, start_date, created_at, completed_at, tt_task_assignees(user_id)').is('archived_at', null).order('id')),
       ]);
-      const { platformWorkbook } = await import('../lib/reportWorkbook');
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(platformWorkbook({ orgs: os, members: ms, profiles: ps, depts: ds, tasks: ts, label }));
-      a.download = `Taskify_all_organizations_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      setMsg({ kind: 'ok', text: `Exported ${os.length} organizations and ${ts.length} tasks.` });
+      const r = await import('../lib/reportWorkbook');
+      const input = { orgs, members, profiles, depts, tasks, label }, file = fileStamp('Taskify_all_organizations');
+      if (f === 'xlsx') saveBlob(`${file}.xlsx`, r.platformWorkbook(input));
+      else if (f === 'csv') download(`${file}.csv`, r.platformRows(input));
+      else (await import('../lib/printReport')).printReport(r.platformPdf(input));
+      setMsg({ kind: 'ok', text: `Exported ${orgs.length} organizations and ${tasks.length} tasks.` });
     } catch (e) { setMsg({ kind: 'error', text: (e as Error).message }); }
-    setExporting(false);
   }
   return (
     <>
       <div className="page-head">
         <div><h2 className="page-title">Admin site</h2><p className="page-sub">Everything across the CRM. Platform admins can open and manage every organization.</p></div>
         <div className="page-actions">
-          <button type="button" className="pill-btn" onClick={exportAll} disabled={exporting}><Download size={16} aria-hidden="true" />{exporting ? 'Preparing…' : 'Export Excel report'}</button>
+          <ExportMenu onExport={exportAs} label="Export report" />
           <Link to="/organizations/new" className="pill-btn ghost">New organization</Link>
         </div>
       </div>

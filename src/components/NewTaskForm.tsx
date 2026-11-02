@@ -35,7 +35,8 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
   const { membership, memberships, session } = useAuth();
   const uid = session!.user.id;
   const writable = memberships.filter((m) => can(m.role, 'task:write'));
-  const [orgId, setOrgId] = useState(membership!.org_id);
+  // organization → department → member, each picked in turn (a single organization is preselected)
+  const [orgId, setOrgId] = useState(writable.length === 1 ? writable[0].org_id : '');
   const [people, setPeople] = useState<Person[]>([]);
   const [depts, setDepts] = useState<any[]>([]);
   const [dm, setDm] = useState<{ department_id: string; user_id: string }[]>([]);
@@ -51,6 +52,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
   // everything below depends on the organization chosen at the top
   useEffect(() => {
     setDept(''); setAssignee(''); setSubs([]);
+    if (!orgId) { setPeople([]); setDepts([]); setDm([]); setTemplates([]); return; }
     (async () => {
       const [p, d, m, tp] = await Promise.all([
         loadPeople(orgId),
@@ -62,9 +64,9 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
     })();
   }, [orgId]);
 
-  // people in a department = its members (Employees → Departments); no department picked = everyone
+  // people in a department = its members (Employees → Departments); nobody until a department is picked
   const inDept = (d: string) => {
-    if (!d) return people;
+    if (!d) return [];
     const ids = new Set(dm.filter((m) => m.department_id === d).map((m) => m.user_id));
     return people.filter((p) => ids.has(p.id));
   };
@@ -91,6 +93,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
     const cc = String(f.get('cc') ?? '').split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
     const bad = cc.find((x) => !EMAIL.test(x));
     if (bad) return setError(`“${bad}” isn’t a valid email address.`);
+    if (!orgId || !dept || !assignee) return setError('Select the organization, then the department, then the member.');
     if (!priority) return setError('Choose a priority.');
     if (subs.some((s) => !s.title.trim())) return setError('Give every sub-task a title, or remove the empty ones.');
     setBusy(true); setError('');
@@ -128,9 +131,11 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
   return (
     <form className="nt" onSubmit={submit}>
       <div className="nt-row">
-        <label>Organization<select value={orgId} onChange={(e) => setOrgId(e.target.value)}>{writable.map((m) => <option key={m.org_id} value={m.org_id}>{m.org_name}</option>)}</select></label>
-        <label>Department<select value={dept} onChange={(e) => { setDept(e.target.value); setAssignee(''); }}><option value="">{depts.length ? 'Any department' : 'No departments yet'}</option>{depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
-        <label>Assign to<select value={assignee} onChange={(e) => setAssignee(e.target.value)}><option value="">{dept && !deptPeople.length ? 'No members in this department' : 'Select member'}</option>{deptPeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+        <label>Organization<select value={orgId} onChange={(e) => setOrgId(e.target.value)} required><option value="">Select organization</option>{writable.map((m) => <option key={m.org_id} value={m.org_id}>{m.org_name}</option>)}</select></label>
+        <label>Department<select value={dept} onChange={(e) => { setDept(e.target.value); setAssignee(''); }} required disabled={!orgId || !depts.length}>
+          <option value="">{!orgId ? 'Select organization first' : depts.length ? 'Select department' : 'No departments in this organization'}</option>{depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+        <label>Assign to<select value={assignee} onChange={(e) => setAssignee(e.target.value)} required disabled={!dept || !deptPeople.length}>
+          <option value="">{!dept ? 'Select department first' : deptPeople.length ? 'Select member' : 'No members in this department'}</option>{deptPeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       </div>
       <label>Task title<input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={200} placeholder="What needs to be done" /></label>
       <label>Task description<textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} placeholder="Enter task details…" /></label>
@@ -161,7 +166,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
               <span className="nt-n">{i + 1}</span>
               <input aria-label={`Sub-task ${i + 1} title`} value={s.title} onChange={(e) => setSub(i, { title: e.target.value })} placeholder="Sub-task title" maxLength={200} />
               <select aria-label={`Sub-task ${i + 1} department`} value={s.department_id} onChange={(e) => setSub(i, { department_id: e.target.value, assignee_id: '' })}><option value="">Department</option>{depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
-              <select aria-label={`Sub-task ${i + 1} owner`} value={s.assignee_id} onChange={(e) => setSub(i, { assignee_id: e.target.value })}><option value="">Same as task</option>{inDept(s.department_id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+              <select aria-label={`Sub-task ${i + 1} owner`} value={s.assignee_id} onChange={(e) => setSub(i, { assignee_id: e.target.value })}><option value="">Same as task</option>{inDept(s.department_id || dept).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
               <input aria-label={`Sub-task ${i + 1} due date`} type="date" value={s.due} onChange={(e) => setSub(i, { due: e.target.value })} />
               <button type="button" className="icon-btn sm danger-text" aria-label={`Remove sub-task ${i + 1}`} onClick={() => setSubs(subs.filter((_, j) => j !== i))}><Trash2 size={14} aria-hidden="true" /></button>
             </li>))}</ol>)}

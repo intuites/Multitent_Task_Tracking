@@ -12,7 +12,15 @@ export default handler('POST', async (req) => {
   const db = admin();
 
   // role comes from the database, never from the request
-  const { data: me } = await db.from('tt_org_members').select('role').eq('org_id', org_id).eq('user_id', user.id).eq('active', true).maybeSingle();
+  let { data: me } = await db.from('tt_org_members').select('role').eq('org_id', org_id).eq('user_id', user.id).eq('active', true).maybeSingle();
+  if (!me) {
+    // platform admins control every existing organization without being a member of it
+    const [{ data: pa }, { data: org }] = await Promise.all([
+      db.from('tt_platform_admins').select('user_id').eq('user_id', user.id).maybeSingle(),
+      db.from('tt_organizations').select('id').eq('id', org_id).maybeSingle(),
+    ]);
+    if (pa && org) me = { role: 'owner' };
+  }
   if (!me) throw new HttpError(403, 'Not authorized');
 
   if (client_contact_id) {

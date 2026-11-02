@@ -94,7 +94,7 @@ function Shell() {
         { label: 'My profile', icon: UserCircle, to: '/profile' },
         { label: 'Notification settings', icon: Bell, to: '/notifications' },
         { label: 'Help & guide', icon: BookOpen, to: '/guide' },
-        { label: 'Organization settings', icon: SettingsIcon, to: '/settings' },
+        ...(can(membership!.role, 'task:write') ? [{ label: 'Organization settings', icon: SettingsIcon, to: '/settings' }] : []),
       ]}
       onSignOut={signOut} closeKey={pathname}
       footer={(
@@ -145,7 +145,7 @@ function Gate() {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/reports" element={<Guard need="report:read"><Reports /></Guard>} />
         <Route path="/activity" element={<Guard need="task:write"><ActivityLogs /></Guard>} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/settings" element={<Guard need="task:write"><Settings /></Guard>} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/guide" element={<Guide />} />
         <Route path="/organizations/new" element={<NewOrg />} />

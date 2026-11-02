@@ -21,7 +21,7 @@ export const NAV: NavItem[] = [
   { path: '/reports', label: 'Reports', icon: BarChart3, group: 'Team', needs: 'report:read' },
   { path: '/activity', label: 'Activity Logs', icon: History, group: 'Team', needs: 'task:write' },
   { path: '/notifications', label: 'Notifications', icon: Bell, group: 'General' },
-  { path: '/settings', label: 'Organization Settings', icon: Settings, group: 'General' },
+  { path: '/settings', label: 'Organization Settings', icon: Settings, group: 'General', needs: 'task:write' },
   { path: '/profile', label: 'My Profile', icon: UserCircle, group: 'General' },
   { path: '/guide', label: 'Guide', icon: BookOpen, group: 'General' },
 ];

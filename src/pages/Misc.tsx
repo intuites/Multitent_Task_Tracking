@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { Download } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { fmtTime, label, rpc, usePeople } from '../lib/ui';
@@ -51,11 +52,47 @@ export function Platform() {
     catch (e) { setMsg({ kind: 'error', text: (e as Error).message }); }
   };
   const shown = (orgs ?? []).filter((o) => !q || o.name.toLowerCase().includes(q.toLowerCase()));
+  const [exporting, setExporting] = useState(false);
+  // every organization side by side in one Excel workbook; reads go through RLS, which lets platform admins see all organizations
+  async function exportAll() {
+    setExporting(true); setMsg(null);
+    try {
+      // PostgREST returns at most 1,000 rows per request, so read in pages
+      const pages = async (q: () => any) => {
+        const out: any[] = [];
+        for (let from = 0; out.length < 100000; from += 1000) {
+          const { data, error } = await q().range(from, from + 999);
+          if (error) throw new Error(error.message);
+          out.push(...(data ?? []));
+          if (!data || data.length < 1000) break;
+        }
+        return out;
+      };
+      const [os, ms, ps, ds, ts] = await Promise.all([
+        pages(() => supabase.from('tt_organizations').select('id, name, created_at').order('id')),
+        pages(() => supabase.from('tt_org_members').select('org_id, user_id, role, active').order('org_id').order('user_id')),
+        pages(() => supabase.from('tt_profiles').select('user_id, full_name, email').order('user_id')),
+        pages(() => supabase.from('tt_departments').select('id, org_id, name').order('id')),
+        pages(() => supabase.from('tt_tasks').select('id, org_id, title, status, priority, department_id, due_date, start_date, created_at, completed_at, tt_task_assignees(user_id)').is('archived_at', null).order('id')),
+      ]);
+      const { platformWorkbook } = await import('../lib/reportWorkbook');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(platformWorkbook({ orgs: os, members: ms, profiles: ps, depts: ds, tasks: ts, label }));
+      a.download = `Taskify_all_organizations_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setMsg({ kind: 'ok', text: `Exported ${os.length} organizations and ${ts.length} tasks.` });
+    } catch (e) { setMsg({ kind: 'error', text: (e as Error).message }); }
+    setExporting(false);
+  }
   return (
     <>
       <div className="page-head">
         <div><h2 className="page-title">Admin site</h2><p className="page-sub">Everything across the CRM. Platform admins can open and manage every organization.</p></div>
-        <div className="page-actions"><Link to="/organizations/new" className="pill-btn">New organization</Link></div>
+        <div className="page-actions">
+          <button type="button" className="pill-btn" onClick={exportAll} disabled={exporting}><Download size={16} aria-hidden="true" />{exporting ? 'Preparing…' : 'Export Excel report'}</button>
+          <Link to="/organizations/new" className="pill-btn ghost">New organization</Link>
+        </div>
       </div>
       {msg && <p role={msg.kind === 'error' ? 'alert' : 'status'} className={`auth-msg ${msg.kind}`}><span>{msg.text}</span></p>}
       {s && <div className="perf-kpis">{Object.entries(s).map(([k, v], i) => <div key={k} className="perf-kpi" style={{ '--i': i } as React.CSSProperties}><b>{String(v)}</b><small>{label(k.replace(/^tt_/, ''))}</small></div>)}</div>}

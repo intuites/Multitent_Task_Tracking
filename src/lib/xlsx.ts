@@ -132,14 +132,14 @@ function chartXml(ch: Chart, sh: Sheet) {
       return `<c:ser>${head}${pts}${labels(true, 'FFFFFF')}${cat}${val(s.vals)}</c:ser>`;
     }
     if (ch.type === 'line') return `<c:ser>${head}<c:spPr><a:ln w="31750" cap="rnd"><a:solidFill><a:srgbClr val="${s.color}"/></a:solidFill><a:round/></a:ln></c:spPr>`
-      + `<c:marker><c:symbol val="circle"/><c:size val="7"/>${fill(s.color)}</c:marker>${labels(false)}${cat}${val(s.vals)}<c:smooth val="0"/></c:ser>`;
+      + `<c:marker><c:symbol val="circle"/><c:size val="7"/>${fill(s.color)}</c:marker>${ch.series.length <= 2 ? labels(false) : ''}${cat}${val(s.vals)}<c:smooth val="0"/></c:ser>`;
     return `<c:ser>${head}${fill(s.color)}<c:invertIfNegative val="0"/>${labels(false)}${cat}${val(s.vals)}</c:ser>`;
   }).join('');
   const axes = `<c:catAx><c:axId val="5001"/><c:scaling><c:orientation val="${ch.type === 'bar' ? 'maxMin' : 'minMax'}"/></c:scaling><c:delete val="0"/><c:axPos val="${ch.type === 'bar' ? 'l' : 'b'}"/><c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>`
     + `<c:spPr><a:ln><a:solidFill><a:srgbClr val="D5DDD8"/></a:solidFill></a:ln></c:spPr><c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="900"><a:solidFill><a:srgbClr val="55626A"/></a:solidFill></a:defRPr></a:pPr><a:endParaRPr lang="en-US"/></a:p></c:txPr>`
     + `<c:crossAx val="5002"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx>`
     + `<c:valAx><c:axId val="5002"/><c:scaling><c:orientation val="minMax"/><c:min val="0"/></c:scaling><c:delete val="0"/><c:axPos val="${ch.type === 'bar' ? 'b' : 'l'}"/>`
-    + `<c:majorGridlines><c:spPr><a:ln><a:solidFill><a:srgbClr val="EEF2EF"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode="0" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>`
+    + `<c:majorGridlines><c:spPr><a:ln><a:solidFill><a:srgbClr val="EEF2EF"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>`
     + `<c:spPr><a:ln><a:noFill/></a:ln></c:spPr><c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="900"><a:solidFill><a:srgbClr val="55626A"/></a:solidFill></a:defRPr></a:pPr><a:endParaRPr lang="en-US"/></a:p></c:txPr>`
     + `<c:crossAx val="5001"/><c:crosses val="${ch.type === 'bar' ? 'max' : 'autoZero'}"/><c:crossBetween val="between"/></c:valAx>`;
   const plot = round

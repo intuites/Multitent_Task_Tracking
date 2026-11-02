@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle, Briefcase, Camera, Building2, CalendarClock, Check, CheckCircle2, Clock, Eye, EyeOff, KeyRound, ListTodo,
+  AlertTriangle, ArrowRightLeft, Briefcase, Camera, Building2, CalendarClock, Check, CheckCircle2, Clock, Eye, EyeOff, KeyRound, ListTodo,
   LogOut, Mail, MapPin, Pencil, Phone, ShieldCheck, Trash2, Users,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -24,7 +24,7 @@ const strength = (p: string) => {
 };
 
 export default function Profile() {
-  const { session, membership, signOut, refresh } = useAuth();
+  const { session, membership, memberships, switchOrg, signOut, refresh } = useAuth();
   const uid = session!.user.id, orgId = membership!.org_id, role = membership!.role;
   const [tab, setTab] = useState<Tab>('overview');
   const [p, setP] = useState<any>(null);
@@ -191,6 +191,17 @@ export default function Profile() {
               <section className="card" aria-labelledby="teams-h">
                 <h3 id="teams-h"><Users size={16} aria-hidden="true" /> Departments</h3>
                 {teams.length ? <div className="tag-row">{teams.map((t) => <span key={t} className="tag">{t}</span>)}</div> : <p className="muted">You’re not in a department yet.</p>}
+              </section>
+              {/* every role can move between the organizations it belongs to */}
+              <section className="card" aria-labelledby="orgs-h">
+                <h3 id="orgs-h"><ArrowRightLeft size={16} aria-hidden="true" /> Your organizations</h3>
+                <ul className="people">{memberships.map((m) => (
+                  <li key={m.org_id}>
+                    <span className="grow"><b>{m.org_name}</b><br /><small className="muted">{m.platform ? 'Platform admin' : label(m.role)}</small></span>
+                    {m.org_id === orgId ? <span className="prio prio-low"><Check size={12} aria-hidden="true" />Current</span>
+                      : <button type="button" className="pill-btn ghost sm" onClick={() => switchOrg(m.org_id)}>Switch</button>}
+                  </li>))}</ul>
+                {memberships.length === 1 && <p className="muted pf-hint">When an admin of another organization invites you, it appears here and you can switch between them.</p>}
               </section>
           </div>
         )}

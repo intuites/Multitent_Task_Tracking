@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, BookOpen, Plus, Settings as SettingsIcon, Shield, UserCircle } from 'lucide-react';
+import { ArrowRightLeft, Bell, BookOpen, Plus, Settings as SettingsIcon, Shield, UserCircle } from 'lucide-react';
 import { AuthProvider, useAuth } from './lib/auth';
 import { configured, supabase } from './lib/supabase';
 import { navFor, NAV } from './lib/nav';
@@ -90,6 +90,8 @@ function Shell() {
         { label: 'Notification settings', icon: Bell, to: '/notifications' },
         { label: 'Help & guide', icon: BookOpen, to: '/guide' },
         ...(can(membership!.role, 'task:write') ? [{ label: 'Organization settings', icon: SettingsIcon, to: '/settings' }] : []),
+        // any role in more than one organization can switch from here too (the sidebar switcher is hidden on phones)
+        ...memberships.filter((m) => m.org_id !== membership!.org_id).slice(0, 6).map((m) => ({ label: `Switch to ${m.org_name}`, icon: ArrowRightLeft, onClick: () => switchOrg(m.org_id) })),
       ]}
       onSignOut={signOut} closeKey={pathname}
       footer={(

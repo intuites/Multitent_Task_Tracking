@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Archive, ArchiveRestore, ArrowLeft, Building2, CalendarClock, Eye, FolderKanban, Pencil, Plus, Send, Siren, Trash2, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, CalendarClock, Layers, Pencil, Plus, Send, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
@@ -27,12 +27,11 @@ export default function TaskDetail() {
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState(false);
   const [subForm, setSubForm] = useState(false);
-  const [escForm, setEscForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [toSel, setToSel] = useState('');
 
   const load = useCallback(async () => {
-    const tr = await supabase.from('tt_tasks').select('*, clients:tt_clients(name), projects:tt_projects(name)').eq('id', id!).eq('org_id', orgId).maybeSingle();
+    const tr = await supabase.from('tt_tasks').select('*, departments:tt_departments(name)').eq('id', id!).eq('org_id', orgId).maybeSingle();
     setSubForm(false);
     setT(tr.data);
     if (tr.data) {
@@ -72,7 +71,6 @@ export default function TaskDetail() {
   const nexts = TASK_STATUSES.filter((s) => canTransition(t.status as TaskStatus, s));
   const to = nexts.includes(toSel as TaskStatus) ? toSel : nexts[0];
   const askCycle = to === 'completed_cycle' && !repeats;
-  const canClientComment = t.client_visible && !!t.client_id;
   const openEsc = d.esc.find((e: any) => !['resolved', 'closed'].includes(e.state));
   const unassigned = active.filter((p) => !d.assignees.some((a: any) => a.user_id === p.id));
 
@@ -95,28 +93,16 @@ export default function TaskDetail() {
         estimated_hours: f.get('estimated_hours') ? Number(f.get('estimated_hours')) : null,
         actual_hours: f.get('actual_hours') ? Number(f.get('actual_hours')) : null,
         tags: String(f.get('tags')).split(',').map((s) => s.trim()).filter(Boolean),
-        client_visible: f.get('client_visible') === 'on',
       }).eq('id', id!));
       await supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'task', entity_id: id, action: 'edited' });
       setEdit(false);
-    });
-  };
-  const raise = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    run(async () => {
-      await rpc('tt_raise_escalation', {
-        p_task: id, p_reason: f.get('reason'), p_description: String(f.get('description')) || null, p_severity: f.get('severity'),
-        p_owner: f.get('owner') || null, p_target: dateToTs(f.get('target')),
-      });
-      setEscForm(false);
     });
   };
   const addComment = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget, f = new FormData(form);
     run(async () => {
-      await must(supabase.from('tt_task_comments').insert({ org_id: orgId, task_id: id, user_id: uid, body: String(f.get('body')).trim(), visibility: f.get('visibility') || 'internal' }));
+      await must(supabase.from('tt_task_comments').insert({ org_id: orgId, task_id: id, user_id: uid, body: String(f.get('body')).trim(), visibility: 'internal' }));
       form.reset();
     });
   };
@@ -126,7 +112,7 @@ export default function TaskDetail() {
     if (!title) return;
     run(async () => {
       const { data, error } = await supabase.from('tt_tasks').insert({
-        org_id: orgId, parent_task_id: id, client_id: t.client_id, project_id: t.project_id, department_id: t.department_id ?? undefined,
+        org_id: orgId, parent_task_id: id, department_id: t.department_id ?? undefined,
         title, priority: t.priority, start_date: dateToTs(f.get('start')), due_date: dateToTs(f.get('due')), created_by: uid,
       }).select('id').single();
       if (error) throw new Error(error.message);
@@ -167,7 +153,7 @@ export default function TaskDetail() {
 
       <header className={`card td-hero ${overdue ? 'is-overdue' : ''}`}>
         <div className="td-hero-top">
-          <div className="td-badges"><Badge v={t.status} /><span className={`prio prio-${t.priority}`}>{label(t.priority)} priority</span>{t.archived_at && <span className="prio">Archived</span>}{t.client_visible && <span className="prio"><Eye size={13} aria-hidden="true" />Client can see</span>}</div>
+          <div className="td-badges"><Badge v={t.status} /><span className={`prio prio-${t.priority}`}>{label(t.priority)} priority</span>{t.archived_at && <span className="prio">Archived</span>}</div>
           {manager && (
             <div className="td-actions">
               <button type="button" className="pill-btn ghost" onClick={() => setEdit(!edit)}><Pencil size={15} aria-hidden="true" />{edit ? 'Cancel edit' : 'Edit'}</button>
@@ -181,8 +167,7 @@ export default function TaskDetail() {
         <h2 className="td-title">{t.title}</h2>
         <div className="td-meta">
           <span className={overdue ? 'overdue' : ''}><CalendarClock size={15} aria-hidden="true" />{dueNote}</span>
-          {t.clients && (can(role, 'client:write') ? <Link to={`/clients/${t.client_id}`}><Building2 size={15} aria-hidden="true" />{t.clients.name}</Link> : <span><Building2 size={15} aria-hidden="true" />{t.clients.name}</span>)}
-          {t.projects && <Link to={`/projects/${t.project_id}`}><FolderKanban size={15} aria-hidden="true" />{t.projects.name}</Link>}
+          {t.departments && <span><Layers size={15} aria-hidden="true" />{t.departments.name}</span>}
         </div>
       </header>
       {error && <p role="alert" className="form-alert">{error}</p>}
@@ -201,7 +186,6 @@ export default function TaskDetail() {
                 <label>Actual hours<input type="number" step="0.25" min="0" name="actual_hours" defaultValue={t.actual_hours ?? ''} /></label>
                 <label>Tags<input name="tags" defaultValue={t.tags.join(', ')} /></label>
                 <label className="span-all">Description<textarea name="description" rows={4} defaultValue={t.description ?? ''} /></label>
-                <label className="inline span-all"><input type="checkbox" name="client_visible" defaultChecked={t.client_visible} /> Visible to client</label>
                 <span className="row filters span-all td-edit-actions"><button type="submit">Save changes</button><button type="button" className="link" onClick={() => setEdit(false)}>Cancel</button>
                   <button type="button" className="pill-btn ghost danger-text" onClick={deleteTask}><Trash2 size={15} aria-hidden="true" />Delete task</button></span>
               </form>
@@ -241,8 +225,8 @@ export default function TaskDetail() {
                 return (
                   <li key={c.id} className={c.user_id === uid ? 'mine' : ''}>
                     <span className="avatar sm" aria-hidden="true">{initials(who)}</span>
-                    <div className={`bubble ${c.visibility === 'client' ? 'client' : ''}`}>
-                      <div className="bubble-head"><b>{who}</b><small>{fmtTime(c.created_at)}{c.edited_at && ' · edited'}</small>{c.visibility === 'client' && <span className="prio"><Eye size={12} aria-hidden="true" />Client</span>}</div>
+                    <div className="bubble">
+                      <div className="bubble-head"><b>{who}</b><small>{fmtTime(c.created_at)}{c.edited_at && ' · edited'}</small></div>
                       {c.deleted_at ? <p className="muted"><em>Comment deleted</em></p> : editing === c.id ? (
                         <form className="grid" onSubmit={(e) => { e.preventDefault(); const body = String(new FormData(e.currentTarget).get('body')).trim(); run(async () => { await must(supabase.from('tt_task_comments').update({ body }).eq('id', c.id)); setEditing(null); }); }}>
                           <textarea name="body" defaultValue={c.body} rows={2} required />
@@ -261,7 +245,6 @@ export default function TaskDetail() {
             <form className="composer" onSubmit={addComment}>
               <textarea aria-label="Add comment" name="body" rows={2} required placeholder="Write a comment…" />
               <div className="composer-bar">
-                <select aria-label="Comment visibility" name="visibility"><option value="internal">Internal only</option>{canClientComment && <option value="client">Visible to client</option>}</select>
                 <button type="submit"><Send size={15} aria-hidden="true" />Post</button>
               </div>
             </form>
@@ -284,7 +267,9 @@ export default function TaskDetail() {
           <section className="card td-status" aria-labelledby="st-h">
             <h3 id="st-h">Status</h3>
             {t.status === 'escalation' ? (
-              <p className="note">This task is escalated{openEsc ? <> ({label(openEsc.severity)}, {label(openEsc.state)}). It returns to {label(openEsc.previous_task_status)} when the escalation is resolved on the <Link to="/escalations">Escalations</Link> page.</> : '.'}</p>
+              // escalations were retired; a task left in that state can be put straight back into the normal flow
+              <div className="stack"><p className="note">This task was escalated before escalations were removed.</p>
+                {manager && openEsc && <button type="button" onClick={() => run(() => rpc('tt_resolve_escalation', { p_esc: openEsc.id, p_next_status: openEsc.previous_task_status ?? 'pending', p_resolution: 'Returned to work' }))}>Return to {label(openEsc.previous_task_status ?? 'pending')}</button>}</div>
             ) : canStatus ? (
               <form className="stack" onSubmit={changeStatus}>
                 <select aria-label="New status" value={to} onChange={(e) => setToSel(e.target.value)} required disabled={!nexts.length}>{nexts.map((s) => <option key={s} value={s}>{s === 'completed' ? 'Completed permanently' : s === 'completed_cycle' ? 'Completed this cycle' : label(s)}</option>)}</select>
@@ -293,19 +278,8 @@ export default function TaskDetail() {
                 {to === 'completed_cycle' && repeats && <small className="muted">Reopens as Not Yet Started on its next cycle ({(CYCLES.find(([v]) => v === t.reminder_frequency)?.[1] ?? label(t.reminder_frequency)).toLowerCase()}).</small>}
                 <input aria-label="Reason for status change" name="reason" placeholder="Reason (optional)" />
                 <button type="submit" disabled={!nexts.length}>Update status</button>
-                {can(role, 'escalation:manage') && !['completed', 'completed_cycle'].includes(t.status) && <button type="button" className="pill-btn ghost danger-text" onClick={() => setEscForm(!escForm)}><Siren size={15} aria-hidden="true" />{escForm ? 'Cancel escalation' : 'Escalate'}</button>}
               </form>
             ) : <p className="muted">Only assignees and managers can change status.</p>}
-            {escForm && can(role, 'escalation:manage') && (
-              <form className="stack esc-form" onSubmit={raise}>
-                <label>Reason<input name="reason" required /></label>
-                <label>Severity<select name="severity" defaultValue="medium">{['low', 'medium', 'high', 'critical'].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select></label>
-                <label>Owner<select name="owner"><option value="">Managers (default)</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-                <label>Target resolution<input type="date" name="target" /></label>
-                <label>Description<textarea name="description" rows={2} /></label>
-                <button type="submit" className="danger">Raise escalation</button>
-              </form>
-            )}
           </section>
 
           <section className="card" aria-labelledby="dt-h">
@@ -334,12 +308,6 @@ export default function TaskDetail() {
               </select>)}
           </section>
 
-          {d.esc.length > 0 && (
-            <section className="card" aria-labelledby="es-h">
-              <h3 id="es-h">Escalations</h3>
-              <ul className="people">{d.esc.map((e: any) => <li key={e.id} className="esc-row"><Badge v={e.state} /><span className="grow"><b>{label(e.severity)}</b> · {e.reason}<br /><small className="muted">{fmtTime(e.raised_at)} by {name(e.raised_by)}</small></span></li>)}</ul>
-            </section>
-          )}
         </aside>
       </div>
     </div>

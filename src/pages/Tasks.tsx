@@ -10,10 +10,10 @@ import { ListSkeleton } from '../components/Skeleton';
 import { ask } from '../components/Dialog';
 import NewTaskForm from '../components/NewTaskForm';
 
-export type Mode = 'all' | 'mine' | 'team';
+export type Mode = 'all' | 'mine';
 const PAGE = 25;
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
-const VIEWS = ['all', 'unassigned', ...TASK_STATUSES, 'overdue', 'due_today', 'upcoming', 'archived'];
+const VIEWS = ['all', 'unassigned', ...TASK_STATUSES.filter((s) => s !== 'escalation'), 'overdue', 'due_today', 'upcoming', 'archived'];
 
 export default function Tasks({ mode }: { mode: Mode }) {
   const { membership, session } = useAuth();
@@ -44,34 +44,17 @@ export default function Tasks({ mode }: { mode: Mode }) {
   }, [params]); // eslint-disable-line react-hooks/exhaustive-deps
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const clientFilter = params.get('client'), projectFilter = params.get('project');
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    let teamIds: string[] = [];
-    if (mode === 'team') {
-      const [a, b] = await Promise.all([
-        supabase.from('tt_team_members').select('team_id').eq('user_id', uid),
-        supabase.from('tt_teams').select('id').eq('org_id', orgId).eq('manager_id', uid),
-      ]);
-      const teams = [...(a.data ?? []).map((x) => x.team_id), ...(b.data ?? []).map((x) => x.id)];
-      if (teams.length) {
-        const { data } = await supabase.from('tt_team_members').select('user_id').in('team_id', teams);
-        teamIds = [...new Set((data ?? []).map((x) => x.user_id))];
-      }
-      if (!teamIds.length) { setRows([]); setTotal(0); setLoading(false); return; }
-    }
-    const inner = mode !== 'all';
+    const inner = mode === 'mine';
     let qy = supabase.from('tt_tasks')
-      .select(`*, clients:tt_clients(name), projects:tt_projects(name), tt_task_assignees${inner ? '!inner' : ''}(user_id)`, { count: 'exact' })
+      .select(`*, departments:tt_departments(name), tt_task_assignees${inner ? '!inner' : ''}(user_id)`, { count: 'exact' })
       .eq('org_id', orgId);
     if (mode === 'mine') qy = qy.eq('tt_task_assignees.user_id', uid);
-    if (mode === 'team') qy = qy.in('tt_task_assignees.user_id', teamIds);
-    if (clientFilter) qy = qy.eq('client_id', clientFilter);
-    if (projectFilter) qy = qy.eq('project_id', projectFilter);
     if (q.trim()) qy = qy.ilike('title', `%${q.trim().replace(/[%,()*]/g, ' ')}%`);
     if (priority) qy = qy.eq('priority', priority);
-    // on the main list subtasks sit under their parent; My/Team Tasks still list them so people see their own work
+    // on the main list subtasks sit under their parent; My Tasks still list them so people see their own work
     if (mode === 'all' && !q.trim()) qy = qy.is('parent_task_id', null);
 
     const now = new Date(), start = new Date(now); start.setHours(0, 0, 0, 0);
@@ -98,7 +81,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
     for (const k of kids ?? []) (bySub[k.parent_task_id] ??= []).push(k);
     setSubs(bySub);
     setRows(data ?? []); setTotal(count ?? 0); setSelected([]); setLoading(false);
-  }, [orgId, uid, mode, view, q, priority, page, clientFilter, projectFilter]);
+  }, [orgId, uid, mode, view, q, priority, page]);
   useEffect(() => { load(); }, [load]);
 
 
@@ -108,7 +91,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
     load();
   }
 
-  const title = mode === 'mine' ? 'My Tasks' : mode === 'team' ? 'Team Tasks' : 'Tasks';
+  const title = mode === 'mine' ? 'My Tasks' : 'Tasks';
   const pages = Math.max(1, Math.ceil(total / PAGE));
   const names = (t: any) => (t.tt_task_assignees ?? []).map((a: any) => name(a.user_id)).join(', ') || 'Unassigned';
 
@@ -123,15 +106,13 @@ export default function Tasks({ mode }: { mode: Mode }) {
       {showForm && (
         <section className="nt-card" aria-label="New task">
           <h3>New task</h3>
-          <NewTaskForm defaults={{ client: params.get('client') ?? undefined, project: params.get('project') ?? undefined }}
-            onCancel={() => setShowForm(false)} onDone={() => { setShowForm(false); load(); }} />
+          <NewTaskForm onCancel={() => setShowForm(false)} onDone={() => { setShowForm(false); load(); }} />
         </section>
       )}
       <div className="row filters">
         <input aria-label="Search tasks by title" placeholder="Search title" value={q} onChange={(e) => { setPage(0); setQ(e.target.value); }} />
         <select aria-label="Task view" value={view} onChange={(e) => { setPage(0); setView(e.target.value); }}>{VIEWS.map((v) => <option key={v} value={v}>{label(v)}</option>)}</select>
         <select aria-label="Filter by priority" value={priority} onChange={(e) => { setPage(0); setPriority(e.target.value); }}><option value="">Any priority</option>{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select>
-        {(clientFilter || projectFilter) && <Link to="/tasks">Clear client/project filter</Link>}
       </div>
       {canWrite && selected.length > 0 && (
         <div className="row filters">
@@ -144,7 +125,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
       {error && <p role="alert">{error}</p>}
       {loading ? <ListSkeleton /> : rows.length === 0 ? <p>No tasks match.{canWrite && ' Use “New task” to create one.'}</p> : (
         <table>
-          <thead><tr>{canWrite && <th />}<th>Title</th><th>Status</th><th>Priority</th><th>Assignees</th><th>Client / Project</th><th>Due</th></tr></thead>
+          <thead><tr>{canWrite && <th />}<th>Title</th><th>Status</th><th>Priority</th><th>Assignees</th><th>Department</th><th>Due</th></tr></thead>
           <tbody>{rows.map((t) => {
             const kids = subs[t.id] ?? [], isOpen = open.has(t.id), done = kids.filter((k) => !isOpenStatus(k.status)).length;
             return (
@@ -162,7 +143,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
                     </span>
                   </td>
                   <td><Badge v={t.status} /></td><td>{label(t.priority)}</td>
-                  <td>{names(t)}</td><td>{t.clients?.name ?? '—'} / {t.projects?.name ?? '—'}</td>
+                  <td>{names(t)}</td><td>{t.departments?.name ?? '—'}</td>
                   <td><Due t={t} /></td>
                 </tr>
                 {isOpen && kids.map((k, i) => (

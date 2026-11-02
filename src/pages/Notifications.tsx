@@ -32,8 +32,6 @@ const TYPES: Record<string, TypeInfo> = {
 const GROUPS: [string, string[]][] = [
   ['Tasks', ['task_assigned', 'task_assignment_changed', 'task_status', 'task_comment', 'review_requested']],
   ['Deadlines', ['deadline_upcoming', 'due_today', 'task_overdue']],
-  ['Escalations', ['escalation_raised', 'escalation_reassigned', 'escalation_due', 'escalation_resolved']],
-  ['Clients', ['portal_update']],
 ];
 const fallback: TypeInfo = { label: 'Update', hint: '', icon: RefreshCw, tone: 'brand' };
 const PAGE = 40;
@@ -135,7 +133,7 @@ export default function Notifications() {
             <div className="inbox-empty">
               <span className="empty-ico"><BellOff size={22} aria-hidden="true" /></span>
               <b>{filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}</b>
-              <p className="muted">{filter === 'unread' ? 'Everything here has been read.' : 'Assignments, comments, deadlines and escalations will show up here.'}</p>
+              <p className="muted">{filter === 'unread' ? 'Everything here has been read.' : 'Assignments, comments and deadlines will show up here.'}</p>
             </div>
           ) : groups.map(([day, items]) => (
             <div key={day} className="inbox-day">

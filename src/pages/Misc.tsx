@@ -2,45 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { can } from '../../api/_lib/permissions';
 import { fmtTime, label, rpc, usePeople } from '../lib/ui';
-
-export function Contacts() {
-  const { membership } = useAuth();
-  const orgId = membership!.org_id;
-  const canInvite = can(membership!.role, 'client:write');
-  const [rows, setRows] = useState<any[]>([]);
-  const [q, setQ] = useState('');
-  const [msg, setMsg] = useState('');
-  useEffect(() => {
-    let qy = supabase.from('tt_client_contacts').select('*, clients:tt_clients(name)').eq('org_id', orgId).order('full_name').limit(200);
-    const term = q.trim().replace(/[,()%*]/g, ' ');
-    if (term) qy = qy.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`);
-    qy.then(({ data }) => setRows(data ?? []));
-  }, [orgId, q]);
-
-  async function invite(c: any) {
-    if (!c.email) return setMsg('This contact has no email.');
-    const { data: s } = await supabase.auth.getSession();
-    const r = await fetch('/api/invite', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.session?.access_token}` },
-      body: JSON.stringify({ org_id: orgId, email: c.email, full_name: c.full_name, client_contact_id: c.id }) });
-    const j = await r.json().catch(() => ({}));
-    setMsg(r.ok ? `Portal invitation sent to ${c.email}.` : j.error ?? 'Invite failed');
-  }
-  return (
-    <div className="card">
-      <h2>Contacts</h2>
-      <div className="row filters"><input aria-label="Search contacts" placeholder="Search name or email" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-      {msg && <p role="status">{msg}</p>}
-      {rows.length === 0 ? <p>No contacts found. Add contacts from a client profile.</p> : (
-        <table><thead><tr><th>Name</th><th>Client</th><th>Title</th><th>Email</th><th>Portal</th>{canInvite && <th />}</tr></thead>
-          <tbody>{rows.map((c) => (
-            <tr key={c.id}><td>{c.full_name}</td><td><Link to={`/clients/${c.client_id}`}>{c.clients?.name}</Link></td><td>{c.job_title}</td><td>{c.email}</td>
-              <td>{c.user_id ? 'Active' : 'Not invited'}</td>
-              {canInvite && <td>{!c.user_id && <button className="link" onClick={() => invite(c)}>Invite to portal</button>}</td>}</tr>))}</tbody></table>)}
-    </div>
-  );
-}
 
 export function ActivityLogs() {
   const { membership } = useAuth();
@@ -58,11 +20,11 @@ export function ActivityLogs() {
     <div className="card">
       <h2>Activity Logs</h2>
       <div className="row filters"><select aria-label="Filter by entity type" value={type} onChange={(e) => { setPage(0); setType(e.target.value); }}>
-        <option value="">All</option>{['client', 'project', 'task', 'organization'].map((t) => <option key={t} value={t}>{label(t)}</option>)}</select></div>
+        <option value="">All</option>{['task', 'organization'].map((t) => <option key={t} value={t}>{label(t)}</option>)}</select></div>
       {rows.length === 0 ? <p>No activity.</p> : (
         <table><thead><tr><th>When</th><th>Who</th><th>Entity</th><th>Action</th></tr></thead>
           <tbody>{rows.map((r) => <tr key={r.id}><td>{fmtTime(r.created_at)}</td><td>{name(r.actor_id)}</td>
-            <td>{r.entity_type === 'task' ? <Link to={`/tasks/${r.entity_id}`}>task</Link> : r.entity_type === 'client' ? <Link to={`/clients/${r.entity_id}`}>client</Link> : r.entity_type === 'project' ? <Link to={`/projects/${r.entity_id}`}>project</Link> : label(r.entity_type)}</td>
+            <td>{r.entity_type === 'task' ? <Link to={`/tasks/${r.entity_id}`}>task</Link> : label(r.entity_type)}</td>
             <td>{label(r.action)}</td></tr>)}</tbody></table>)}
       <div className="row"><button disabled={!page} onClick={() => setPage(page - 1)}>Newer</button><button disabled={rows.length < 50} onClick={() => setPage(page + 1)}>Older</button></div>
     </div>
@@ -103,9 +65,9 @@ export function Platform() {
           <input className="plat-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search organizations" aria-label="Search organizations" /></div>
         {orgs === null ? <p className="muted">Loading…</p> : shown.length === 0 ? <p className="muted">No organizations.</p> : (
           <table className="emp-table">
-            <thead><tr><th>Organization</th><th>Members</th><th>Open tasks</th><th>Clients</th><th>Time zone</th><th>Created</th><th><span className="sr-only">Open</span></th></tr></thead>
+            <thead><tr><th>Organization</th><th>Members</th><th>Open tasks</th><th>Time zone</th><th>Created</th><th><span className="sr-only">Open</span></th></tr></thead>
             <tbody>{shown.map((o) => (
-              <tr key={o.id}><td><b>{o.name}</b>{o.id === membership?.org_id && <small className="muted"> (open now)</small>}</td><td>{o.members}</td><td>{o.open_tasks}</td><td>{o.clients}</td><td>{o.time_zone}</td><td>{fmtTime(o.created_at)}</td>
+              <tr key={o.id}><td><b>{o.name}</b>{o.id === membership?.org_id && <small className="muted"> (open now)</small>}</td><td>{o.members}</td><td>{o.open_tasks}</td><td>{o.time_zone}</td><td>{fmtTime(o.created_at)}</td>
                 <td>{o.id !== membership?.org_id && <button type="button" className="pill-btn ghost" onClick={() => switchOrg(o.id)}>Open</button>}</td></tr>))}</tbody>
           </table>)}
       </section>

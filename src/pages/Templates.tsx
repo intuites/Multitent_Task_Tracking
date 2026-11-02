@@ -23,23 +23,19 @@ export default function Templates() {
   const { active, name } = usePeople(orgId);
   const [list, setList] = useState<Tpl[] | null>(null);
   const [depts, setDepts] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
   const [edit, setEdit] = useState<Tpl | null>(null);
   const [use, setUse] = useState<Tpl | null>(null);
   const [error, setError] = useState('');
   const [missing, setMissing] = useState(false);
 
   const load = useCallback(async () => {
-    const [t, d, c, p] = await Promise.all([
+    const [t, d] = await Promise.all([
       supabase.from('tt_task_templates').select('*').eq('org_id', orgId).order('name'),
       supabase.from('tt_departments').select('id, name').eq('org_id', orgId).order('name'),
-      supabase.from('tt_clients').select('id, name').eq('org_id', orgId).neq('status', 'archived').order('name'),
-      supabase.from('tt_projects').select('id, name').eq('org_id', orgId).neq('status', 'archived').order('name'),
     ]);
     // the table arrives with migration 0010; explain instead of showing a raw error
     if (t.error) setMissing(/relation|schema cache|does not exist/i.test(t.error.message)); else setMissing(false);
-    setList((t.data ?? []) as Tpl[]); setDepts(d.data ?? []); setClients(c.data ?? []); setProjects(p.data ?? []);
+    setList((t.data ?? []) as Tpl[]); setDepts(d.data ?? []);
   }, [orgId]);
   useEffect(() => { load(); }, [load]);
   const deptName = (id: string) => depts.find((d) => d.id === id)?.name ?? 'Department';
@@ -73,7 +69,7 @@ export default function Templates() {
     try {
       const id = await rpc<string>('tt_create_from_template', {
         p_template: use.id, p_title: String(f.get('title') || ''), p_department: f.get('department') || null, p_assignee: f.get('assignee') || null,
-        p_client: f.get('client') || null, p_project: f.get('project') || null, p_start: f.get('start') || null, p_extra_emails: extra,
+        p_client: null, p_project: null, p_start: f.get('start') || null, p_extra_emails: extra,
       });
       navigate(`/tasks/${id}`);
     } catch (x) { setError((x as Error).message); }
@@ -136,8 +132,6 @@ export default function Templates() {
             <label>Department<select name="department" defaultValue={use.department_ids[0] ?? ''}><option value="">None</option>
               {(use.department_ids.length ? depts.filter((d) => use.department_ids.includes(d.id)) : depts).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
             <label>Assignee<select name="assignee" defaultValue={use.assignee_id ?? ''}><option value="">Unassigned</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-            <label>Client<select name="client" defaultValue=""><option value="">None</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-            <label>Project<select name="project" defaultValue=""><option value="">None</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
             <label>Start date<input type="date" name="start" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
             <label>Also notify<input name="emails" placeholder="extra@company.com" /></label>
             <p className="muted pf-wide tpl-note">Creates 1 task and {use.subtasks.length} subtask{use.subtasks.length === 1 ? '' : 's'}.{use.notify_emails.length > 0 && ` Notifies ${use.notify_emails.join(', ')}.`}</p>

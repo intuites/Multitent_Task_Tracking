@@ -12,7 +12,7 @@ interface Hit { group: string; text: string; to: string }
 export default function Search() {
   const { membership } = useAuth();
   const orgId = membership!.org_id;
-  const crm = can(membership!.role, 'client:write'); // employees don't get the clients, contacts or people pages
+  const crm = can(membership!.role, 'task:write'); // employees don't get the people pages
   const { people } = usePeople(orgId);
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<Hit[]>([]);
@@ -29,21 +29,11 @@ export default function Search() {
     if (term.length < 2) { setHits([]); return; }
     const h = setTimeout(async () => {
       const like = `%${term}%`;
-      const [c, ct, p, t, e] = await Promise.all([
-        supabase.from('tt_clients').select('id, name').eq('org_id', orgId).ilike('name', like).limit(5),
-        supabase.from('tt_client_contacts').select('client_id, full_name').eq('org_id', orgId).ilike('full_name', like).limit(5),
-        supabase.from('tt_projects').select('id, name').eq('org_id', orgId).ilike('name', like).limit(5),
-        supabase.from('tt_tasks').select('id, title').eq('org_id', orgId).ilike('title', like).limit(5),
-        supabase.from('tt_escalations').select('id, reason').eq('org_id', orgId).ilike('reason', like).limit(5),
-      ]);
+      const t = await supabase.from('tt_tasks').select('id, title').eq('org_id', orgId).ilike('title', like).limit(5);
       const lc = term.toLowerCase();
       setHits([
-        ...(!crm ? [] : c.data ?? []).map((x) => ({ group: 'Client', text: x.name, to: `/clients/${x.id}` })),
-        ...(!crm ? [] : ct.data ?? []).map((x) => ({ group: 'Contact', text: x.full_name, to: `/clients/${x.client_id}` })),
-        ...(p.data ?? []).map((x) => ({ group: 'Project', text: x.name, to: `/projects/${x.id}` })),
         ...(t.data ?? []).map((x) => ({ group: 'Task', text: x.title, to: `/tasks/${x.id}` })),
-        ...(e.data ?? []).map((x) => ({ group: 'Escalation', text: x.reason, to: '/escalations' })),
-        ...(!crm ? [] : people).filter((x) => x.name.toLowerCase().includes(lc) || x.email.toLowerCase().includes(lc)).slice(0, 5).map((x) => ({ group: 'Employee', text: x.name, to: '/employees' })),
+        ...(!crm ? [] : people).filter((x) => x.name.toLowerCase().includes(lc) || x.email.toLowerCase().includes(lc)).slice(0, 5).map((x) => ({ group: 'Employee', text: x.name, to: `/employees/${x.id}` })),
       ]);
     }, 250);
     return () => clearTimeout(h);
@@ -52,7 +42,7 @@ export default function Search() {
   return (
     <div className="search">
       <SearchIcon size={17} className="search-ico" aria-hidden="true" />
-      <input ref={box} type="search" placeholder="Search tasks, clients, projects" aria-label="Global search" aria-keyshortcuts="Control+K Meta+K" value={q}
+      <input ref={box} type="search" placeholder="Search tasks and people" aria-label="Global search" aria-keyshortcuts="Control+K Meta+K" value={q}
         onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQ('')} />
       <kbd aria-hidden="true">{mac ? '⌘' : 'Ctrl'} K</kbd>
       {q.trim().length >= 2 && (

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, BarChart3, BellRing, Building2, CalendarDays, CopyPlus, LayoutDashboard, ListChecks, RotateCcw, Siren, UserRoundCheck, type LucideIcon,
+  ArrowRight, BarChart3, BellRing, Building2, CalendarDays, CopyPlus, Layers, LayoutDashboard, ListChecks, RotateCcw, ShieldCheck, type LucideIcon,
 } from 'lucide-react';
 import { LiquidBg, reducedMotion } from '../components/Liquid';
 import { ThemeToggle } from '../components/Frame';
@@ -12,7 +12,7 @@ const css = (v: Record<string, string | number>) => v as React.CSSProperties;
 const Flow = () => (
   <div className="gv-flow">
     {['Not yet started', 'Started', 'Pending', 'Completed this cycle', 'Completed'].map((s, i) => <span key={s} className="gv-step" style={css({ '--i': i })}>{s}</span>)}
-    <span className="gv-side">Any step can change to any other. Escalation is raised separately.</span>
+    <span className="gv-side">Any step can change to any other.</span>
   </div>
 );
 const DashMock = () => (
@@ -28,48 +28,43 @@ const CycleMock = () => (
     <div className="gv-bell"><BellRing size={16} />Reminder · Every weekday at 9:00 AM ET</div>
   </div>
 );
-const EscMock = () => (
-  <div className="gv-esc">
-    <div className="gv-card bad"><Siren size={16} /><b>Critical · Server outage</b><small>Raised 12 min ago · owner Priya</small></div>
-    <div className="gv-timeline"><span>Open</span><span>Acknowledged</span><span>Resolved</span></div>
-  </div>
-);
 const ListMock = ({ rows }: { rows: [string, string][] }) => (
   <div className="gv-list">{rows.map(([a, b], i) => <div key={a} className="gv-row" style={css({ '--i': i })}><b>{a}</b><span>{b}</span></div>)}</div>
 );
 const CalMock = () => (
   <div className="gv-cal">{Array.from({ length: 21 }, (_, i) => <span key={i} className={i === 9 ? 'today' : [4, 12, 17].includes(i) ? 'has' : ''} style={css({ '--i': i })}>{i + 1}</span>)}</div>
 );
-const ProgressMock = () => (
-  <div className="gv-progress">
-    {([['Website redesign', 72], ['Mobile app', 45], ['Data migration', 90]] as const).map(([n, p], i) => (
-      <div key={n} className="gv-prog"><span>{n}</span><span className="gv-track"><i style={css({ width: `${p}%`, '--i': i })} /></span><b>{p}%</b></div>))}
+const AssignMock = () => (
+  <div className="gv-stack">
+    <div className="gv-timeline"><span>Organization</span><span>Department</span><span>Member</span></div>
+    <ListMock rows={[['Finance', '4 members'], ['Operations', '7 members'], ['Sales', '5 members']]} />
   </div>
 );
 
 const FEATURES: Feature[] = [
+  { id: 'organizations', icon: Building2, name: 'Organizations', short: 'Your own private space', line: 'Whoever creates an organization owns it. Nobody outside it can see its data.',
+    steps: ['Create your organization; you become its owner.', 'Invite members as admin, manager or employee.', 'Another organization never sees your people, departments or tasks.'],
+    visual: <ListMock rows={[['Acme Corp', 'Only Acme’s members'], ['Northwind', 'Only Northwind’s members'], ['Globex', 'Only Globex’s members']]} /> },
+  { id: 'departments', icon: Layers, name: 'Departments', short: 'Organization → department → people', line: 'Group your members into departments, then assign work in three picks.',
+    steps: ['Open Employees → Departments and choose the organization.', 'Add departments and the members in each.', 'When creating a task: organization, department, member.'], visual: <AssignMock /> },
   { id: 'dashboard', icon: LayoutDashboard, name: 'Dashboard', short: 'Today at a glance', line: 'See what needs attention today the moment you sign in.',
     steps: ['Counts for open, overdue, due-today and pending work.', 'Click any card to open that list of tasks.'], visual: <DashMock /> },
   { id: 'tasks', icon: ListChecks, name: 'Tasks and subtasks', short: 'One clear path', line: 'Every task follows one clear path, and big work splits into subtasks.',
-    steps: ['Create a task, pick the department and assign a person.', 'Add subtasks, each with its own owner and date.', 'Mark it Future if the work starts later.'], visual: <Flow /> },
+    steps: ['Pick the organization, then the department, then a member of that department.', 'Add subtasks, each with its own owner and date.', 'Mark it Future if the work starts later.'], visual: <Flow /> },
   { id: 'reminders', icon: RotateCcw, name: 'Reminders and cycles', short: 'Repeat work, handled', line: 'Recurring work reopens by itself, and reminders keep it moving.',
     steps: ['Set a reminder: once, daily, weekly, monthly, quarterly, every 6 months or yearly.', 'Mark it Completed this cycle; it reopens on the next cycle day.', 'Completed permanently stops every reminder.'], visual: <CycleMock /> },
   { id: 'templates', icon: CopyPlus, name: 'Task templates', short: 'Set up once', line: 'Set up repeat work once, then create it in one click.',
     steps: ['Save the title, departments, assignee and subtasks as a template.', 'Use it to create the task and all its subtasks together.'],
     visual: <ListMock rows={[['Client onboarding', '5 subtasks'], ['Monthly invoice run', '3 subtasks'], ['New hire setup', '4 subtasks']]} /> },
-  { id: 'escalations', icon: Siren, name: 'Escalations', short: 'Nothing gets stuck', line: 'When work is stuck, raise it so it can’t be missed.',
-    steps: ['Escalate the task with a reason and severity.', 'When it’s resolved, the task returns to where it was.'], visual: <EscMock /> },
-  { id: 'clients', icon: Building2, name: 'Clients and projects', short: 'Work by client', line: 'Keep every client, its sub-clients and their projects together.',
-    steps: ['Add a client and any sub-clients under it.', 'Create projects and track their progress.'], visual: <ProgressMock /> },
-  { id: 'portal', icon: UserRoundCheck, name: 'Client portal', short: 'Share what matters', line: 'Clients sign in and see only what you share.',
-    steps: ['Give a contact portal access.', 'Mark tasks and files as visible to the client.'],
-    visual: <ListMock rows={[['Website redesign', '72% done'], ['Launch checklist', 'Started'], ['Brand guide.pdf', 'Shared']]} /> },
-  { id: 'calendar', icon: CalendarDays, name: 'Calendar', short: 'Plan by month', line: 'Deadlines, start dates and milestones by month.',
+  { id: 'calendar', icon: CalendarDays, name: 'Calendar', short: 'Plan by month', line: 'Deadlines and start dates by month.',
     steps: ['Filter by person, priority or status.', 'Click a day to see its plan.'], visual: <CalMock /> },
-  { id: 'reports', icon: BarChart3, name: 'Reports', short: 'Export in a click', line: 'Completion, workload and overdue work, ready to export.',
+  { id: 'roles', icon: ShieldCheck, name: 'Roles', short: 'Who can do what', line: 'Five roles, from the person who created the organization to the platform team.',
+    steps: ['Owners and admins manage members, departments and settings.', 'Managers create tasks and assign them to anyone.', 'Employees work on their own tasks.'],
+    visual: <ListMock rows={[['Owner', 'Created the organization'], ['Admin', 'People and departments'], ['Manager', 'Assigns to anyone'], ['Employee', 'Works on their tasks'], ['Platform admin', 'Looks after every organization']]} /> },
+  { id: 'reports', icon: BarChart3, name: 'Reports', short: 'Export in a click', line: 'Completion, workload, departments and overdue work, ready to export.',
     steps: ['Pick a report and filter it.', 'Export the result as CSV.'], visual: <DashMock /> },
 ];
-const HEADLINE = 'Run client work, tasks and escalations in one calm place.';
+const HEADLINE = 'Your organization, its departments and every task in one calm place.';
 
 /** Pointer-driven tilt / spotlight / parallax, written as CSS variables once per frame. Skipped on touch and reduced motion. */
 function usePointerFx(root: React.RefObject<HTMLElement>) {
@@ -151,7 +146,7 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
             </div>
             <div className="g-float f1"><span className="dot ev-ms" />Task completed<small>Design landing page</small></div>
             <div className="g-float f2"><span className="dot ev-due" />Due tomorrow<small>QA sign-off</small></div>
-            <div className="g-float f3"><span className="dot ev-esc" />Escalation resolved<small>Server outage</small></div>
+            <div className="g-float f3"><span className="dot ev-start" />Assigned to Priya<small>Finance department</small></div>
           </div></div>
         </div>
       </section>

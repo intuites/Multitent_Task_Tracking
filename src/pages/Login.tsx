@@ -94,11 +94,11 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <LiquidBg tone="deep" />
         <div className="brand"><span className="mark" aria-hidden="true">T</span><span>Taskify</span></div>
         <div className="auth-copy">
-          <p className="auth-head">Client work, tasks and escalations in one place.</p>
+          <p className="auth-head">Your organization, its departments and every task in one place.</p>
           <ul>
             <li><Check size={16} />Every status change is recorded</li>
-            <li><Check size={16} />Clients see only what you share with them</li>
-            <li><Check size={16} />Escalations stay visible until someone resolves them</li>
+            <li><Check size={16} />Each organization sees only its own data</li>
+            <li><Check size={16} />Assign work by department in three clicks</li>
           </ul>
         </div>
       </aside>

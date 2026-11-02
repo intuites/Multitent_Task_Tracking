@@ -1,29 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, BarChart3, Building2, CheckCircle2, Clock, Download, FolderKanban, PieChart, Repeat, Siren, Users, X, type LucideIcon } from 'lucide-react';
+import { BarChart3, CheckCircle2, Clock, Download, Hourglass, Layers, PieChart, Repeat, Users, X, type LucideIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { projectProgress } from '../../api/_lib/progress';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
 import { download, isOpen, isOverdue, label, usePeople } from '../lib/ui';
 import { ListSkeleton } from '../components/Skeleton';
 import { CountUp } from '../components/Liquid';
 
 type Row = Record<string, string | number>;
-type Report = 'task_completion' | 'overdue_work' | 'status_distribution' | 'employee_workload' | 'project_progress' | 'client_activity' | 'escalations' | 'recurring_tasks';
+type Report = 'task_completion' | 'overdue_work' | 'status_distribution' | 'employee_workload' | 'departments' | 'recurring_tasks';
 // each report: tab name, icon, and which column the bar chart plots (none = table only)
 const REPORTS: { id: Report; name: string; icon: LucideIcon; bar?: string; max?: number }[] = [
   { id: 'task_completion', name: 'Completion', icon: CheckCircle2 },
   { id: 'status_distribution', name: 'Status', icon: PieChart, bar: 'Tasks' },
   { id: 'employee_workload', name: 'Workload', icon: Users, bar: 'Open' },
   { id: 'overdue_work', name: 'Overdue', icon: Clock },
-  { id: 'project_progress', name: 'Projects', icon: FolderKanban, bar: 'Progress %', max: 100 },
-  { id: 'client_activity', name: 'Clients', icon: Building2, bar: 'Tasks' },
-  { id: 'escalations', name: 'Escalations', icon: Siren, bar: 'Raised' },
+  { id: 'departments', name: 'Departments', icon: Layers, bar: 'Tasks' },
   { id: 'recurring_tasks', name: 'Recurring', icon: Repeat, bar: 'Occurrences' },
 ];
-const STATUSES = TASK_STATUSES;
-const avg = (a: number[]) => (a.length ? Math.round((a.reduce((x, y) => x + y, 0) / a.length) * 10) / 10 : 0);
-const hrs = (a: string, b: string) => (new Date(b).getTime() - new Date(a).getTime()) / 36e5;
+const STATUSES = TASK_STATUSES.filter((s) => s !== 'escalation');
 
 function Ring({ pct }: { pct: number }) {
   return (
@@ -59,36 +54,31 @@ export default function Reports() {
   const { people, name } = usePeople(orgId);
   const [report, setReport] = useState<Report>('task_completion');
   const [from, setFrom] = useState(''), [to, setTo] = useState('');
-  const [client, setClient] = useState(''), [project, setProject] = useState(''), [emp, setEmp] = useState('');
-  const [status, setStatus] = useState(''), [priority, setPriority] = useState(''), [sev, setSev] = useState('');
+  const [dept, setDept] = useState(''), [emp, setEmp] = useState('');
+  const [status, setStatus] = useState(''), [priority, setPriority] = useState('');
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     (async () => {
-      const [t, c, p, ms, es, ac] = await Promise.all([
-        supabase.from('tt_tasks').select('id, title, status, priority, client_id, project_id, due_date, created_at, completed_at, recurrence_parent_id, tt_task_assignees(user_id)').eq('org_id', orgId).limit(5000),
-        supabase.from('tt_clients').select('id, name').eq('org_id', orgId),
-        supabase.from('tt_projects').select('id, name, progress_mode, manual_progress, client_id').eq('org_id', orgId),
-        supabase.from('tt_project_milestones').select('project_id, completed_at').eq('org_id', orgId),
-        supabase.from('tt_escalations').select('severity, state, raised_at, acknowledged_at, resolved_at, task_id').eq('org_id', orgId).limit(5000),
-        supabase.from('tt_activity_logs').select('entity_type, entity_id, created_at').eq('org_id', orgId).eq('entity_type', 'client').limit(5000),
+      const [t, d] = await Promise.all([
+        supabase.from('tt_tasks').select('id, title, status, priority, department_id, due_date, created_at, completed_at, recurrence_parent_id, tt_task_assignees(user_id)').eq('org_id', orgId).limit(5000),
+        supabase.from('tt_departments').select('id, name').eq('org_id', orgId).order('name'),
       ]);
-      const err = [t, c, p, ms, es, ac].find((x) => x.error)?.error;
+      const err = [t, d].find((x) => x.error)?.error;
       if (err) setError(err.message);
-      setData({ t: t.data ?? [], c: c.data ?? [], p: p.data ?? [], ms: ms.data ?? [], es: es.data ?? [], ac: ac.data ?? [] });
+      setData({ t: t.data ?? [], d: d.data ?? [] });
     })();
   }, [orgId]);
 
   const inRange = (d?: string | null) => (!from || (d ?? '') >= from) && (!to || (d ?? '') <= to + 'T23:59:59');
-  const tasks = useMemo(() => (data?.t ?? []).filter((t: any) => inRange(t.created_at) && (!client || t.client_id === client) && (!project || t.project_id === project) &&
+  const tasks = useMemo(() => (data?.t ?? []).filter((t: any) => inRange(t.created_at) && (!dept || t.department_id === dept) &&
     (!status || t.status === status) && (!priority || t.priority === priority) && (!emp || t.tt_task_assignees.some((a: any) => a.user_id === emp))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [data, from, to, client, project, status, priority, emp]);
+  [data, from, to, dept, status, priority, emp]);
 
   const rows: Row[] = useMemo(() => {
     if (!data) return [];
-    const cname = (id: string) => data.c.find((c: any) => c.id === id)?.name ?? '—';
     switch (report) {
       case 'task_completion': {
         const done = tasks.filter((t: any) => !isOpen(t.status));
@@ -106,25 +96,11 @@ export default function Reports() {
           const m = tasks.filter((t: any) => t.tt_task_assignees.some((a: any) => a.user_id === p.id));
           return { Employee: p.name, Open: m.filter((t: any) => isOpen(t.status)).length, Overdue: m.filter(isOverdue).length, Completed: m.filter((t: any) => !isOpen(t.status)).length };
         }).filter((r) => r.Open + r.Completed > 0);
-      case 'project_progress':
-        return data.p.filter((p: any) => (!project || p.id === project) && (!client || p.client_id === client)).map((p: any) => ({
-          Project: p.name, Client: cname(p.client_id), Basis: p.progress_mode === 'manual' ? 'manual entry' : `calculated (${p.progress_mode})`,
-          'Progress %': projectProgress(p.progress_mode, p.manual_progress, data.ms.filter((m: any) => m.project_id === p.id), data.t.filter((t: any) => t.project_id === p.id)),
-        }));
-      case 'client_activity':
-        return data.c.filter((c: any) => !client || c.id === client).map((c: any) => ({
-          Client: c.name, Tasks: tasks.filter((t: any) => t.client_id === c.id).length, 'Open tasks': tasks.filter((t: any) => t.client_id === c.id && isOpen(t.status)).length,
-          'Activity events': data.ac.filter((a: any) => a.entity_id === c.id && inRange(a.created_at)).length,
-        }));
-      case 'escalations': {
-        const es = data.es.filter((e: any) => inRange(e.raised_at) && (!sev || e.severity === sev));
-        return ['low', 'medium', 'high', 'critical'].filter((s) => !sev || s === sev).map((s) => {
-          const m = es.filter((e: any) => e.severity === s);
-          return { Severity: label(s), Raised: m.length, Open: m.filter((e: any) => !['resolved', 'closed'].includes(e.state)).length,
-            'Avg hours to acknowledge': avg(m.filter((e: any) => e.acknowledged_at).map((e: any) => hrs(e.raised_at, e.acknowledged_at))),
-            'Avg hours to resolve': avg(m.filter((e: any) => e.resolved_at).map((e: any) => hrs(e.raised_at, e.resolved_at))) };
-        });
-      }
+      case 'departments':
+        return [...data.d, { id: null, name: 'No department' }].filter((d: any) => !dept || d.id === dept).map((d: any) => {
+          const m = tasks.filter((t: any) => (t.department_id ?? null) === d.id);
+          return { Department: d.name, Tasks: m.length, Open: m.filter((t: any) => isOpen(t.status)).length, Completed: m.filter((t: any) => !isOpen(t.status)).length, Overdue: m.filter(isOverdue).length };
+        }).filter((r: Row) => Number(r.Tasks) > 0);
       case 'recurring_tasks': {
         const occ = tasks.filter((t: any) => t.recurrence_parent_id);
         const parents = [...new Set(occ.map((t: any) => t.recurrence_parent_id))];
@@ -136,15 +112,14 @@ export default function Reports() {
     }
     return [];
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, tasks, report, sev, people, name]);
+  }, [data, tasks, report, dept, people, name]);
 
   const def = REPORTS.find((r) => r.id === report)!;
   const cols = rows[0] ? Object.keys(rows[0]) : [];
   const done = tasks.filter((t: any) => !isOpen(t.status)).length;
   const rate = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
-  const openEsc = (data?.es ?? []).filter((e: any) => !['resolved', 'closed'].includes(e.state) && inRange(e.raised_at)).length;
-  const filtered = !!(from || to || client || project || emp || status || priority || sev);
-  const clear = () => { setFrom(''); setTo(''); setClient(''); setProject(''); setEmp(''); setStatus(''); setPriority(''); setSev(''); };
+  const filtered = !!(from || to || dept || emp || status || priority);
+  const clear = () => { setFrom(''); setTo(''); setDept(''); setEmp(''); setStatus(''); setPriority(''); };
   const val = (m: string) => Number(rows.find((r) => r.Metric === m)?.Value ?? 0);
 
   return (
@@ -163,7 +138,7 @@ export default function Reports() {
         <div className="rp-kpi"><span className="rp-ico"><BarChart3 size={18} aria-hidden="true" /></span><small>Tasks in scope</small><b><CountUp value={tasks.length} /></b></div>
         <div className="rp-kpi"><span className="rp-ico ok"><CheckCircle2 size={18} aria-hidden="true" /></span><small>Completed</small><b><CountUp value={done} /></b><em>{rate}% completion</em></div>
         <div className="rp-kpi"><span className="rp-ico warn"><Clock size={18} aria-hidden="true" /></span><small>Overdue</small><b><CountUp value={tasks.filter(isOverdue).length} /></b></div>
-        <div className="rp-kpi"><span className="rp-ico bad"><AlertTriangle size={18} aria-hidden="true" /></span><small>Open escalations</small><b><CountUp value={openEsc} /></b></div>
+        <div className="rp-kpi"><span className="rp-ico bad"><Hourglass size={18} aria-hidden="true" /></span><small>Pending</small><b><CountUp value={tasks.filter((t: any) => t.status === 'pending').length} /></b></div>
       </div>
 
       <section className="card rp-filters" aria-label="Filters">
@@ -171,12 +146,10 @@ export default function Reports() {
           <label>From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
           <label>To<input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
         </div>
-        <select aria-label="Filter by client" value={client} onChange={(e) => setClient(e.target.value)}><option value="">All clients</option>{data?.c.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-        <select aria-label="Filter by project" value={project} onChange={(e) => setProject(e.target.value)}><option value="">All projects</option>{data?.p.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+        <select aria-label="Filter by department" value={dept} onChange={(e) => setDept(e.target.value)}><option value="">All departments</option>{data?.d.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
         <select aria-label="Filter by employee" value={emp} onChange={(e) => setEmp(e.target.value)}><option value="">All employees</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
         <select aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Any status</option>{STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
         <select aria-label="Filter by priority" value={priority} onChange={(e) => setPriority(e.target.value)}><option value="">Any priority</option>{['low', 'medium', 'high', 'urgent'].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
-        {report === 'escalations' && <select aria-label="Filter by escalation severity" value={sev} onChange={(e) => setSev(e.target.value)}><option value="">Any severity</option>{['low', 'medium', 'high', 'critical'].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>}
         {filtered && <button type="button" className="link" onClick={clear}><X size={15} aria-hidden="true" />Clear filters</button>}
       </section>
 

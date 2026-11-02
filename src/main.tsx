@@ -19,13 +19,8 @@ import Frame, { type FrameGroup } from './components/Frame';
 import { label } from './lib/ui';
 
 // Route-level code splitting keeps the first load small.
-const Clients = lazy(() => import('./pages/Clients'));
-const ClientProfile = lazy(() => import('./pages/ClientProfile'));
-const Projects = lazy(() => import('./pages/Projects'));
-const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
 const Tasks = lazy(() => import('./pages/Tasks'));
 const TaskDetail = lazy(() => import('./pages/TaskDetail'));
-const Escalations = lazy(() => import('./pages/Escalations'));
 const Employees = lazy(() => import('./pages/Employees'));
 const PersonPage = lazy(() => import('./pages/Person'));
 const Calendar = lazy(() => import('./pages/Calendar'));
@@ -36,8 +31,8 @@ const Guide = lazy(() => import('./pages/Guide'));
 const ProfilePage = lazy(() => import('./pages/Profile'));
 const NewOrg = lazy(() => import('./pages/NewOrg'));
 const Templates = lazy(() => import('./pages/Templates'));
-const misc = (k: 'ActivityLogs' | 'Contacts' | 'Platform') => lazy(() => import('./pages/Misc').then((m) => ({ default: m[k] })));
-const ActivityLogs = misc('ActivityLogs'), Contacts = misc('Contacts'), Platform = misc('Platform');
+const misc = (k: 'ActivityLogs' | 'Platform') => lazy(() => import('./pages/Misc').then((m) => ({ default: m[k] })));
+const ActivityLogs = misc('ActivityLogs'), Platform = misc('Platform');
 const Settings = lazy(() => import('./pages/OrgSettings'));
 import '@fontsource-variable/plus-jakarta-sans';
 import './styles.css';
@@ -75,13 +70,13 @@ function Shell() {
     return () => { clearInterval(h); window.removeEventListener('tt-notifications', refresh); };
   }, [refresh, pathname]);
 
-  const groups: FrameGroup[] = ['Menu', 'CRM', 'Team', 'General'].map((g) => ({
+  const groups: FrameGroup[] = ['Menu', 'Team', 'General'].map((g) => ({
     title: g,
     items: items.filter((n) => n.group === g).map((n) => ({
       label: n.label, icon: n.icon, to: n.path, badge: n.path === '/my-tasks' ? mine : n.path === '/notifications' ? unread : undefined,
     })),
   }));
-  if (platformAdmin) groups[3].items.push({ label: 'Admin site', icon: Shield, to: '/admin-site' });
+  if (platformAdmin) groups[2].items.push({ label: 'Admin site', icon: Shield, to: '/admin-site' });
 
   return (
     <Frame brand={membership?.org_name || 'Taskify'} groups={groups} title={crumb} search={<Search />}
@@ -129,16 +124,9 @@ function Gate() {
     <Routes>
       <Route element={<Shell />}>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/clients" element={<Guard need="client:write"><Clients /></Guard>} />
-        <Route path="/clients/:id" element={<Guard need="client:write"><ClientProfile /></Guard>} />
-        <Route path="/contacts" element={<Guard need="client:write"><Contacts /></Guard>} />
-        <Route path="/projects" element={<Guard need="project:read"><Projects /></Guard>} />
-        <Route path="/projects/:id" element={<Guard need="project:read"><ProjectDetail /></Guard>} />
         <Route path="/tasks" element={<Tasks mode="all" />} />
         <Route path="/tasks/:id" element={<TaskDetail />} />
         <Route path="/my-tasks" element={<Tasks mode="mine" />} />
-        <Route path="/team-tasks" element={<Tasks mode="team" />} />
-        <Route path="/escalations" element={<Escalations />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/employees" element={<Guard need="task:write"><Employees /></Guard>} />
         <Route path="/employees/:id" element={<Guard need="task:write"><PersonPage /></Guard>} />

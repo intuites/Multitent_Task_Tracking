@@ -22,7 +22,7 @@ export default function OrgSettings() {
   const navigate = useNavigate();
   const [org, setOrg] = useState<any>(null);
   const [depts, setDepts] = useState<any[]>([]);
-  const [teams, setTeams] = useState<any[]>([]);
+  const [dm, setDm] = useState<any[]>([]);
   const [roles, setRoles] = useState<Record<string, number>>({});
   const [renaming, setRenaming] = useState<string | null>(null);
   const { active: people } = usePeople(orgId);
@@ -33,11 +33,11 @@ export default function OrgSettings() {
     const [o, d, t, m] = await Promise.all([
       supabase.from('tt_organizations').select('*').eq('id', orgId).maybeSingle(),
       supabase.from('tt_departments').select('id, name, created_at').eq('org_id', orgId).order('name'),
-      supabase.from('tt_teams').select('id, department_id').eq('org_id', orgId),
+      supabase.from('tt_department_members').select('department_id').eq('org_id', orgId),
       supabase.from('tt_org_members').select('role').eq('org_id', orgId).eq('active', true),
     ]);
     setOrg(o.data ?? { name: membership!.org_name, time_zone: membership!.time_zone });
-    setDepts(d.data ?? []); setTeams(t.data ?? []);
+    setDepts(d.data ?? []); setDm(t.data ?? []);
     setRoles((m.data ?? []).reduce((acc: Record<string, number>, r: any) => ({ ...acc, [r.role]: (acc[r.role] ?? 0) + 1 }), {}));
   }, [orgId, membership]);
   useEffect(() => { load(); }, [load]);
@@ -66,8 +66,7 @@ export default function OrgSettings() {
     done(error, 'Department renamed.');
   }
   async function deleteDept(d: any) {
-    const n = teams.filter((t) => t.department_id === d.id).length;
-    if (!(await ask({ title: `Delete ${d.name}?`, message: `${n ? `Its ${n} team${n > 1 ? 's' : ''} will be kept without a department. ` : ''}Tasks in this department are kept too.`, confirmLabel: 'Delete department', danger: true })).ok) return;
+    if (!(await ask({ title: `Delete ${d.name}?`, message: 'Its members stay in the organization and its tasks are kept without a department.', confirmLabel: 'Delete department', danger: true })).ok) return;
     const { error } = await supabase.from('tt_departments').delete().eq('id', d.id);
     if (!error) await log('department_deleted', { name: d.name });
     done(error, `Deleted ${d.name}.`);
@@ -117,7 +116,7 @@ export default function OrgSettings() {
 
         <section className="card" aria-labelledby="dep-h">
           <div className="panel-head"><h3 id="dep-h"><Layers size={16} aria-hidden="true" /> Departments</h3><small className="muted">{depts.length}</small></div>
-          {depts.length === 0 ? <p className="muted">No departments yet.{canEdit && ' Add one below; templates and tasks can then be filed under it.'}</p> : (
+          {depts.length === 0 ? <p className="muted">No departments yet.{canEdit && ' Add one below, then add its members under Employees → Departments.'}</p> : (
             <ul className="people">{depts.map((d) => (
               <li key={d.id}>
                 {renaming === d.id ? (
@@ -127,7 +126,7 @@ export default function OrgSettings() {
                   </form>
                 ) : (<>
                   <span className="grow">{d.name}</span>
-                  <small className="muted">{teams.filter((t) => t.department_id === d.id).length} teams</small>
+                  <small className="muted">{dm.filter((m) => m.department_id === d.id).length} members</small>
                   {canEdit && <>
                     <button type="button" className="icon-btn sm" aria-label={`Rename ${d.name}`} onClick={() => setRenaming(d.id)}><Pencil size={14} aria-hidden="true" /></button>
                     <button type="button" className="icon-btn sm danger-text" aria-label={`Delete ${d.name}`} onClick={() => deleteDept(d)}><Trash2 size={14} aria-hidden="true" /></button>

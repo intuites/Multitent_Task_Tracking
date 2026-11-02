@@ -2,7 +2,7 @@
 -- Drops ONLY objects created by Taskify's migrations; other tables in the database are not touched.
 -- Auth users (logins) are kept. Files already in the 'tt-files' storage bucket are kept (Supabase blocks
 -- deleting storage rows from SQL); remove them in Dashboard > Storage if you want a clean bucket.
--- After running this, run supabase/migrations/0001 ... 0018 in order.
+-- After running this, run supabase/migrations/0001 ... 0019 in order.
 
 begin;
 
@@ -25,7 +25,7 @@ drop table if exists
   tt_task_templates, tt_task_comment_edits, tt_task_comments, tt_task_checklist_items, tt_task_dependencies, tt_task_watchers,
   tt_task_assignees, tt_task_status_history, tt_task_recurrence, tt_approvals, tt_escalation_updates, tt_escalations,
   tt_files, tt_notifications, tt_notification_preferences, tt_email_delivery_logs, tt_activity_logs,
-  tt_project_members, tt_project_milestones, tt_team_members, tt_teams, tt_departments, tt_tasks,
+  tt_project_members, tt_project_milestones, tt_team_members, tt_teams, tt_department_members, tt_departments, tt_tasks,
   tt_platform_admins, tt_profiles,
   tt_client_notes, tt_client_contacts, tt_projects, tt_clients, tt_org_members, tt_organizations,
   client_notes, client_contacts, projects, clients, org_members, organizations

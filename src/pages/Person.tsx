@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  Activity, ArrowLeft, Briefcase, Building, CheckCircle2, Clock, Gauge, ListChecks, Mail, MapPin, Phone, ShieldCheck, UserMinus, Users, X,
+  Activity, ArrowLeft, Briefcase, Building, CheckCircle2, Clock, Gauge, ListChecks, Mail, MapPin, Phone, ShieldCheck, UserMinus, X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
@@ -13,7 +13,7 @@ import { Avatar } from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
 import { PageSkeleton } from '../components/Skeleton';
 
-type Tab = 'overview' | 'tasks' | 'team' | 'details' | 'access' | 'activity';
+type Tab = 'overview' | 'tasks' | 'details' | 'access' | 'activity';
 const DONE = ['completed', 'completed_cycle'];
 const isDone = (s: string) => DONE.includes(s);
 
@@ -25,11 +25,9 @@ export default function PersonPage() {
   const orgId = membership!.org_id, myRole = membership!.role, uid = session!.user.id;
   const admin = can(myRole, 'members:manage');
   const [person, setPerson] = useState<Person | null | undefined>(undefined);
-  const [people, setPeople] = useState<Person[]>([]);
   const [pr, setPr] = useState<any>({});
   const [tasks, setTasks] = useState<any[]>([]);
-  const [teams, setTeams] = useState<any[]>([]);
-  const [tm, setTm] = useState<any[]>([]);
+  const [dm, setDm] = useState<string[]>([]);
   const [depts, setDepts] = useState<any[]>([]);
   const [acts, setActs] = useState<any[]>([]);
   const [tab, setTab] = useState<Tab>('overview');
@@ -38,17 +36,16 @@ export default function PersonPage() {
 
   const load = useCallback(async () => {
     const ppl = await loadPeople(orgId, true);
-    setPeople(ppl); setPerson(ppl.find((p) => p.id === id) ?? null);
-    const [p, t, te, m, d, a] = await Promise.all([
+    setPerson(ppl.find((p) => p.id === id) ?? null);
+    const [p, t, m, d, a] = await Promise.all([
       supabase.from('tt_profiles').select('*').eq('user_id', id!).maybeSingle(),
-      supabase.from('tt_tasks').select('id, title, status, priority, due_date, completed_at, created_at, projects:tt_projects(name), tt_task_assignees!inner(user_id)')
+      supabase.from('tt_tasks').select('id, title, status, priority, due_date, completed_at, created_at, departments:tt_departments(name), tt_task_assignees!inner(user_id)')
         .eq('org_id', orgId).eq('tt_task_assignees.user_id', id!).is('archived_at', null).order('due_date', { nullsFirst: false }).limit(2000),
-      supabase.from('tt_teams').select('*').eq('org_id', orgId).order('name'),
-      supabase.from('tt_team_members').select('*'),
+      supabase.from('tt_department_members').select('department_id').eq('org_id', orgId).eq('user_id', id!),
       supabase.from('tt_departments').select('id, name').eq('org_id', orgId).order('name'),
       supabase.from('tt_activity_logs').select('*').eq('org_id', orgId).eq('actor_id', id!).order('created_at', { ascending: false }).limit(60),
     ]);
-    setPr(p.data ?? {}); setTasks(t.data ?? []); setTeams(te.data ?? []); setTm(m.data ?? []); setDepts(d.data ?? []); setActs(a.data ?? []);
+    setPr(p.data ?? {}); setTasks(t.data ?? []); setDm((m.data ?? []).map((x: any) => x.department_id)); setDepts(d.data ?? []); setActs(a.data ?? []);
   }, [orgId, id]);
   useEffect(() => { load(); }, [load]);
 
@@ -77,10 +74,7 @@ export default function PersonPage() {
 
   const isMe = person.id === uid;
   const canEdit = admin && (myRole === 'owner' || person.role !== 'owner' || isMe);
-  const myTeams = tm.filter((m) => m.user_id === person.id).map((m) => teams.find((t) => t.id === m.team_id)).filter(Boolean) as any[];
-  const leads = teams.filter((t) => t.manager_id === person.id);
-  const isLead = person.role !== 'employee' || leads.length > 0;
-  const name = (pid: string) => people.find((p) => p.id === pid)?.name ?? 'Unknown';
+  const myDepts = depts.filter((d) => dm.includes(d.id));
   const ok = (text: string) => { setMsg({ kind: 'ok', text }); load(); };
   const fail = (text: string) => setMsg({ kind: 'error', text });
   const log = (action: string, detail: object) => supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'member', entity_id: person.id, action, detail });
@@ -104,18 +98,18 @@ export default function PersonPage() {
     if (error) return fail(error.message);
     await log(on ? 'member_activated' : 'member_deactivated', { user: person.id }); ok(on ? 'Access restored.' : 'Access removed.');
   };
-  const joinTeam = async (teamId: string) => {
-    const { error } = await supabase.from('tt_team_members').insert({ team_id: teamId, user_id: person.id });
-    if (error) fail(error.message); else ok('Added to the team.');
+  const joinDept = async (deptId: string) => {
+    const { error } = await supabase.from('tt_department_members').insert({ department_id: deptId, user_id: person.id, org_id: orgId });
+    if (error) fail(error.message); else ok('Added to the department.');
   };
-  const leaveTeam = async (t: any) => {
-    if (!(await ask({ title: `Remove from ${t.name}?`, message: `${person.name}'s tasks stay assigned.`, confirmLabel: 'Remove', danger: true })).ok) return;
-    const { error } = await supabase.from('tt_team_members').delete().eq('team_id', t.id).eq('user_id', person.id);
-    if (error) fail(error.message); else ok('Removed from the team.');
+  const leaveDept = async (d: any) => {
+    if (!(await ask({ title: `Remove from ${d.name}?`, message: `${person.name}'s tasks stay assigned.`, confirmLabel: 'Remove', danger: true })).ok) return;
+    const { error } = await supabase.from('tt_department_members').delete().eq('department_id', d.id).eq('user_id', person.id);
+    if (error) fail(error.message); else ok('Removed from the department.');
   };
   const removeFromOrg = async () => {
-    if (!(await ask({ title: `Remove ${person.name} from ${membership!.org_name}?`, message: 'They lose access right away and leave every team. Their tasks, comments and history stay. You can invite them again later.', confirmLabel: 'Remove person', danger: true })).ok) return;
-    await supabase.from('tt_team_members').delete().eq('user_id', person.id).in('team_id', teams.map((t) => t.id));
+    if (!(await ask({ title: `Remove ${person.name} from ${membership!.org_name}?`, message: 'They lose access right away and leave every department. Their tasks, comments and history stay. You can invite them again later.', confirmLabel: 'Remove person', danger: true })).ok) return;
+    await supabase.from('tt_department_members').delete().eq('org_id', orgId).eq('user_id', person.id);
     const { error } = await supabase.from('tt_org_members').delete().eq('org_id', orgId).eq('user_id', person.id);
     if (error) return fail(error.message);
     await log('member_removed', { user: person.id });
@@ -125,9 +119,8 @@ export default function PersonPage() {
   const TABS: { id: Tab; name: string; icon: typeof Gauge; n?: number }[] = [
     { id: 'overview', name: 'Overview', icon: Gauge },
     { id: 'tasks', name: 'Tasks', icon: ListChecks, n: stats.open },
-    ...(isLead ? [{ id: 'team' as Tab, name: 'Teams led', icon: Users, n: leads.length }] : []),
     { id: 'details', name: 'Details', icon: Briefcase },
-    ...(admin ? [{ id: 'access' as Tab, name: 'Access & teams', icon: ShieldCheck }] : []),
+    ...(admin ? [{ id: 'access' as Tab, name: 'Access & departments', icon: ShieldCheck }] : []),
     { id: 'activity', name: 'Activity', icon: Activity },
   ];
   const now = Date.now();
@@ -202,8 +195,8 @@ export default function PersonPage() {
                     <li key={t.id}><Link to={`/tasks/${t.id}`}><b>{t.title}</b><span className="ps-meta"><Badge v={t.status} /><Due t={t} /></span></Link></li>))}</ul>)}
               </section>
               <section className="card" aria-labelledby="ov-teams">
-                <h3 id="ov-teams">Teams</h3>
-                {myTeams.length === 0 ? <p className="muted">Not in any team.</p> : <ul className="pp-chips">{myTeams.map((t) => <li key={t.id}>{t.name}{t.manager_id === person.id && <small> · lead</small>}</li>)}</ul>}
+                <h3 id="ov-teams">Departments</h3>
+                {myDepts.length === 0 ? <p className="muted">Not in any department.</p> : <ul className="pp-chips">{myDepts.map((d) => <li key={d.id}>{d.name}</li>)}</ul>}
               </section>
             </div>
           </div>
@@ -215,24 +208,10 @@ export default function PersonPage() {
               {(['open', 'overdue', 'done', 'all'] as const).map((f) => <button key={f} type="button" aria-pressed={taskFilter === f} onClick={() => setTaskFilter(f)}>{f === 'done' ? 'Completed' : label(f)}</button>)}
             </div>
             {shownTasks.length === 0 ? <p className="muted">No tasks here.</p> : (
-              <table className="emp-table"><thead><tr><th>Task</th><th>Status</th><th>Priority</th><th>Project</th><th>Due</th></tr></thead>
+              <table className="emp-table"><thead><tr><th>Task</th><th>Status</th><th>Priority</th><th>Department</th><th>Due</th></tr></thead>
                 <tbody>{shownTasks.map((t) => (
-                  <tr key={t.id}><td><Link to={`/tasks/${t.id}`}>{t.title}</Link></td><td><Badge v={t.status} /></td><td>{label(t.priority)}</td><td>{t.projects?.name ?? '—'}</td><td><Due t={t} /></td></tr>))}</tbody></table>)}
+                  <tr key={t.id}><td><Link to={`/tasks/${t.id}`}>{t.title}</Link></td><td><Badge v={t.status} /></td><td>{label(t.priority)}</td><td>{t.departments?.name ?? '—'}</td><td><Due t={t} /></td></tr>))}</tbody></table>)}
           </section>
-        )}
-
-        {tab === 'team' && (
-          leads.length === 0 ? <div className="card rp-empty"><Users size={28} aria-hidden="true" /><p>{person.name} doesn't lead a team yet.</p></div> : (
-            <div className="team-grid">{leads.map((t, i) => {
-              const members = tm.filter((m) => m.team_id === t.id);
-              return (
-                <article key={t.id} className="team-card" style={{ '--i': i } as React.CSSProperties}>
-                  <header className="tc-head"><span className="tc-ico"><Users size={18} aria-hidden="true" /></span><span className="grow"><h3>{t.name}</h3>
-                    <small className="tc-dept"><Building size={12} aria-hidden="true" />{depts.find((d) => d.id === t.department_id)?.name ?? 'No department'}</small></span></header>
-                  <p className="tc-count">{members.length} member{members.length === 1 ? '' : 's'}</p>
-                  <ul className="tc-members">{members.map((m) => <li key={m.user_id}><Avatar name={name(m.user_id)} className="avatar xs" /><Link className="grow" to={`/employees/${m.user_id}`}>{name(m.user_id)}</Link></li>)}</ul>
-                </article>);
-            })}</div>)
         )}
 
         {tab === 'details' && (
@@ -266,12 +245,12 @@ export default function PersonPage() {
                 </div>)}
             </section>
             <section className="card" aria-labelledby="tm-h">
-              <h3 id="tm-h">Teams</h3>
-              {myTeams.length === 0 ? <p className="muted">Not in any team.</p> : (
-                <ul className="pp-chips">{myTeams.map((t) => <li key={t.id}>{t.name}<button type="button" aria-label={`Remove from ${t.name}`} onClick={() => leaveTeam(t)}><X size={13} aria-hidden="true" /></button></li>)}</ul>)}
-              {teams.length > myTeams.length && (
-                <select aria-label="Add to team" value="" onChange={(e) => e.target.value && joinTeam(e.target.value)}>
-                  <option value="">+ Add to a team</option>{teams.filter((t) => !myTeams.some((m) => m.id === t.id)).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              <h3 id="tm-h">Departments</h3>
+              {myDepts.length === 0 ? <p className="muted">Not in any department.</p> : (
+                <ul className="pp-chips">{myDepts.map((d) => <li key={d.id}>{d.name}<button type="button" aria-label={`Remove from ${d.name}`} onClick={() => leaveDept(d)}><X size={13} aria-hidden="true" /></button></li>)}</ul>)}
+              {depts.length > myDepts.length && (
+                <select aria-label="Add to department" value="" onChange={(e) => e.target.value && joinDept(e.target.value)}>
+                  <option value="">+ Add to a department</option>{depts.filter((d) => !dm.includes(d.id)).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>)}
             </section>
             {!isMe && canEdit && (

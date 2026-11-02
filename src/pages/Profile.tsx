@@ -41,13 +41,13 @@ export default function Profile() {
       supabase.from('tt_org_members').select('created_at').eq('org_id', orgId).eq('user_id', uid).maybeSingle(),
       supabase.from('tt_tasks').select('id, title, status, priority, due_date, completed_at, tt_task_assignees!inner(user_id)')
         .eq('org_id', orgId).eq('tt_task_assignees.user_id', uid).is('archived_at', null).order('due_date', { nullsFirst: false }).limit(500),
-      supabase.from('tt_team_members').select('team_id').eq('user_id', uid),
-      supabase.from('tt_teams').select('id, name').eq('org_id', orgId),
+      supabase.from('tt_department_members').select('department_id').eq('org_id', orgId).eq('user_id', uid),
+      supabase.from('tt_departments').select('id, name').eq('org_id', orgId),
     ]);
     setP(pr.data ?? { user_id: uid, email: session!.user.email, full_name: '' });
     setJoined(mb.data?.created_at ?? null);
     setTasks(tk.data ?? []);
-    const mine = new Set((tm.data ?? []).map((x: any) => x.team_id));
+    const mine = new Set((tm.data ?? []).map((x: any) => x.department_id));
     setTeams((tt.data ?? []).filter((t: any) => mine.has(t.id)).map((t: any) => t.name));
   }, [uid, orgId, session]);
   useEffect(() => { load(); }, [load]);
@@ -126,7 +126,7 @@ export default function Profile() {
     await supabase.auth.signOut({ scope: 'global' });
   }
   async function leave() {
-    if (!(await ask({ title: `Leave ${membership!.org_name}?`, message: 'You will lose access to its clients, projects and tasks, and be unassigned from your open tasks. An admin will need to invite you again to come back.', confirmLabel: 'Leave organization', danger: true })).ok) return;
+    if (!(await ask({ title: `Leave ${membership!.org_name}?`, message: 'You will lose access to its tasks, and be unassigned from your open tasks. An admin will need to invite you again to come back.', confirmLabel: 'Leave organization', danger: true })).ok) return;
     const { error } = await supabase.rpc('tt_leave_org', { p_org: orgId });
     if (error) return setMsg({ kind: 'error', text: /function|schema cache/i.test(error.message) ? 'Leaving needs the database update (migration 0009) first.' : error.message });
     refresh();
@@ -189,8 +189,8 @@ export default function Profile() {
                 </dl>
               </section>
               <section className="card" aria-labelledby="teams-h">
-                <h3 id="teams-h"><Users size={16} aria-hidden="true" /> Teams</h3>
-                {teams.length ? <div className="tag-row">{teams.map((t) => <span key={t} className="tag">{t}</span>)}</div> : <p className="muted">You’re not on a team yet.</p>}
+                <h3 id="teams-h"><Users size={16} aria-hidden="true" /> Departments</h3>
+                {teams.length ? <div className="tag-row">{teams.map((t) => <span key={t} className="tag">{t}</span>)}</div> : <p className="muted">You’re not in a department yet.</p>}
               </section>
           </div>
         )}

@@ -4,16 +4,13 @@ import { ArrowUpRight, BarChart3, CalendarClock, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
-import { Badge, fmt, fmtDay, fmtTime, label, rpc, usePeople } from '../lib/ui';
+import { Badge, fmt, fmtTime, rpc, usePeople } from '../lib/ui';
 import { initials } from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
 import { DashSkeleton } from '../components/Skeleton';
 
 const OPEN = '(completed,completed_cycle)';
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-// deterministic tile colour per name, from the green family
-const TILE = ['#1b5e3b', '#2e7d4f', '#4f9d74', '#0f3d26', '#6aa287'];
-const tileColor = (s: string) => TILE[[...s].reduce((n, c) => n + c.charCodeAt(0), 0) % TILE.length];
 
 function Kpi({ title, value, note, to, feature }: { title: string; value: number; note: string; to: string; feature?: boolean }) {
   return (
@@ -175,24 +172,19 @@ export default function Dashboard() {
       const myTasks = (cols: string) => supabase.from('tt_tasks').select(`${cols}, tt_task_assignees!inner(user_id)`).eq('org_id', orgId)
         .eq('tt_task_assignees.user_id', uid).is('archived_at', null);
       try {
-        const [sum, myAll, next, projects, current, mine, esc, escCrit, escLate] = await Promise.all([
+        const [sum, myAll, next, current, mine] = await Promise.all([
           rpc('tt_org_summary', { p_org: orgId, p_day_start: start.toISOString(), p_day_end: end.toISOString() }),
           myTasks('status, due_date').limit(5000),
           myTasks('id, title, status, due_date').not('status', 'in', OPEN).gte('due_date', now.toISOString()).order('due_date').limit(1),
-          supabase.from('tt_projects').select('id, name, due_date, status').eq('org_id', orgId).in('status', ['planning', 'not_started', 'in_progress', 'in_review'])
-            .order('due_date', { nullsFirst: false }).limit(5),
           supabase.from('tt_tasks').select('id, title, status, tt_task_assignees(user_id)').eq('org_id', orgId).is('archived_at', null)
             .in('status', ['started', 'pending', 'not_yet_started']).order('updated_at', { ascending: false }).limit(100),
           supabase.from('tt_tasks').select('id, title, status, due_date, tt_task_assignees!inner(user_id)').eq('org_id', orgId).eq('tt_task_assignees.user_id', uid)
             .is('archived_at', null).not('status', 'in', OPEN).order('due_date', { nullsFirst: false }).limit(4),
-          supabase.from('tt_escalations').select('id', { count: 'exact', head: true }).eq('org_id', orgId).not('state', 'in', '(resolved,closed)'),
-          supabase.from('tt_escalations').select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('severity', 'critical').not('state', 'in', '(resolved,closed)'),
-          supabase.from('tt_escalations').select('id', { count: 'exact', head: true }).eq('org_id', orgId).lt('target_date', now.toISOString()).not('state', 'in', '(resolved,closed)'),
         ]);
         // every number on this page is the signed-in person's own tasks
-        const own = { done: 0, active: 0, pending: 0, open: 0, overdue: 0, dueToday: 0, waiting: 0 };
+        const own = { done: 0, cycle: 0, active: 0, pending: 0, open: 0, overdue: 0, dueToday: 0, waiting: 0 };
         for (const r of (myAll.data ?? []) as any[]) {
-          if (r.status === 'completed' || r.status === 'completed_cycle') { own.done++; continue; }
+          if (r.status === 'completed' || r.status === 'completed_cycle') { own.done++; if (r.status === 'completed_cycle') own.cycle++; continue; }
           own.open++;
           if (r.status === 'started') own.active++; else own.pending++;
           if (r.status === 'pending') own.waiting++;
@@ -202,10 +194,9 @@ export default function Dashboard() {
         const working = new Map<string, any>();
         for (const t of current.data ?? []) for (const a of t.tt_task_assignees) if (!working.has(a.user_id)) working.set(a.user_id, t);
         setD({
-          sum, next: next.data?.[0], projects: projects.data ?? [], mine: mine.data ?? [],
+          sum, next: next.data?.[0], mine: mine.data ?? [],
           team: (sum.workload as any[]).filter((w) => w.open).slice(0, 4).map((w) => ({ ...w, task: working.get(w.user_id) })),
           ...own,
-          esc: esc.count ?? 0, escCrit: escCrit.count ?? 0, escLate: escLate.count ?? 0,
         });
       } catch (x) { setError((x as Error).message); }
     })();
@@ -246,15 +237,6 @@ export default function Dashboard() {
           </>) : <p className="muted">No upcoming deadlines.</p>}
         </section>
 
-        <section className="card a-pr" aria-labelledby="pr-h">
-          <div className="panel-head"><h3 id="pr-h">Projects</h3>{manager && <Link to="/projects" className="pill-btn ghost sm"><Plus size={14} aria-hidden="true" />New</Link>}</div>
-          {d.projects.length === 0 ? <p className="muted">No active projects.</p> : (
-            <ul className="plist">{d.projects.map((p: any) => (
-              <li key={p.id}><span className="tile-ico" style={{ background: tileColor(p.name) }} aria-hidden="true">{initials(p.name).charAt(0)}</span>
-                <span><Link to={`/projects/${p.id}`}>{p.name}</Link><small>{p.due_date ? `Due ${fmtDay(p.due_date)}` : label(p.status)}</small></span></li>))}
-            </ul>)}
-        </section>
-
         <section className="card a-tm" aria-labelledby="tm-h">
           {manager ? (<>
             <div className="panel-head"><h3 id="tm-h">Team at work</h3>{can(membership!.role, 'members:manage') && <Link to="/employees" className="pill-btn ghost sm"><Plus size={14} aria-hidden="true" />Add member</Link>}</div>
@@ -280,10 +262,10 @@ export default function Dashboard() {
 
         <section className="card esc-card a-es" aria-labelledby="es-h">
           <LiquidBg tone="deep" />
-          <h3 id="es-h">Escalations</h3>
-          <b className="esc-num"><CountUp value={d.esc} /></b>
-          <p>{d.escCrit} critical · {d.escLate} past target</p>
-          <Link to="/escalations" className="round-btn" aria-label="Open escalations"><ArrowUpRight size={20} aria-hidden="true" /></Link>
+          <h3 id="es-h">Completed</h3>
+          <b className="esc-num"><CountUp value={d.done} /></b>
+          <p>{d.cycle} this cycle · {d.done - d.cycle} permanently</p>
+          <Link to="/my-tasks?view=completed" className="round-btn" aria-label="Open my completed tasks"><ArrowUpRight size={20} aria-hidden="true" /></Link>
         </section>
       </div>
     </>

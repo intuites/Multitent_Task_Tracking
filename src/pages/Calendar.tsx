@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarCheck, ChevronLeft, ChevronRight, Flag, PlayCircle, Siren, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, PlayCircle, type LucideIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { Badge, label, usePeople } from '../lib/ui';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
 
-type Kind = 'due' | 'start' | 'ms' | 'esc';
+type Kind = 'due' | 'start';
 interface Ev { date: string; title: string; link: string; kind: Kind; status?: string }
 const KINDS: Record<Kind, { name: string; icon: LucideIcon }> = {
   due: { name: 'Due', icon: Flag }, start: { name: 'Starts', icon: PlayCircle },
-  ms: { name: 'Milestone', icon: CalendarCheck }, esc: { name: 'Escalation target', icon: Siren },
 };
 const WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const key = (d: Date | string) => {
@@ -45,17 +44,13 @@ export default function Calendar() {
         if (status) q = q.eq('status', status);
         return q;
       };
-      const [due, start, ms, esc] = await Promise.all([
+      const [due, start] = await Promise.all([
         base().gte('due_date', from).lt('due_date', to).limit(500),
         base().gte('start_date', from).lt('start_date', to).limit(500),
-        supabase.from('tt_project_milestones').select('id, title, due_date, project_id').eq('org_id', orgId).gte('due_date', from.slice(0, 10)).lt('due_date', to.slice(0, 10)),
-        supabase.from('tt_escalations').select('id, target_date, tt_tasks(title)').eq('org_id', orgId).not('state', 'in', '(resolved,closed)').gte('target_date', from).lt('target_date', to),
       ]);
       const ev: Ev[] = [];
       for (const t of (due.data ?? []) as any[]) ev.push({ date: key(t.due_date), title: t.title, link: `/tasks/${t.id}`, kind: 'due', status: t.status });
       for (const t of (start.data ?? []) as any[]) ev.push({ date: key(t.start_date), title: t.title, link: `/tasks/${t.id}`, kind: 'start', status: t.status });
-      for (const m of (ms.data ?? []) as any[]) ev.push({ date: m.due_date, title: m.title, link: `/projects/${m.project_id}`, kind: 'ms' });
-      for (const e of (esc.data ?? []) as any[]) ev.push({ date: key(e.target_date), title: e.tt_tasks?.title ?? 'Escalation', link: '/escalations', kind: 'esc' });
       setEvents(ev);
     })();
   }, [orgId, month, assignee, priority, status]);
@@ -86,7 +81,7 @@ export default function Calendar() {
       <div className="page-head">
         <div>
           <h2 className="page-title">Calendar</h2>
-          <p className="page-sub">Start dates, deadlines, milestones and escalation targets in one view.</p>
+          <p className="page-sub">Start dates and deadlines in one view.</p>
         </div>
         <div className="cal-nav">
           <button type="button" className="icon-btn" onClick={() => go(-1)} aria-label="Previous month"><ChevronLeft size={18} aria-hidden="true" /></button>

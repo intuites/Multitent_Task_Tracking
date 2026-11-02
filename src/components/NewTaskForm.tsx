@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { BellRing, ChevronDown, ListTree, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
@@ -31,21 +31,17 @@ const fmt12 = (t: string) => { const [h, m] = t.split(':').map(Number); return `
 const blank = (): Sub => ({ title: '', department_id: '', assignee_id: '', due: '' });
 
 /** Create-task form: organization → department → person, CC emails, due date, sub-tasks (or a template), reminder. */
-export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (orgId: string) => void; onCancel: () => void; defaults?: { client?: string; project?: string } }) {
+export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: string) => void; onCancel: () => void }) {
   const { membership, memberships, session } = useAuth();
   const uid = session!.user.id;
   const writable = memberships.filter((m) => can(m.role, 'task:write'));
   const [orgId, setOrgId] = useState(membership!.org_id);
   const [people, setPeople] = useState<Person[]>([]);
   const [depts, setDepts] = useState<any[]>([]);
-  const [teams, setTeams] = useState<any[]>([]);
-  const [tm, setTm] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
+  const [dm, setDm] = useState<{ department_id: string; user_id: string }[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [dept, setDept] = useState(''), [assignee, setAssignee] = useState('');
   const [title, setTitle] = useState(''), [desc, setDesc] = useState(''), [priority, setPriority] = useState('');
-  const [client, setClient] = useState(defaults?.client ?? '');
   const [subs, setSubs] = useState<Sub[]>([]);
   const [remind, setRemind] = useState(true), [freq, setFreq] = useState('daily'), [time, setTime] = useState('09:00');
   const [rStart, setRStart] = useState(nyToday), [every, setEvery] = useState(2);
@@ -56,34 +52,22 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
   useEffect(() => {
     setDept(''); setAssignee(''); setSubs([]);
     (async () => {
-      const [p, d, t, m, c, pr, tp] = await Promise.all([
+      const [p, d, m, tp] = await Promise.all([
         loadPeople(orgId),
         supabase.from('tt_departments').select('id, name').eq('org_id', orgId).order('name'),
-        supabase.from('tt_teams').select('id, department_id, manager_id').eq('org_id', orgId),
-        supabase.from('tt_team_members').select('team_id, user_id'),
-        supabase.from('tt_clients').select('id, name').eq('org_id', orgId).neq('status', 'archived').order('name'),
-        supabase.from('tt_projects').select('id, name, client_id').eq('org_id', orgId).neq('status', 'archived').order('name'),
+        supabase.from('tt_department_members').select('department_id, user_id').eq('org_id', orgId),
         supabase.from('tt_task_templates').select('*').eq('org_id', orgId).order('name'),
       ]);
-      setPeople(p.filter((x) => x.active)); setDepts(d.data ?? []); setTeams(t.data ?? []); setTm(m.data ?? []);
-      setClients(c.data ?? []); setProjects(pr.data ?? []); setTemplates(tp.data ?? []);
+      setPeople(p.filter((x) => x.active)); setDepts(d.data ?? []); setDm(m.data ?? []); setTemplates(tp.data ?? []);
     })();
   }, [orgId]);
 
-  // people in a department = members of that department's teams; fall back to everyone when it has none
+  // people in a department = its members (Employees → Departments); no department picked = everyone
   const inDept = (d: string) => {
     if (!d) return people;
-    const teamIds = new Set(teams.filter((t) => t.department_id === d).map((t) => t.id));
-    const ids = new Set(tm.filter((m) => teamIds.has(m.team_id)).map((m) => m.user_id));
-    const list = people.filter((p) => ids.has(p.id));
-    return list.length ? list : people;
+    const ids = new Set(dm.filter((m) => m.department_id === d).map((m) => m.user_id));
+    return people.filter((p) => ids.has(p.id));
   };
-  const leads = useMemo(() => {
-    if (!assignee) return [];
-    const mine = new Set(tm.filter((m) => m.user_id === assignee).map((m) => m.team_id));
-    return [...new Set(teams.filter((t) => mine.has(t.id) && t.manager_id && t.manager_id !== assignee).map((t) => t.manager_id))]
-      .map((id) => people.find((p) => p.id === id)?.name).filter(Boolean);
-  }, [assignee, tm, teams, people]);
 
   function applyTemplate(id: string) {
     const t = templates.find((x) => x.id === id);
@@ -115,10 +99,8 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
       const row: Record<string, unknown> = {
         org_id: orgId, created_by: uid, title: title.trim(), description: desc.trim() || null, priority,
         due_date: dateToTs(f.get('due_date')), start_date: dateToTs(future ? startOn : f.get('start_date')),
-        client_id: client || null, project_id: f.get('project_id') || null,
         estimated_hours: f.get('estimated_hours') ? Number(f.get('estimated_hours')) : null,
         tags: String(f.get('tags') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
-        client_visible: f.get('client_visible') === 'on',
         ...(dept ? { department_id: dept } : {}),
         ...(cc.length ? { notify_emails: cc } : {}),
         ...(remind ? { reminder_enabled: true, reminder_frequency: freq, reminder_time: time, reminder_start: rStart, reminder_interval_days: freq === 'custom' ? every : null } : {}),
@@ -129,7 +111,7 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
       for (const s of subs) {
         const { data: sd, error: se } = await supabase.from('tt_tasks').insert({
           org_id: orgId, created_by: uid, parent_task_id: data.id, title: s.title.trim(), priority,
-          client_id: client || null, due_date: dateToTs(s.due || null), ...(s.department_id ? { department_id: s.department_id } : {}),
+          due_date: dateToTs(s.due || null), ...(s.department_id ? { department_id: s.department_id } : {}),
         }).select('id').single();
         if (se) throw new Error(se.message);
         const who = s.assignee_id || assignee;
@@ -145,12 +127,10 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
   const deptPeople = inDept(dept);
   return (
     <form className="nt" onSubmit={submit}>
-      {writable.length > 1 && (
-        <label>Organization<select value={orgId} onChange={(e) => setOrgId(e.target.value)}>{writable.map((m) => <option key={m.org_id} value={m.org_id}>{m.org_name}</option>)}</select></label>
-      )}
       <div className="nt-row">
-        <label>Department<select value={dept} onChange={(e) => { setDept(e.target.value); setAssignee(''); }}><option value="">Select department</option>{depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
-        <label>Assign user<select value={assignee} onChange={(e) => setAssignee(e.target.value)}><option value="">Select user</option>{deptPeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+        <label>Organization<select value={orgId} onChange={(e) => setOrgId(e.target.value)}>{writable.map((m) => <option key={m.org_id} value={m.org_id}>{m.org_name}</option>)}</select></label>
+        <label>Department<select value={dept} onChange={(e) => { setDept(e.target.value); setAssignee(''); }}><option value="">{depts.length ? 'Any department' : 'No departments yet'}</option>{depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+        <label>Assign to<select value={assignee} onChange={(e) => setAssignee(e.target.value)}><option value="">{dept && !deptPeople.length ? 'No members in this department' : 'Select member'}</option>{deptPeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       </div>
       <label>Task title<input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={200} placeholder="What needs to be done" /></label>
       <label>Task description<textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} placeholder="Enter task details…" /></label>
@@ -164,12 +144,8 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
         {future && <label><span>Starts on</span><input type="date" value={startOn} min={tomorrow()} required
           onChange={(e) => { setStartOn(e.target.value); if (e.target.value && rStart < e.target.value) setRStart(e.target.value); }} /></label>}
       </div>
-      <div className="nt-row">
-        <label><span>Client <small className="muted">(optional)</small></span><select value={client} onChange={(e) => setClient(e.target.value)}><option value="">Select client</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-        <label><span>Project <small className="muted">(optional)</small></span><select key={client} name="project_id" defaultValue={defaults?.project ?? ''}><option value="">{client ? 'Select project' : 'Select project (any client)'}</option>{projects.filter((p) => !client || p.client_id === client).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-      </div>
       <label><span>CC emails <small className="muted">(optional)</small></span><input name="cc" placeholder="someone@company.com, other@company.com" />
-        <small className="muted nt-help">Separate with commas. The assignee’s team lead is CC’d automatically{leads.length ? `: ${leads.join(', ')}` : ''}.</small></label>
+        <small className="muted nt-help">Separate with commas.</small></label>
 
       <fieldset className="nt-subs">
         <div className="nt-subs-head">
@@ -215,7 +191,6 @@ export default function NewTaskForm({ onDone, onCancel, defaults }: { onDone: (o
           <label>Repeat every (days for custom)<input type="number" name="every" min={1} max={365} defaultValue={1} /></label>
           <label>Repeat until<input type="date" name="until" /></label>
         </div>
-        <label className="inline"><input type="checkbox" name="client_visible" /> Visible to client</label>
       </details>
 
       {error && <p role="alert" className="form-alert">{error}</p>}

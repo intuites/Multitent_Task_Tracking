@@ -32,7 +32,7 @@ export function DashSkeleton() {
       <div className="page-head"><div><Bar w="180px" h={26} /><div style={{ height: 10 }} /><Bar w="300px" /></div></div>
       <div className="dash">
         {['a-k1', 'a-k2', 'a-k3', 'a-k4'].map((c) => <div key={c} className={`${c} sk-card`} style={{ minHeight: 150 }}><Bar w="45%" /><Bar w="35%" h={34} /><Bar w="60%" /></div>)}
-        {['a-an', 'a-re', 'a-pr'].map((c) => <div key={c} className={`${c} sk-card`} style={{ minHeight: 240 }}><Bar w="40%" /><span className="sk sk-fill" /></div>)}
+        {['a-an', 'a-re'].map((c) => <div key={c} className={`${c} sk-card`} style={{ minHeight: 240 }}><Bar w="40%" /><span className="sk sk-fill" /></div>)}
       </div>
     </div>
   );

@@ -1651,19 +1651,19 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 @media (max-width: 900px) { .md-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mo-edit { grid-template-columns: 1fr; } }
 
 /* ================= dashboard: liquid motion =================
-   Load: each tile melts in from a soft blob. Scroll: tiles lift in and sink away as they leave.
+   Load: tiles fade up in turn (never the loading placeholder). Scroll: tiles lift in and sink away as they leave.
    Surfaces carry a slow drifting tint, bars a travelling wave, the gauge a breathing glow. Light and dark use their own tints. */
 :root { --liq-1: rgb(46 125 79 / .10); --liq-2: rgb(92 184 134 / .09); --liq-wave: rgb(255 255 255 / .38); --liq-glow: rgb(46 125 79 / .35); }
 :root[data-theme="dark"] { --liq-1: rgb(116 214 160 / .08); --liq-2: rgb(63 157 107 / .10); --liq-wave: rgb(214 255 232 / .30); --liq-glow: rgb(116 214 160 / .45); }
 
 @media (prefers-reduced-motion: no-preference) {
-  .content .dash > * { animation: dash-in .9s var(--settle) both; animation-delay: calc(var(--n, 0) * 70ms); }
+  .content .dash > :not(.sk-card) { animation: dash-in .5s var(--ease) both; animation-delay: calc(var(--n, 0) * 50ms); }
   .dash > :nth-child(2) { --n: 1; } .dash > :nth-child(3) { --n: 2; } .dash > :nth-child(4) { --n: 3; } .dash > :nth-child(5) { --n: 4; }
   .dash > :nth-child(6) { --n: 5; } .dash > :nth-child(7) { --n: 6; } .dash > :nth-child(8) { --n: 7; } .dash > :nth-child(9) { --n: 8; }
   @supports (animation-timeline: view()) {
-    /* clip-path/filter on load, transform/opacity on scroll: different properties, so the two never fight */
-    .content .dash > * { animation: dash-in .9s var(--settle) both, dash-flow linear both; animation-timeline: auto, view();
-      animation-range: normal, entry 0% exit 100%; animation-delay: calc(var(--n, 0) * 70ms), 0s; }
+    /* opacity on load, transform on scroll: different properties, so the two never fight */
+    .content .dash > :not(.sk-card) { animation: dash-in .5s var(--ease) both, dash-flow linear both; animation-timeline: auto, view();
+      animation-range: normal, entry 0% exit 100%; animation-delay: calc(var(--n, 0) * 50ms), 0s; }
     .content .dash .kpi { animation: none; }
   }
 
@@ -1691,9 +1691,9 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
   .gauge-num b { animation: num-in .8s var(--settle) .35s both; }
   .esc-num { display: inline-block; animation: num-in .8s var(--settle) .5s both; }
 }
-@keyframes dash-in { from { clip-path: inset(18% 14% 18% 14% round 48px); filter: blur(10px) saturate(1.4); } }
-@keyframes dash-flow { 0% { opacity: 0; transform: translateY(46px) scale(.96); } 22%, 82% { opacity: 1; transform: none; } 100% { opacity: .4; transform: translateY(-18px) scale(.97); } }
+@keyframes dash-in { from { opacity: 0; } }
+@keyframes dash-flow { 0% { transform: translateY(36px) scale(.97); } 22%, 82% { transform: none; } 100% { transform: translateY(-14px) scale(.98); } }
 @keyframes liq-drift { 0% { background-position: 0% 0%; } 50% { background-position: 60% 40%; } 100% { background-position: 100% 100%; } }
 @keyframes bar-wave { 0%, 100% { transform: translateX(-12%) scaleY(.8); } 50% { transform: translateX(12%) scaleY(1.25); } }
 @keyframes arc-glow { 50% { filter: drop-shadow(0 0 10px var(--liq-glow)); } }
-@keyframes num-in { from { opacity: 0; transform: translateY(10px) scale(.92); filter: blur(4px); } }
+@keyframes num-in { from { opacity: 0; transform: translateY(8px); } }

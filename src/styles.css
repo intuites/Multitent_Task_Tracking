@@ -1756,3 +1756,14 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .dash.d3 .gauge svg { transform: perspective(700px) rotateX(24deg); transform-origin: 50% 100%;
   filter: drop-shadow(0 3px 0 var(--d3-edge)) drop-shadow(0 14px 12px var(--d3-shadow)); }
 .dash.d3 .gauge-num { top: 50%; }
+
+/* ================= light mode: card edges and hover borders =================
+   Dark mode outlines cards and strengthens the outline on hover; light mode only had a faint shadow,
+   so hovered surfaces showed no edge. Same treatment here: hairline at rest, brand ring on hover. */
+:root { --hover-ring: color-mix(in srgb, var(--brand-2) 55%, var(--line)); }
+:root[data-theme="dark"] { --hover-ring: var(--control-line); }
+:root:not([data-theme="dark"]) :is(.card, .kpi, .rp-kpi, .sk-card, .pf-stat, .perf-kpi):not(.feature):not(.esc-card) { box-shadow: 0 0 0 1px var(--line); }
+:root:not([data-theme="dark"]) :is(a.kpi, .rp-kpi, .pf-stat, .perf-kpi, .tpl-card, .cal-cell):not(.feature):hover,
+:root:not([data-theme="dark"]) .dash.d3 > .card:not(.esc-card):hover,
+:root:not([data-theme="dark"]) .dash.d3 > :hover > .kpi:not(.feature) { box-shadow: 0 0 0 1px var(--hover-ring), 0 14px 30px rgb(18 26 22 / .10); }
+:root:not([data-theme="dark"]) :is(.team-card, .md-tile, .g-tile):hover { border-color: var(--hover-ring); }

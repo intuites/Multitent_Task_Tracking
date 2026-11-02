@@ -19,8 +19,9 @@ export function ListSkeleton({ rows = 6 }: { rows?: number }) {
 export function PageSkeleton() {
   return (
     <div role="status" aria-label="Loading">
+      <span className="sk-progress" aria-hidden="true" />
       <div className="page-head"><div><Bar w="220px" h={26} /><div style={{ height: 10 }} /><Bar w="320px" /></div></div>
-      <div className="card"><ListSkeleton /></div>
+      <div className="card sk-card"><ListSkeleton /></div>
     </div>
   );
 }
@@ -29,6 +30,7 @@ export function PageSkeleton() {
 export function DashSkeleton() {
   return (
     <div role="status" aria-label="Loading dashboard">
+      <span className="sk-progress" aria-hidden="true" />
       <div className="page-head"><div><Bar w="180px" h={26} /><div style={{ height: 10 }} /><Bar w="300px" /></div></div>
       <div className="dash">
         {['a-k1', 'a-k2', 'a-k3', 'a-k4'].map((c) => <div key={c} className={`${c} sk-card`} style={{ minHeight: 150 }}><Bar w="45%" /><Bar w="35%" h={34} /><Bar w="60%" /></div>)}
@@ -42,8 +44,11 @@ export function DashSkeleton() {
 export function Boot() {
   return (
     <div className="boot" role="status" aria-label="Loading Taskify">
-      <span className="boot-mark" aria-hidden="true">T</span>
+      <span className="boot-blob b1" aria-hidden="true" /><span className="boot-blob b2" aria-hidden="true" />
+      <span className="boot-logo" aria-hidden="true"><span className="boot-ring" /><span className="boot-mark">T</span></span>
+      <b className="boot-name">Taskify</b>
       <span className="boot-track" aria-hidden="true"><i /></span>
+      <small className="boot-note">Getting your workspace ready…</small>
     </div>
   );
 }

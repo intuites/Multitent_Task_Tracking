@@ -6,7 +6,7 @@ import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { Badge, fmt, fmtTime, rpc, usePeople } from '../lib/ui';
 import { initials } from '../components/Frame';
-import { CountUp, LiquidBg } from '../components/Liquid';
+import { CountUp, LiquidBg, reducedMotion } from '../components/Liquid';
 import { DashSkeleton } from '../components/Skeleton';
 
 const OPEN = '(completed,completed_cycle)';
@@ -140,12 +140,38 @@ function Gauge({ done, active, pending }: { done: number; active: number; pendin
   );
 }
 
+// 3D dashboard (experimental; remove with the "d3" class and the "3D dashboard" CSS block):
+// the card under the pointer leans toward it. Written as CSS variables once per frame; off on touch and reduced motion.
+function useTilt() {
+  useEffect(() => {
+    if (reducedMotion() || !window.matchMedia('(pointer: fine)').matches) return;
+    let raf = 0, last: PointerEvent | null = null, cur: HTMLElement | null = null;
+    const reset = () => { cur?.style.removeProperty('--ax'); cur?.style.removeProperty('--ay'); cur?.style.removeProperty('--ang'); cur = null; };
+    const frame = () => {
+      raf = 0;
+      const card = (last!.target as Element).closest?.<HTMLElement>('.dash.d3 > *') ?? null;
+      if (card !== cur) reset();
+      if (!card) return;
+      cur = card;
+      const r = card.getBoundingClientRect(), x = (last!.clientX - r.left) / r.width - 0.5, y = (last!.clientY - r.top) / r.height - 0.5;
+      card.style.setProperty('--ax', (-y).toFixed(3));
+      card.style.setProperty('--ay', x.toFixed(3));
+      card.style.setProperty('--ang', `${(Math.hypot(x, y) * 9).toFixed(2)}deg`);
+    };
+    const move = (e: PointerEvent) => { last = e; if (!raf) raf = requestAnimationFrame(frame); };
+    window.addEventListener('pointermove', move, { passive: true });
+    document.addEventListener('pointerleave', reset);
+    return () => { window.removeEventListener('pointermove', move); document.removeEventListener('pointerleave', reset); cancelAnimationFrame(raf); reset(); };
+  }, []);
+}
+
 export default function Dashboard() {
   const { membership, session } = useAuth();
   const orgId = membership!.org_id, uid = session!.user.id;
   const manager = can(membership!.role, 'task:write');
   const { name } = usePeople(orgId);
   const [d, setD] = useState<any>(null);
+  useTilt();
   const [error, setError] = useState('');
   const [tick, setTick] = useState(0);
 
@@ -218,7 +244,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="dash">
+      <div className="dash d3">
         <div className="a-k1"><Kpi feature title="My open tasks" value={d.open} note={`${d.active} started`} to="/my-tasks" /></div>
         <div className="a-k2"><Kpi title="Overdue" value={d.overdue} note={d.overdue ? 'Past their due date' : 'Everything is on time'} to="/my-tasks?view=overdue" /></div>
         <div className="a-k3"><Kpi title="Due today" value={d.dueToday} note="Before midnight" to="/my-tasks?view=due_today" /></div>

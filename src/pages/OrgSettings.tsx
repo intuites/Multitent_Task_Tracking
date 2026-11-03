@@ -7,21 +7,14 @@ import { can } from '../../api/_lib/permissions';
 import { fmt, label, usePeople, zoneList } from '../lib/ui';
 import { ROLE_TEXT } from '../lib/roles';
 import { applyBrand } from '../lib/theme';
-import { brandPalette } from '../lib/palette';
+import { brandPalette, contrast } from '../lib/palette';
+import { FAMILIES, QUICK, TRENDING } from '../lib/brandColors';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { Departments, type Msg } from './Employees';
 
 const ROLES = ['admin', 'employee'] as const;
-// null = Taskify's default green
-const BRANDS: [string, string | null][] = [
-  ['Taskify green', null], ['Ocean blue', '#2563eb'], ['Indigo', '#4f46e5'], ['Violet', '#7c3aed'], ['Teal', '#0d9488'],
-  ['Crimson', '#dc2626'], ['Orange', '#ea580c'], ['Rose', '#db2777'], ['Slate', '#475569'],
-  ['Sky', '#0284c7'], ['Gold', '#eab308'], ['Brown', '#92400e'], ['Black', '#111111'],
-  ['Navy', '#1e3a8a'], ['Cyan', '#0891b2'], ['Emerald', '#059669'], ['Lime', '#65a30d'], ['Olive', '#4d7c0f'],
-  ['Amber', '#d97706'], ['Coral', '#f97362'], ['Maroon', '#7f1d1d'], ['Magenta', '#c026d3'], ['Purple', '#6b21a8'],
-  ['Lavender', '#8b5cf6'], ['Plum', '#86198f'], ['Steel', '#4b6584'], ['Charcoal', '#374151'],
-];
+const MORE_COUNT = FAMILIES.reduce((n, f) => n + f.colors.length, 0) + TRENDING.length;
 type View = 'hub' | 'orgs' | 'depts';
 
 export default function OrgSettings() {
@@ -111,16 +104,26 @@ export default function OrgSettings() {
               <fieldset className="pf-wide brand-pick" disabled={!canEdit}>
                 <legend><Palette size={14} aria-hidden="true" /> Brand color</legend>
                 <div className="brand-swatches">
-                  {BRANDS.map(([name, hex]) => {
-                    const on = (brand ?? null) === hex;
-                    return <button key={name} type="button" className="brand-swatch" style={{ '--sw': hex ?? '#2e7d4f' } as React.CSSProperties}
-                      aria-pressed={on} aria-label={name} title={name} onClick={() => setBrand(hex)}>{on && <Check size={15} aria-hidden="true" />}</button>;
-                  })}
+                  {QUICK.map(([name, hex]) => <Swatch key={name} name={name} hex={hex} brand={brand} pick={setBrand} />)}
                   <label className="brand-custom" title="Pick any color">
                     <input type="color" value={brand ?? '#2e7d4f'} onChange={(e) => setBrand(e.target.value)} aria-label="Custom brand color" />
                     Custom
                   </label>
                 </div>
+                <details className="brand-more">
+                  <summary>More colors ({MORE_COUNT})</summary>
+                  <div className="brand-fams">
+                    {FAMILIES.map((f) => (
+                      <div key={f.family} className="brand-fam" role="group" aria-label={f.family}>
+                        <small>{f.family}</small>
+                        <span>{f.colors.map((c) => <Swatch key={c.hex} name={c.name} hex={c.hex} brand={brand} pick={setBrand} small />)}</span>
+                      </div>))}
+                    <div className="brand-fam trending" role="group" aria-label="Colors of the year">
+                      <small>Colors of the year</small>
+                      <span>{TRENDING.map((c) => <Swatch key={c.hex} name={c.name} hex={c.hex} brand={brand} pick={setBrand} small />)}</span>
+                    </div>
+                  </div>
+                </details>
                 <div className="brand-preview" aria-label="Preview of the brand color" role="img">
                   {(['light', 'dark'] as const).map((m) => {
                     const p = brandPalette(brand ?? '#2e7d4f', m);
@@ -164,6 +167,15 @@ export default function OrgSettings() {
       )}
     </div>
   );
+}
+
+/** One brand color choice; the check mark takes whichever of white/dark reads on it. */
+function Swatch({ name, hex, brand, pick, small }: { name: string; hex: string | null; brand: string | null; pick: (h: string | null) => void; small?: boolean }) {
+  const fill = hex ?? '#2e7d4f';
+  const on = (brand ?? null) === hex;
+  const ink = contrast(fill, '#ffffff') >= contrast(fill, '#111214') ? '#ffffff' : '#111214';
+  return <button type="button" className={`brand-swatch${small ? ' sm' : ''}`} style={{ '--sw': fill, color: ink } as React.CSSProperties}
+    aria-pressed={on} aria-label={name} title={name} onClick={() => pick(hex)}>{on && <Check size={small ? 13 : 15} aria-hidden="true" />}</button>;
 }
 
 /** The organizations this person created: open, rename, change time zone, delete. */

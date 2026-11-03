@@ -1749,29 +1749,33 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 /* ---------- sidebar: active edge + icons-only mode ---------- */
 .side-link.active { box-shadow: inset 0 0 0 1.5px var(--brand); background: color-mix(in srgb, var(--brand) 8%, transparent); }
 /* the collapse switch lives in the top bar, left of the greeting */
-.side-toggle { flex: none; margin-left: -6px; }
+.side-toggle { flex: none; margin-left: -6px; overflow: visible; }
+/* a labelled tip so people know what the icon does, with its shortcut */
+.side-toggle::after { content: attr(data-tip) / ""; position: absolute; left: 0; top: calc(100% + 8px); z-index: 40; padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+  background: var(--text); color: var(--bg); font-size: 12.5px; font-weight: 500; line-height: 1.3; pointer-events: none; opacity: 0; transform: translateY(-4px);
+  transition: opacity .15s var(--ease), transform .15s var(--ease); }
+.side-toggle:is(:hover, :focus-visible)::after { opacity: 1; transform: none; transition-delay: .25s; }
+.side-toggle:focus-visible::after { transition-delay: 0s; }
 .side-toggle:focus-visible, .side-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; transition: none; }
 @media (max-width: 860px) { .side-toggle { display: none; } }
 @media (min-width: 861px) {
-  /* the rail keeps its 76px slot in the layout; when open, the extra width overlaps the page instead of pushing it */
   .side.collapsed { width: 76px; padding-inline: 10px; z-index: 16; }
-  .side.collapsed:is(:hover, :focus-within) { width: 236px; margin-right: -160px; padding-inline: 14px; background: var(--panel); box-shadow: var(--pop-shadow); }
-  .side.collapsed:not(:hover, :focus-within) :is(.brand, .org-btn) { justify-content: center; padding-inline: 0; }
-  .side.collapsed:not(:hover, :focus-within) :is(.org-name, .org-chev, .side-title, .brand > span:not(.mark)) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .side.collapsed:not(:hover, :focus-within) .side-group + .side-group { padding-top: var(--space-3); border-top: 1px solid var(--line); }
-  .side.collapsed:not(:hover, :focus-within) .side-link { justify-content: center; padding-inline: 0; }
-  .side.collapsed:not(:hover, :focus-within) .side-link > span:not(.count) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .side.collapsed:not(:hover, :focus-within) .side-link .count { position: absolute; top: 2px; right: 6px; margin: 0; padding: 0 5px; font-size: 10px; line-height: 16px; }
-  .side.collapsed:not(:hover, :focus-within) .side-card { display: none; }
+  /* the rail scrolls, so the org menu is placed against the window to open past its 76px edge */
+  .side.collapsed .org-pop { position: fixed; left: 24px; top: 84px; right: auto; width: 260px; z-index: 30; }
+  .side.collapsed :is(.brand, .org-btn) { justify-content: center; padding-inline: 0; }
+  .side.collapsed :is(.org-name, .org-chev, .side-title, .brand > span:not(.mark)) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .side.collapsed .side-group + .side-group { padding-top: var(--space-3); border-top: 1px solid var(--line); }
+  .side.collapsed .side-link { justify-content: center; padding-inline: 0; }
+  .side.collapsed .side-link > span:not(.count) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .side.collapsed .side-link .count { position: absolute; top: 2px; right: 6px; margin: 0; padding: 0 5px; font-size: 10px; line-height: 16px; }
+  .side.collapsed .side-card { display: none; }
 }
 
 /* ---------- sidebar motion ----------
-   The rail opens and closes smoothly (a short pause before opening so passing the pointer across it doesn't flicker),
-   names slide in as it opens, the menu settles in on first load, and the selected item springs when it changes. */
+   The rail opens and closes smoothly when the top-bar switch is pressed, names slide in as it opens, the menu settles in on first load, and the selected item springs when it changes. */
 @media (prefers-reduced-motion: no-preference) and (min-width: 861px) {
-  .side { transition: width .28s var(--ease), margin-right .28s var(--ease), padding .28s var(--ease), box-shadow .28s var(--ease); }
-  .side.collapsed:is(:hover, :focus-within) { transition-delay: .12s; }
-  .side.collapsed:is(:hover, :focus-within) :is(.side-link > span:not(.count), .side-title, .org-name) { animation: side-label .32s var(--ease) .14s both; }
+  .side { transition: width .28s var(--ease), padding .28s var(--ease); }
+  .side:not(.collapsed) :is(.side-link > span:not(.count), .side-title, .org-name) { animation: side-label .32s var(--ease) .12s both; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .side nav .side-link { animation: side-in .5s var(--settle) both; animation-delay: calc(var(--k, 0) * 35ms + 60ms); }

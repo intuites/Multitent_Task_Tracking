@@ -215,6 +215,17 @@ export default function Frame({ brand, groups, footer, title, search, action, be
   const navRef = useRef<HTMLElement>(null);
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('tt-side') === 'icons'; } catch { return false; } });
   const toggleSide = () => setCollapsed((c) => { try { localStorage.setItem('tt-side', c ? 'full' : 'icons'); } catch { /* private window: the choice just won't be remembered */ } return !c; });
+  // Ctrl+B / Cmd+B switches the sidebar, except while typing
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'b') return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
+      e.preventDefault(); toggleSide();
+    };
+    document.addEventListener('keydown', key);
+    return () => document.removeEventListener('keydown', key);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const marker = useLiquidMarker(navRef, `${closeKey}|${collapsed}`);
   usePointerLight();
   const confirmSignOut = async () => {
@@ -250,7 +261,8 @@ export default function Frame({ brand, groups, footer, title, search, action, be
             {open ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}<span className="sr-only">Menu</span>
           </button>
           {/* desktop only: switch the sidebar between names and icons (phones use the menu button above) */}
-          <button type="button" className="icon-btn side-toggle" aria-pressed={collapsed} aria-controls="side" title={collapsed ? 'Show menu names' : 'Show icons only'} onClick={toggleSide}>
+          <button type="button" className="icon-btn side-toggle" aria-pressed={collapsed} aria-controls="side" aria-keyshortcuts="Control+B"
+            data-tip={collapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar to icons (Ctrl+B)'} onClick={toggleSide}>
             {collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
             <span className="sr-only">{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span>
           </button>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { brandCss } from './palette';
 
 export type ThemePref = 'light' | 'dark' | 'system';
 const KEY = 'tt-theme';
@@ -10,15 +11,20 @@ const read = (): ThemePref => {
 const resolve = (p: ThemePref) => (p === 'system' ? (media().matches ? 'dark' : 'light') : p);
 const apply = (p: ThemePref) => { document.documentElement.dataset.theme = resolve(p); };
 
-const BRAND_KEY = 'tt-brand';
+const BRAND_KEY = 'tt-brand-css';
 const HEX = /^#[0-9a-f]{6}$/i;
-/** The organization's brand color (null = default green). styles.css derives every brand shade, light and dark, from --accent. */
+/** The organization's brand color (null = default green): generates its light and dark palettes (lib/palette.ts)
+ *  into one <style>, which index.html also restores from storage before first paint. */
 export function applyBrand(color: string | null | undefined, remember = true) {
   const root = document.documentElement;
-  if (color && HEX.test(color)) { root.style.setProperty('--accent', color); root.dataset.brand = ''; }
-  else { root.style.removeProperty('--accent'); delete root.dataset.brand; }
+  const css = color && HEX.test(color) ? brandCss(color.toLowerCase()) : '';
+  let el = document.getElementById('tt-brand');
+  if (css) {
+    if (!el) { el = document.createElement('style'); el.id = 'tt-brand'; document.head.appendChild(el); }
+    el.textContent = css; root.dataset.brand = '';
+  } else { el?.remove(); delete root.dataset.brand; }
   if (!remember) return;
-  try { if (color && HEX.test(color)) localStorage.setItem(BRAND_KEY, color); else localStorage.removeItem(BRAND_KEY); } catch { /* storage blocked: still applies now */ }
+  try { if (css) localStorage.setItem(BRAND_KEY, css); else localStorage.removeItem(BRAND_KEY); } catch { /* storage blocked: still applies now */ }
 }
 
 /** Theme preference shared by every toggle on the page; index.html applies it before first paint. */

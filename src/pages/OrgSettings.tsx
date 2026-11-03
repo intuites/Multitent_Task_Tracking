@@ -7,6 +7,7 @@ import { can } from '../../api/_lib/permissions';
 import { fmt, label, usePeople, zoneList } from '../lib/ui';
 import { ROLE_TEXT } from '../lib/roles';
 import { applyBrand } from '../lib/theme';
+import { brandPalette } from '../lib/palette';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { Departments, type Msg } from './Employees';
@@ -116,15 +117,20 @@ export default function OrgSettings() {
                     Custom
                   </label>
                 </div>
-                <div className="brand-preview" style={{ '--pv': brand ?? '#2e7d4f' } as React.CSSProperties} aria-label="Preview of the brand color" role="img">
-                  {(['light', 'dark'] as const).map((m) => (
-                    <div key={m} className={`bp ${m}`} aria-hidden="true">
+                <div className="brand-preview" aria-label="Preview of the brand color" role="img">
+                  {(['light', 'dark'] as const).map((m) => {
+                    const p = brandPalette(brand ?? '#2e7d4f', m);
+                    const vars = { '--b': p['--brand'], '--tint': p['--brand-tint'], '--grad': p['--brand-grad'], '--ink': p['--brand-ink'],
+                      '--bp-bg': p['--panel'], '--bp-fg': p['--text'], '--bp-muted': p['--muted'], '--bp-line': p['--line'] } as React.CSSProperties;
+                    return (
+                    <div key={m} className="bp" style={vars} aria-hidden="true">
                       <small className="bp-mode">{m === 'light' ? 'Light mode' : 'Dark mode'}</small>
                       <span className="bp-nav">Dashboard</span>
                       <span className="bp-kpi"><small>My open tasks</small><b>4</b></span>
                       <span className="bp-row"><span className="bp-btn">Update status</span><span className="bp-link">View all</span></span>
                       <span className="bp-bar"><i /></span>
-                    </div>))}
+                    </div>);
+                  })}
                 </div>
                 <small className="muted">Everyone in {org.name} sees this color, in light and dark mode. The whole app is previewing it now; save to keep it.</small>
               </fieldset>

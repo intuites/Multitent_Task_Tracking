@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Flag, PlayCircle, type LucideIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { can } from '../../api/_lib/permissions';
 import { useAuth } from '../lib/auth';
 import { Badge, label, usePeople } from '../lib/ui';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
@@ -95,7 +96,7 @@ export default function Calendar() {
         <section className="card cal-card" aria-label={`${monthName} calendar`}>
           <div className="cal-tools">
             <div className="row filters">
-              <select aria-label="Filter by assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)}><option value="">Any assignee</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+              {can(membership!.role, 'task:write') && <select aria-label="Filter by assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)}><option value="">Any assignee</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
               <select aria-label="Filter by priority" value={priority} onChange={(e) => setPriority(e.target.value)}><option value="">Any priority</option>{['low', 'medium', 'high', 'urgent'].map((p) => <option key={p} value={p}>{label(p)}</option>)}</select>
               <select aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Any status</option>{TASK_STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
             </div>

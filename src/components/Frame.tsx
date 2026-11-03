@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { reducedMotion } from './Liquid';
 import { ask } from './Dialog';
 import { Bell, Check, CheckCheck, ChevronDown, ChevronsUpDown, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Sun, X, type LucideIcon } from 'lucide-react';
@@ -49,26 +49,6 @@ function useDismiss(ref: RefObject<HTMLElement>, open: boolean, close: () => voi
     document.addEventListener('keydown', key);
     return () => { document.removeEventListener('mousedown', down); document.removeEventListener('keydown', key); };
   }, [open, close, ref]);
-}
-
-// Active-page marker that flows between sidebar items: it first stretches across the old and new item,
-// then contracts onto the new one with a spring, so it reads as a droplet moving rather than a jump.
-function useLiquidMarker(navRef: RefObject<HTMLElement>, key: string) {
-  const [pos, setPos] = useState({ top: 0, height: 0, on: false, phase: 'settle' as 'stretch' | 'settle' });
-  const prev = useRef<{ top: number; height: number } | null>(null);
-  useLayoutEffect(() => {
-    const el = navRef.current?.querySelector<HTMLElement>('.side-link.active');
-    if (!el) { prev.current = null; setPos((p) => ({ ...p, on: false })); return; }
-    const next = { top: el.offsetTop + 8, height: el.offsetHeight - 16 };
-    const p = prev.current;
-    prev.current = next;
-    if (!p || p.top === next.top || reducedMotion()) { setPos({ ...next, on: true, phase: 'settle' }); return; }
-    const top = Math.min(p.top, next.top);
-    setPos({ top, height: Math.max(p.top + p.height, next.top + next.height) - top, on: true, phase: 'stretch' });
-    const t = setTimeout(() => setPos({ ...next, on: true, phase: 'settle' }), 160);
-    return () => clearTimeout(t);
-  }, [key, navRef]);
-  return pos;
 }
 
 // Soft light that follows the pointer on buttons and stat cards (CSS reads --mx / --my).
@@ -212,10 +192,8 @@ export default function Frame({ brand, groups, footer, title, search, action, be
 }) {
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [closeKey]);
-  const navRef = useRef<HTMLElement>(null);
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('tt-side') === 'icons'; } catch { return false; } });
   const toggleSide = () => setCollapsed((c) => { try { localStorage.setItem('tt-side', c ? 'full' : 'icons'); } catch { /* private window: the choice just won't be remembered */ } return !c; });
-  const marker = useLiquidMarker(navRef, `${closeKey}|${collapsed}`);
   usePointerLight();
   const confirmSignOut = async () => {
     if ((await ask({ title: 'Log out?', message: 'You will need to sign in again to get back to your workspace.', confirmLabel: 'Log out' })).ok) onSignOut();
@@ -231,13 +209,7 @@ export default function Frame({ brand, groups, footer, title, search, action, be
       <aside id="side" className={`side${open ? ' open' : ''}${collapsed ? ' collapsed' : ''}`}>
         {orgs && onSwitchOrg ? <OrgSwitcher brand={brand} orgs={orgs} current={currentOrg} onSwitch={onSwitchOrg} onCreate={onCreateOrg} />
           : <div className="brand"><span className="mark" aria-hidden="true">{initials(brand).charAt(0)}</span><span>{brand}</span></div>}
-        <button type="button" className="side-toggle" aria-pressed={collapsed} title={collapsed ? 'Show menu names' : 'Show icons only'} onClick={toggleSide}>
-          {collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
-          <span className="sr-only">{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span>
-        </button>
-        <nav aria-label="Main" ref={navRef}>
-          <span className={`side-flow ${marker.phase}`} aria-hidden="true"
-            style={{ transform: `translateY(${marker.top}px)`, height: marker.height, opacity: marker.on ? 1 : 0 }} />
+        <nav aria-label="Main">
           {groups.filter((g) => g.items.length).map((g) => (
             <div key={g.title} className="side-group">
               <p className="side-title">{g.title}</p>
@@ -246,6 +218,10 @@ export default function Frame({ brand, groups, footer, title, search, action, be
           ))}
           <button type="button" className="side-link" title="Log out" onClick={confirmSignOut}><LogOut size={18} aria-hidden="true" /><span>Log out</span></button>
         </nav>
+        <button type="button" className="side-toggle" aria-pressed={collapsed} title={collapsed ? 'Show menu names' : 'Show icons only'} onClick={toggleSide}>
+          {collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
+          <span>{collapsed ? 'Expand' : 'Collapse'}</span>
+        </button>
         {footer}
       </aside>
       <div className="stage">

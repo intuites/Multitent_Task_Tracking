@@ -32,9 +32,10 @@ export function DashSkeleton() {
     <div role="status" aria-label="Loading dashboard">
       <span className="sk-progress" aria-hidden="true" />
       <div className="page-head"><div><Bar w="180px" h={26} /><div style={{ height: 10 }} /><Bar w="300px" /></div></div>
-      <div className="dash">
-        {['a-k1', 'a-k2', 'a-k3', 'a-k4'].map((c) => <div key={c} className={`${c} sk-card`} style={{ minHeight: 150 }}><Bar w="45%" /><Bar w="35%" h={34} /><Bar w="60%" /></div>)}
-        {['a-an', 'a-re'].map((c) => <div key={c} className={`${c} sk-card`} style={{ minHeight: 240 }}><Bar w="40%" /><span className="sk sk-fill" /></div>)}
+      <div className="db">
+        <div className="db-stats sk-card" style={{ minHeight: 112 }}><Bar w="40%" /><Bar w="25%" h={30} /></div>
+        <div className="db-chart sk-card" style={{ minHeight: 300 }}><Bar w="30%" /><span className="sk sk-fill" /></div>
+        <div className="db-aside"><div className="sk-card" style={{ minHeight: 140 }}><Bar w="50%" /><Bar w="80%" /></div><div className="sk-card" style={{ minHeight: 140 }}><Bar w="40%" /><span className="sk sk-fill" /></div></div>
       </div>
     </div>
   );

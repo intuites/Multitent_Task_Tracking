@@ -1816,3 +1816,14 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
   .dash::before, .dash::after { display: none; }
   .dash > .card:not(.esc-card), .dash .kpi:not(.feature) { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
+
+/* ---------- completed-tasks chart on small screens ---------- */
+/* a short (zero) bar still has room for its count above it, so the count never sits on the day letter */
+.bar-stack { min-height: 30px; }
+@media (max-width: 600px) {
+  /* the range chips stay on one line and scroll sideways instead of wrapping inside the pill */
+  .cc-ranges { flex-wrap: nowrap; width: 100%; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .cc-ranges::-webkit-scrollbar { display: none; }
+  .cc-ranges button { flex: none; white-space: nowrap; }
+  .cc-bars { gap: 8px; }
+}

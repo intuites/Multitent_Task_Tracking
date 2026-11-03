@@ -17,6 +17,7 @@ const ROLES = ['admin', 'employee'] as const;
 const BRANDS: [string, string | null][] = [
   ['Taskify green', null], ['Ocean blue', '#2563eb'], ['Indigo', '#4f46e5'], ['Violet', '#7c3aed'], ['Teal', '#0d9488'],
   ['Crimson', '#dc2626'], ['Orange', '#ea580c'], ['Rose', '#db2777'], ['Slate', '#475569'],
+  ['Sky', '#0284c7'], ['Gold', '#eab308'], ['Brown', '#92400e'], ['Black', '#111111'],
 ];
 type View = 'hub' | 'orgs' | 'depts';
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { brandPalette, contrast } from './palette';
 
-const COLORS = ['#2e7d4f', '#2563eb', '#4f46e5', '#7c3aed', '#0d9488', '#dc2626', '#ea580c', '#db2777', '#475569',
+const COLORS = ['#0284c7', '#eab308', '#92400e', '#2e7d4f', '#2563eb', '#4f46e5', '#7c3aed', '#0d9488', '#dc2626', '#ea580c', '#db2777', '#475569',
   '#000000', '#111111', '#333333', '#777777', '#bbbbbb', '#ffffff', '#fff3a0', '#ffd400', '#a3e635', '#22d3ee', '#1e1b4b'];
 const SURFACE = { light: '#ffffff', dark: '#212224' } as const;
 const BG = { light: '#eceeed', dark: '#161718' } as const;

@@ -1767,3 +1767,23 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 :root:not([data-theme="dark"]) .dash.d3 > .card:not(.esc-card):hover,
 :root:not([data-theme="dark"]) .dash.d3 > :hover > .kpi:not(.feature) { box-shadow: 0 0 0 1px var(--hover-ring), 0 14px 30px rgb(18 26 22 / .10); }
 :root:not([data-theme="dark"]) :is(.team-card, .md-tile, .g-tile):hover { border-color: var(--hover-ring); }
+
+/* ---------- sidebar: active edge + icons-only mode ---------- */
+.side-link.active { box-shadow: inset 0 0 0 1.5px var(--brand); background: color-mix(in srgb, var(--brand) 8%, transparent); }
+.side-toggle { display: flex; align-items: center; justify-content: flex-end; width: 100%; min-height: 0; padding: 6px 12px; border-radius: 10px; background: none; color: var(--muted); }
+.side-toggle:hover { color: var(--text); background: var(--surface-2); filter: none; }
+.side-toggle:focus-visible, .side-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; transition: none; }
+@media (max-width: 860px) { .side-toggle { display: none; } }
+@media (min-width: 861px) {
+  .side.collapsed { width: 76px; padding-inline: 10px; overflow: visible; }
+  .side.collapsed .side-toggle { justify-content: center; padding-inline: 0; }
+  .side.collapsed .brand, .side.collapsed .org-btn { justify-content: center; padding-inline: 0; }
+  .side.collapsed .org-name, .side.collapsed .org-chev, .side.collapsed .side-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .side.collapsed .brand > span:not(.mark) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .side.collapsed .side-group + .side-group { padding-top: var(--space-3); border-top: 1px solid var(--line); }
+  .side.collapsed .side-link { justify-content: center; padding-inline: 0; }
+  .side.collapsed .side-link > span:not(.count) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .side.collapsed .side-link .count { position: absolute; top: 2px; right: 6px; margin: 0; padding: 0 5px; font-size: 10px; line-height: 16px; }
+  .side.collapsed .org-pop { right: auto; width: 250px; }
+  .side.collapsed .side-card { display: none; }
+}

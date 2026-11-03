@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { reducedMotion } from './Liquid';
 import { ask } from './Dialog';
-import { Bell, Check, CheckCheck, ChevronDown, ChevronsUpDown, LogOut, Menu, Moon, Plus, Sun, X, type LucideIcon } from 'lucide-react';
+import { Bell, Check, CheckCheck, ChevronDown, ChevronsUpDown, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Sun, X, type LucideIcon } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/theme';
@@ -94,8 +94,9 @@ function usePointerLight() {
 
 function Item({ i }: { i: FrameItem }) {
   const body = (<><i.icon size={18} aria-hidden="true" /><span>{i.label}</span>{!!i.badge && <span className="count">{i.badge > 99 ? '99+' : i.badge}</span>}</>);
-  if (i.to) return <NavLink to={i.to} end={i.to === '/'} className="side-link">{body}</NavLink>;
-  return <button type="button" className={i.active ? 'side-link active' : 'side-link'} aria-current={i.active ? 'page' : undefined} onClick={i.onClick}>{body}</button>;
+  // title shows the name as a tooltip when the sidebar is collapsed to icons
+  if (i.to) return <NavLink to={i.to} end={i.to === '/'} className="side-link" title={i.label}>{body}</NavLink>;
+  return <button type="button" className={i.active ? 'side-link active' : 'side-link'} title={i.label} aria-current={i.active ? 'page' : undefined} onClick={i.onClick}>{body}</button>;
 }
 
 function NotificationBell({ userId, unread, onChanged, allTo, onAll }: BellProps) {
@@ -212,7 +213,9 @@ export default function Frame({ brand, groups, footer, title, search, action, be
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [closeKey]);
   const navRef = useRef<HTMLElement>(null);
-  const marker = useLiquidMarker(navRef, closeKey);
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('tt-side') === 'icons'; } catch { return false; } });
+  const toggleSide = () => setCollapsed((c) => { try { localStorage.setItem('tt-side', c ? 'full' : 'icons'); } catch { /* private window: the choice just won't be remembered */ } return !c; });
+  const marker = useLiquidMarker(navRef, `${closeKey}|${collapsed}`);
   usePointerLight();
   const confirmSignOut = async () => {
     if ((await ask({ title: 'Log out?', message: 'You will need to sign in again to get back to your workspace.', confirmLabel: 'Log out' })).ok) onSignOut();
@@ -225,9 +228,13 @@ export default function Frame({ brand, groups, footer, title, search, action, be
 
   return (
     <div className="app">
-      <aside id="side" className={open ? 'side open' : 'side'}>
+      <aside id="side" className={`side${open ? ' open' : ''}${collapsed ? ' collapsed' : ''}`}>
         {orgs && onSwitchOrg ? <OrgSwitcher brand={brand} orgs={orgs} current={currentOrg} onSwitch={onSwitchOrg} onCreate={onCreateOrg} />
           : <div className="brand"><span className="mark" aria-hidden="true">{initials(brand).charAt(0)}</span><span>{brand}</span></div>}
+        <button type="button" className="side-toggle" aria-pressed={collapsed} title={collapsed ? 'Show menu names' : 'Show icons only'} onClick={toggleSide}>
+          {collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
+          <span className="sr-only">{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span>
+        </button>
         <nav aria-label="Main" ref={navRef}>
           <span className={`side-flow ${marker.phase}`} aria-hidden="true"
             style={{ transform: `translateY(${marker.top}px)`, height: marker.height, opacity: marker.on ? 1 : 0 }} />
@@ -237,7 +244,7 @@ export default function Frame({ brand, groups, footer, title, search, action, be
               {g.items.map((i) => <Item key={i.label} i={i} />)}
             </div>
           ))}
-          <button type="button" className="side-link" onClick={confirmSignOut}><LogOut size={18} aria-hidden="true" /><span>Log out</span></button>
+          <button type="button" className="side-link" title="Log out" onClick={confirmSignOut}><LogOut size={18} aria-hidden="true" /><span>Log out</span></button>
         </nav>
         {footer}
       </aside>

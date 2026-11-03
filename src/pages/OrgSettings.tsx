@@ -116,7 +116,17 @@ export default function OrgSettings() {
                     Custom
                   </label>
                 </div>
-                <small className="muted">Everyone in {org.name} sees this color, in light and dark mode. You’re seeing a preview; save to keep it.</small>
+                <div className="brand-preview" style={{ '--pv': brand ?? '#2e7d4f' } as React.CSSProperties} aria-label="Preview of the brand color" role="img">
+                  {(['light', 'dark'] as const).map((m) => (
+                    <div key={m} className={`bp ${m}`} aria-hidden="true">
+                      <small className="bp-mode">{m === 'light' ? 'Light mode' : 'Dark mode'}</small>
+                      <span className="bp-nav">Dashboard</span>
+                      <span className="bp-kpi"><small>My open tasks</small><b>4</b></span>
+                      <span className="bp-row"><span className="bp-btn">Update status</span><span className="bp-link">View all</span></span>
+                      <span className="bp-bar"><i /></span>
+                    </div>))}
+                </div>
+                <small className="muted">Everyone in {org.name} sees this color, in light and dark mode. The whole app is previewing it now; save to keep it.</small>
               </fieldset>
               {canEdit && <div className="pf-wide pf-actions"><button type="submit">Save changes</button></div>}
             </form>

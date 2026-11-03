@@ -1854,3 +1854,22 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .brand-custom input[type=color]::-webkit-color-swatch { border: 0; border-radius: 50%; }
 .brand-custom input[type=color]::-moz-color-swatch { border: 0; border-radius: 50%; }
 @media (prefers-reduced-motion: reduce) { .brand-swatch { transition: none; } }
+/* side-by-side preview of the picked color in both modes; shades mixed the same way as :root[data-brand] */
+.brand-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; }
+.bp { display: grid; gap: 10px; padding: 14px; border-radius: 14px; border: 1px solid; font-size: 13px; }
+.bp.light { --b: color-mix(in oklab, var(--pv) 72%, #000); --tint: color-mix(in oklab, var(--pv) 11%, #fff);
+  --grad: linear-gradient(135deg, color-mix(in oklab, var(--pv) 82%, #000), color-mix(in oklab, var(--pv) 52%, #000));
+  --bp-bg: #f7f8f7; --bp-fg: #121a16; --bp-muted: #66726b; --bp-line: #e4e8e6; --bp-track: #e4e8e6; }
+.bp.dark { --b: color-mix(in oklab, var(--pv) 62%, #fff); --tint: color-mix(in oklab, var(--pv) 16%, #141e19);
+  --grad: linear-gradient(135deg, color-mix(in oklab, var(--pv) 75%, #000), color-mix(in oklab, var(--pv) 45%, #000));
+  --bp-bg: #101814; --bp-fg: #e5ede8; --bp-muted: #92a299; --bp-line: #25322c; --bp-track: #25322c; }
+.bp { background: var(--bp-bg); color: var(--bp-fg); border-color: var(--bp-line); }
+.bp-mode { color: var(--bp-muted); font-weight: 600; }
+.bp-nav { padding: 6px 10px; border-radius: 10px; background: var(--tint); color: var(--b); font-weight: 600; box-shadow: inset 3px 0 0 var(--b); }
+.bp-kpi { display: grid; padding: 10px 12px; border-radius: 12px; background: var(--grad); color: #fff; }
+.bp-kpi b { font-size: 22px; line-height: 1.1; }
+.bp-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bp-btn { padding: 6px 12px; border-radius: 999px; background: var(--grad); color: #fff; font-weight: 600; }
+.bp-link { color: var(--b); font-weight: 600; }
+.bp-bar { height: 6px; border-radius: 999px; background: var(--bp-track); overflow: hidden; }
+.bp-bar i { display: block; width: 62%; height: 100%; border-radius: inherit; background: var(--grad); }

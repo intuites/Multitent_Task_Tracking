@@ -883,6 +883,20 @@ dialog .actions > * { min-width: 104px; }
   --neutral-bg: #1e2924; --neutral-fg: #bdcac3; --neutral-line: #2c3a33;
   --brand-tint: #15301f; --pop-shadow: 0 14px 36px rgb(0 0 0 / .55);
 }
+/* Organization brand color (lib/theme.ts applyBrand sets --accent and data-brand). Every brand shade is mixed from
+   that one color: darker in light mode so white text on buttons stays readable, lighter in dark mode for contrast. */
+:root[data-brand] {
+  --brand: color-mix(in oklab, var(--accent) 72%, #000); --brand-2: color-mix(in oklab, var(--accent) 88%, #000);
+  --brand-3: color-mix(in oklab, var(--accent) 65%, #fff); --brand-deep: color-mix(in oklab, var(--accent) 42%, #000);
+  --link: var(--brand); --brand-tint: color-mix(in oklab, var(--accent) 11%, #fff);
+  --brand-grad: linear-gradient(135deg, color-mix(in oklab, var(--accent) 82%, #000) 0%, color-mix(in oklab, var(--accent) 52%, #000) 100%);
+}
+:root[data-brand][data-theme="dark"] {
+  --brand: color-mix(in oklab, var(--accent) 62%, #fff); --brand-2: color-mix(in oklab, var(--accent) 85%, #000);
+  --brand-3: color-mix(in oklab, var(--accent) 55%, #000); --brand-deep: color-mix(in oklab, var(--accent) 35%, #fff);
+  --link: color-mix(in oklab, var(--accent) 55%, #fff); --brand-tint: color-mix(in oklab, var(--accent) 16%, var(--surface));
+  --brand-grad: linear-gradient(135deg, color-mix(in oklab, var(--accent) 75%, #000) 0%, color-mix(in oklab, var(--accent) 45%, #000) 100%);
+}
 :root[data-theme="dark"] { --glass-bg: rgb(20 30 25 / .6); --glass-bg-float: rgb(20 30 25 / .84); --glass-line: rgb(255 255 255 / .08);
   --glass-shadow: inset 0 1px 0 rgb(255 255 255 / .1), inset 0 0 18px rgb(255 255 255 / .03); }
 :root[data-theme="dark"] .topbar { animation-name: bar-solid-dark; }
@@ -1825,3 +1839,18 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
   .cc-ranges button { flex: none; white-space: nowrap; }
   .cc-bars { gap: 8px; }
 }
+
+/* Organization settings: brand color picker */
+.brand-pick { margin: 0; padding: 0; border: 0; display: grid; gap: 10px; }
+.brand-pick legend { display: flex; align-items: center; gap: 6px; padding: 0; margin-bottom: 8px; font-weight: 600; }
+.brand-swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.brand-swatch { display: grid; place-items: center; width: 34px; height: 34px; min-height: 0; padding: 0; border-radius: 50%; background: var(--sw); color: #fff;
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--line); transition: transform .15s var(--ease, ease); }
+.brand-swatch:hover:not(:disabled) { transform: scale(1.08); filter: none; }
+.brand-swatch[aria-pressed=true] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sw); }
+.brand-custom { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.brand-custom input[type=color] { width: 34px; height: 34px; min-height: 0; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: none; cursor: pointer; }
+.brand-custom input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+.brand-custom input[type=color]::-webkit-color-swatch { border: 0; border-radius: 50%; }
+.brand-custom input[type=color]::-moz-color-swatch { border: 0; border-radius: 50%; }
+@media (prefers-reduced-motion: reduce) { .brand-swatch { transition: none; } }

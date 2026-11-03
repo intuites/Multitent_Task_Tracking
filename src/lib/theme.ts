@@ -10,6 +10,17 @@ const read = (): ThemePref => {
 const resolve = (p: ThemePref) => (p === 'system' ? (media().matches ? 'dark' : 'light') : p);
 const apply = (p: ThemePref) => { document.documentElement.dataset.theme = resolve(p); };
 
+const BRAND_KEY = 'tt-brand';
+const HEX = /^#[0-9a-f]{6}$/i;
+/** The organization's brand color (null = default green). styles.css derives every brand shade, light and dark, from --accent. */
+export function applyBrand(color: string | null | undefined, remember = true) {
+  const root = document.documentElement;
+  if (color && HEX.test(color)) { root.style.setProperty('--accent', color); root.dataset.brand = ''; }
+  else { root.style.removeProperty('--accent'); delete root.dataset.brand; }
+  if (!remember) return;
+  try { if (color && HEX.test(color)) localStorage.setItem(BRAND_KEY, color); else localStorage.removeItem(BRAND_KEY); } catch { /* storage blocked: still applies now */ }
+}
+
 /** Theme preference shared by every toggle on the page; index.html applies it before first paint. */
 export function useTheme() {
   const [pref, setPref] = useState<ThemePref>(read);

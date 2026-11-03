@@ -1,16 +1,22 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Building2, Check, CopyPlus, Database, Globe2, Layers, LifeBuoy, Lock, Mail, Pencil, Plus, ShieldCheck, Trash2, Users, X } from 'lucide-react';
+import { ArrowLeft, Building2, Check, CopyPlus, Database, Globe2, Layers, LifeBuoy, Lock, Mail, Palette, Pencil, Plus, ShieldCheck, Trash2, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { fmt, label, usePeople, zoneList } from '../lib/ui';
 import { ROLE_TEXT } from '../lib/roles';
+import { applyBrand } from '../lib/theme';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { Departments, type Msg } from './Employees';
 
 const ROLES = ['admin', 'employee'] as const;
+// null = Taskify's default green
+const BRANDS: [string, string | null][] = [
+  ['Taskify green', null], ['Ocean blue', '#2563eb'], ['Indigo', '#4f46e5'], ['Violet', '#7c3aed'], ['Teal', '#0d9488'],
+  ['Crimson', '#dc2626'], ['Orange', '#ea580c'], ['Rose', '#db2777'], ['Slate', '#475569'],
+];
 type View = 'hub' | 'orgs' | 'depts';
 
 export default function OrgSettings() {
@@ -25,6 +31,11 @@ export default function OrgSettings() {
   const { active: people } = usePeople(orgId);
   const admins = people.filter((p) => p.role === 'admin');
   const [msg, setMsg] = useState<Msg>(null);
+  // brand color being picked: previewed live across the app, saved with the form, undone if you leave without saving
+  const [brand, setBrand] = useState<string | null>(membership!.brand_color ?? null);
+  useEffect(() => { applyBrand(brand, false); }, [brand]);
+  const saved = membership!.brand_color;
+  useEffect(() => () => applyBrand(saved, false), [saved]);
 
   const load = useCallback(async () => {
     const [o, m] = await Promise.all([
@@ -32,6 +43,7 @@ export default function OrgSettings() {
       supabase.from('tt_org_members').select('role').eq('org_id', orgId).eq('active', true),
     ]);
     setOrg(o.data ?? { name: membership!.org_name, time_zone: membership!.time_zone });
+    setBrand(o.data?.brand_color ?? null);
     setRoles((m.data ?? []).reduce((acc: Record<string, number>, r: any) => ({ ...acc, [r.role]: (acc[r.role] ?? 0) + 1 }), {}));
   }, [orgId, membership]);
   useEffect(() => { load(); }, [load]);
@@ -39,9 +51,9 @@ export default function OrgSettings() {
   async function saveOrg(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz') }).eq('id', orgId);
+    const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz'), brand_color: brand }).eq('id', orgId);
     if (!error) { await supabase.from('tt_activity_logs').insert({ org_id: orgId, entity_type: 'organization', entity_id: orgId, action: 'settings_updated', actor_id: uid, detail: {} }); refresh(); load(); }
-    setMsg(error ? { kind: 'error', text: error.message.includes('time zone') ? 'That time zone isn’t recognized.' : error.message } : { kind: 'ok', text: 'Organization updated.' });
+    setMsg(error ? { kind: 'error', text: error.message.includes('time zone') ? 'That time zone isn’t recognized.' : error.message.includes('brand_color') ? 'Brand colors need database update 0029. Run it in Supabase, then try again.' : error.message } : { kind: 'ok', text: 'Organization updated.' });
   }
 
   if (!org) return <PageSkeleton />;
@@ -91,6 +103,21 @@ export default function OrgSettings() {
                 <select name="tz" defaultValue={org.time_zone} disabled={!canEdit}>{zoneList(org.time_zone).map((z) => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}</select>
               </label>
               <p className="muted pf-wide tpl-note"><Globe2 size={14} aria-hidden="true" /> Reminders, recurring tasks and “due today” use this time zone.{org.created_at && ` Created ${fmt(org.created_at)}.`}</p>
+              <fieldset className="pf-wide brand-pick" disabled={!canEdit}>
+                <legend><Palette size={14} aria-hidden="true" /> Brand color</legend>
+                <div className="brand-swatches">
+                  {BRANDS.map(([name, hex]) => {
+                    const on = (brand ?? null) === hex;
+                    return <button key={name} type="button" className="brand-swatch" style={{ '--sw': hex ?? '#2e7d4f' } as React.CSSProperties}
+                      aria-pressed={on} aria-label={name} title={name} onClick={() => setBrand(hex)}>{on && <Check size={15} aria-hidden="true" />}</button>;
+                  })}
+                  <label className="brand-custom" title="Pick any color">
+                    <input type="color" value={brand ?? '#2e7d4f'} onChange={(e) => setBrand(e.target.value)} aria-label="Custom brand color" />
+                    Custom
+                  </label>
+                </div>
+                <small className="muted">Everyone in {org.name} sees this color, in light and dark mode. You’re seeing a preview; save to keep it.</small>
+              </fieldset>
               {canEdit && <div className="pf-wide pf-actions"><button type="submit">Save changes</button></div>}
             </form>
           </section>

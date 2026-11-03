@@ -17,7 +17,12 @@ export async function authUser(req: Req) {
   const token = typeof h === 'string' && h.startsWith('Bearer ') ? h.slice(7) : '';
   if (!token) throw new HttpError(401, 'Not authenticated');
   const { data, error } = await admin().auth.getUser(token);
-  if (error || !data.user) throw new HttpError(401, 'Not authenticated');
+  if (error || !data.user) {
+    console.error('auth.getUser failed', error?.status, error?.message);
+    // a wrong server key or URL is a setup problem, not the user's session; say so instead of "Not authenticated"
+    if (error && /api key|apikey/i.test(error.message)) throw new HttpError(500, 'Server setup: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY on the server is wrong');
+    throw new HttpError(401, 'Your session has expired. Sign out and sign in again.');
+  }
   return data.user;
 }
 

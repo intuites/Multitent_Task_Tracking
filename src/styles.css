@@ -1748,15 +1748,14 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 
 /* ---------- sidebar: active edge + icons-only mode ---------- */
 .side-link.active { box-shadow: inset 0 0 0 1.5px var(--brand); background: color-mix(in srgb, var(--brand) 8%, transparent); }
-.side-toggle { display: flex; align-items: center; justify-content: flex-end; width: 100%; min-height: 0; padding: 9px 12px; border-radius: 10px; background: none; color: var(--muted); }
-.side-toggle:hover { color: var(--text); background: var(--surface-2); filter: none; }
+/* the collapse switch lives in the top bar, left of the greeting */
+.side-toggle { flex: none; margin-left: -6px; }
 .side-toggle:focus-visible, .side-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; transition: none; }
 @media (max-width: 860px) { .side-toggle { display: none; } }
 @media (min-width: 861px) {
   /* the rail keeps its 76px slot in the layout; when open, the extra width overlaps the page instead of pushing it */
   .side.collapsed { width: 76px; padding-inline: 10px; z-index: 16; }
   .side.collapsed:is(:hover, :focus-within) { width: 236px; margin-right: -160px; padding-inline: 14px; background: var(--panel); box-shadow: var(--pop-shadow); }
-  .side.collapsed:not(:hover, :focus-within) .side-toggle { justify-content: center; padding-inline: 0; }
   .side.collapsed:not(:hover, :focus-within) :is(.brand, .org-btn) { justify-content: center; padding-inline: 0; }
   .side.collapsed:not(:hover, :focus-within) :is(.org-name, .org-chev, .side-title, .brand > span:not(.mark)) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .side.collapsed:not(:hover, :focus-within) .side-group + .side-group { padding-top: var(--space-3); border-top: 1px solid var(--line); }
@@ -1765,6 +1764,26 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
   .side.collapsed:not(:hover, :focus-within) .side-link .count { position: absolute; top: 2px; right: 6px; margin: 0; padding: 0 5px; font-size: 10px; line-height: 16px; }
   .side.collapsed:not(:hover, :focus-within) .side-card { display: none; }
 }
+
+/* ---------- sidebar motion ----------
+   The rail opens and closes smoothly (a short pause before opening so passing the pointer across it doesn't flicker),
+   names slide in as it opens, the menu settles in on first load, and the selected item springs when it changes. */
+@media (prefers-reduced-motion: no-preference) and (min-width: 861px) {
+  .side { transition: width .28s var(--ease), margin-right .28s var(--ease), padding .28s var(--ease), box-shadow .28s var(--ease); }
+  .side.collapsed:is(:hover, :focus-within) { transition-delay: .12s; }
+  .side.collapsed:is(:hover, :focus-within) :is(.side-link > span:not(.count), .side-title, .org-name) { animation: side-label .32s var(--ease) .14s both; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .side nav .side-link { animation: side-in .5s var(--settle) both; animation-delay: calc(var(--k, 0) * 35ms + 60ms); }
+  .side-group > :nth-child(3) { --k: 1; } .side-group > :nth-child(4) { --k: 2; } .side-group > :nth-child(5) { --k: 3; }
+  .side-group > :nth-child(6) { --k: 4; } .side-group > :nth-child(7) { --k: 5; } .side-group > :nth-child(8) { --k: 6; }
+  .side-link.active { animation: side-in .5s var(--settle) both, side-pick .45s var(--settle); }
+  .side-link .count { animation: count-pop .4s var(--settle) .5s both; }
+}
+@keyframes side-label { from { opacity: 0; transform: translateX(-6px); } }
+@keyframes side-in { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes side-pick { 0% { transform: scale(.96); } 60% { transform: scale(1.015); } }
+@keyframes count-pop { from { opacity: 0; transform: scale(.6); } }
 
 /* ---------- top bar: page content never shows in the gap above it ---------- */
 .topbar::after { content: ''; position: absolute; left: -14px; right: -14px; bottom: 100%; height: 15px; background: var(--bg); pointer-events: none; }

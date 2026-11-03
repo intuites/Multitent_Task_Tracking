@@ -231,10 +231,6 @@ export default function Frame({ brand, groups, footer, title, search, action, be
       <aside id="side" className={`side${open ? ' open' : ''}${collapsed ? ' collapsed' : ''}`}>
         {orgs && onSwitchOrg ? <OrgSwitcher brand={brand} orgs={orgs} current={currentOrg} onSwitch={onSwitchOrg} onCreate={onCreateOrg} />
           : <div className="brand"><span className="mark" aria-hidden="true">{initials(brand).charAt(0)}</span><span>{brand}</span></div>}
-        <button type="button" className="side-toggle" aria-pressed={collapsed} title={collapsed ? 'Show menu names' : 'Show icons only'} onClick={toggleSide}>
-          {collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
-          <span className="sr-only">{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span>
-        </button>
         <nav aria-label="Main" ref={navRef}>
           <span className={`side-flow ${marker.phase}`} aria-hidden="true"
             style={{ transform: `translateY(${marker.top}px)`, height: marker.height, opacity: marker.on ? 1 : 0 }} />
@@ -252,6 +248,11 @@ export default function Frame({ brand, groups, footer, title, search, action, be
         <header className="topbar">
           <button type="button" className="icon-btn menu-btn" aria-expanded={open} aria-controls="side" onClick={() => setOpen(!open)}>
             {open ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}<span className="sr-only">Menu</span>
+          </button>
+          {/* desktop only: switch the sidebar between names and icons (phones use the menu button above) */}
+          <button type="button" className="icon-btn side-toggle" aria-pressed={collapsed} aria-controls="side" title={collapsed ? 'Show menu names' : 'Show icons only'} onClick={toggleSide}>
+            {collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
+            <span className="sr-only">{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span>
           </button>
           <h1 className="sr-only">{title}</h1>
           <div className="hello"><b>{greeting(now)}{first && `, ${first}`}</b><small>{today}</small></div>

@@ -1,21 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BarChart3, CalendarClock, Plus } from 'lucide-react';
+import { ArrowUpRight, BarChart3, CalendarClock, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { Badge, fmt, fmtTime, rpc, usePeople } from '../lib/ui';
 import { initials } from '../components/Frame';
-import { CountUp } from '../components/Liquid';
+import { CountUp, LiquidBg } from '../components/Liquid';
 import { DashSkeleton } from '../components/Skeleton';
 
 const OPEN = '(completed,completed_cycle)';
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-function Stat({ title, value, note, to, alert }: { title: string; value: number; note: string; to: string; alert?: boolean }) {
+function Kpi({ title, value, note, to, feature }: { title: string; value: number; note: string; to: string; feature?: boolean }) {
   return (
-    <Link to={to} className={alert ? 'db-stat alert' : 'db-stat'}>
-      <span className="db-stat-title">{title}</span>
+    <Link to={to} className={feature ? 'kpi feature' : 'kpi'}>
+      {feature && <LiquidBg />}
+      <span className="kpi-head"><span>{title}</span><span className="go" aria-hidden="true"><ArrowUpRight size={16} /></span></span>
       <b><CountUp value={value} /></b>
       <small>{note}</small>
     </Link>
@@ -92,18 +93,20 @@ function CompletedChart({ orgId, uid, tick }: { orgId: string; uid: string; tick
         <label>From<input type="date" value={cFrom || isoDay(from)} max={isoDay(new Date())} onChange={(e) => setCFrom(e.target.value)} /></label>
         <label>To<input type="date" value={cTo || isoDay(addD(to, -1))} onChange={(e) => setCTo(e.target.value)} /></label>
       </div>)}
-    <div key={key} className={`db-bars ${bs.length > 10 ? 'dense' : ''}`} style={{ gridTemplateColumns: `repeat(${bs.length}, 1fr)` }}
+    <div key={key} className={`weekbars cc-bars ${bs.length > 10 ? 'dense' : ''}`} style={{ gridTemplateColumns: `repeat(${bs.length}, 1fr)` }}
       role="img" aria-label={`Tasks completed, ${title}: ${bs.map((b, i) => `${b.title} ${counts[i]}`).join(', ')}`}>
       {bs.map((b, i) => {
         const c = counts[i], future = b.start.getTime() > now, current = b.start.getTime() <= now && now < b.end.getTime();
+        const cls = future ? 'bar future' : c === 0 ? 'bar zero' : current ? 'bar today' : i === best ? 'bar best' : 'bar';
         return (
-          <div key={b.start.getTime()} className={`db-col${current ? ' now' : ''}${future ? ' future' : ''}${i === best && c ? ' best' : ''}`}
-            style={{ '--i': i } as React.CSSProperties} title={`${b.title}: ${future ? 'not yet' : `${c} completed`}`}>
-            <div className="db-track">
-              {!future && dates !== null && <span className="db-val">{c}</span>}
-              {!future && c > 0 && <span className="db-bar" style={{ height: `${Math.max(6, (c / max) * 100)}%` }} />}
+          <div key={b.start.getTime()} className="bar-col" style={{ '--i': i } as React.CSSProperties} title={`${b.title}: ${c} completed`}>
+            <div className="bar-track">
+              <span className="bar-stack" style={{ height: future ? '100%' : c === 0 ? '8%' : `${Math.max(16, (c / max) * 100)}%` }}>
+                {!future && dates !== null && <span className={`bar-val ${current ? 'now' : ''}`}>{c}</span>}
+                <span className={cls} />
+              </span>
             </div>
-            <span className="db-day">{b.label}</span>
+            <span className={`bar-day ${current ? 'now' : ''}`}>{b.label}</span>
           </div>
         );
       })}
@@ -111,21 +114,28 @@ function CompletedChart({ orgId, uid, tick }: { orgId: string; uid: string; tick
   </>);
 }
 
-// Share of the person's tasks done, started and not started, as one stacked line.
-function Progress({ done, cycle, active, pending }: { done: number; cycle: number; active: number; pending: number }) {
+// Half-donut of completed / in progress / pending, drawn with dash offsets on one arc.
+function Gauge({ done, active, pending }: { done: number; active: number; pending: number }) {
   const total = done + active + pending;
   const pct = total ? Math.round((done / total) * 100) : 0;
-  const w = (n: number) => `${total ? (n / total) * 100 : 0}%`;
+  const seg = (n: number) => (total ? (n / total) * 100 : 0);
+  const arc = 'M 20 110 A 90 90 0 0 1 200 110';
   return (
-    <div className="db-progress">
-      <p className="db-pct"><b>{total ? `${pct}%` : 'No tasks yet'}</b>{total > 0 && <small>{done} of {total} tasks done</small>}</p>
-      <div className="db-stack" role="img" aria-label={`${pct}% of tasks completed: ${done} completed, ${active} started, ${pending} not started or pending`}>
-        <i className="done" style={{ width: w(done) }} /><i className="active" style={{ width: w(active) }} />
-      </div>
-      <ul className="db-legend">
-        <li><i className="sw done" />Completed <b>{done}</b></li><li><i className="sw active" />Started <b>{active}</b></li><li><i className="sw open" />Not started <b>{pending}</b></li>
+    <div className="gauge">
+      <svg viewBox="0 0 220 125" role="img" aria-label={`${pct}% of tasks completed: ${done} completed, ${active} started, ${pending} not started or pending`}>
+        <defs>
+          <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="6" height="6" fill="var(--hatch-bg)" /><line x1="0" y1="0" x2="0" y2="6" stroke="var(--hatch)" strokeWidth="2.5" />
+          </pattern>
+        </defs>
+        <path d={arc} pathLength={100} fill="none" stroke="url(#hatch)" strokeWidth="28" />
+        <path d={arc} pathLength={100} fill="none" stroke="var(--brand-3)" strokeWidth="28" strokeDasharray={`${seg(done) + seg(active)} 100`} />
+        <path d={arc} pathLength={100} fill="none" stroke="var(--brand)" strokeWidth="28" strokeDasharray={`${seg(done)} 100`} />
+      </svg>
+      <div className="gauge-num"><b>{total ? `${pct}%` : '—'}</b><small>{total ? `${done} of ${total} tasks done` : 'No tasks yet'}</small></div>
+      <ul className="legend">
+        <li><i className="sw done" />Completed <b>{done}</b></li><li><i className="sw active" />Started <b>{active}</b></li><li><i className="sw pending" />Pending <b>{pending}</b></li>
       </ul>
-      <Link to="/my-tasks?view=completed" className="mini-link db-more">{cycle} completed this cycle, {done - cycle} for good<ArrowRight size={14} aria-hidden="true" /></Link>
     </div>
   );
 }
@@ -208,38 +218,30 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="db">
-        <section className="card db-stats" aria-label="My tasks at a glance">
-          <Stat title="Open" value={d.open} note={`${d.active} started`} to="/my-tasks" />
-          <Stat title="Overdue" value={d.overdue} note={d.overdue ? 'Past their due date' : 'Everything is on time'} to="/my-tasks?view=overdue" alert={d.overdue > 0} />
-          <Stat title="Due today" value={d.dueToday} note="Before midnight" to="/my-tasks?view=due_today" />
-          <Stat title="Pending" value={d.waiting} note="Waiting on something" to="/my-tasks?view=pending" />
-        </section>
+      <div className="dash">
+        <div className="a-k1"><Kpi feature title="My open tasks" value={d.open} note={`${d.active} started`} to="/my-tasks" /></div>
+        <div className="a-k2"><Kpi title="Overdue" value={d.overdue} note={d.overdue ? 'Past their due date' : 'Everything is on time'} to="/my-tasks?view=overdue" /></div>
+        <div className="a-k3"><Kpi title="Due today" value={d.dueToday} note="Before midnight" to="/my-tasks?view=due_today" /></div>
+        <div className="a-k4"><Kpi title="Pending" value={d.waiting} note="Waiting on something" to="/my-tasks?view=pending" /></div>
 
-        <section className="card db-chart" aria-labelledby="an-h">
+        <section className="card a-an" aria-labelledby="an-h">
           <CompletedChart orgId={orgId} uid={uid} tick={tick} />
         </section>
 
-        <div className="db-aside">
-          <section className="card db-next" aria-labelledby="re-h">
-            <h3 id="re-h">Next deadline</h3>
-            {d.next ? (<>
-              <Link to={`/tasks/${d.next.id}`} className="db-next-title">{d.next.title}</Link>
-              <p className="db-next-time"><CalendarClock size={15} aria-hidden="true" />Due {fmtTime(d.next.due_date)}</p>
-            </>) : <p className="muted">No upcoming deadlines.</p>}
-          </section>
+        <section className="card a-re" aria-labelledby="re-h">
+          <h3 id="re-h">Next deadline</h3>
+          {d.next ? (<>
+            <p className="remind-title">{d.next.title}</p>
+            <p className="remind-time">Due {fmtTime(d.next.due_date)}</p>
+            <Link to={`/tasks/${d.next.id}`} className="pill-btn wide"><CalendarClock size={16} aria-hidden="true" />Open task</Link>
+          </>) : <p className="muted">No upcoming deadlines.</p>}
+        </section>
 
-          <section className="card" aria-labelledby="pg-h">
-            <h3 id="pg-h">My progress</h3>
-            <Progress done={d.done} cycle={d.cycle} active={d.active} pending={d.pending} />
-          </section>
-        </div>
-
-        <section className="card db-people" aria-labelledby="tm-h">
+        <section className="card a-tm" aria-labelledby="tm-h">
           {canAssign ? (<>
             <div className="panel-head"><h3 id="tm-h">Team at work</h3>{can(membership!.role, 'members:manage') && <Link to="/employees" className="pill-btn ghost sm"><Plus size={14} aria-hidden="true" />Add member</Link>}</div>
             {d.team.length === 0 ? <p className="muted">Nobody has open work assigned.</p> : (
-              <ul className="db-rows">{d.team.map((w: any) => (
+              <ul className="team">{d.team.map((w: any) => (
                 <li key={w.user_id}><span className="avatar" aria-hidden="true">{initials(name(w.user_id))}</span>
                   <span className="who"><b>{name(w.user_id)}</b><small>{w.task ? <>Working on <Link to={`/tasks/${w.task.id}`}>{w.task.title}</Link></> : `${w.open} open tasks`}</small></span>
                   {w.task && <Badge v={w.task.status} />}</li>))}
@@ -247,10 +249,23 @@ export default function Dashboard() {
           </>) : (<>
             <div className="panel-head"><h3 id="tm-h">My tasks</h3><Link to="/my-tasks" className="mini-link">View all</Link></div>
             {d.mine.length === 0 ? <p className="muted">Nothing assigned to you.</p> : (
-              <ul className="db-rows">{d.mine.map((t: any) => (
+              <ul className="team">{d.mine.map((t: any) => (
                 <li key={t.id}><span className="who"><Link to={`/tasks/${t.id}`}><b>{t.title}</b></Link><small>Due {fmt(t.due_date)}</small></span><Badge v={t.status} /></li>))}
               </ul>)}
           </>)}
+        </section>
+
+        <section className="card a-pg" aria-labelledby="pg-h">
+          <h3 id="pg-h">My task progress</h3>
+          <Gauge done={d.done} active={d.active} pending={d.pending} />
+        </section>
+
+        <section className="card esc-card a-es" aria-labelledby="es-h">
+          <LiquidBg tone="deep" />
+          <h3 id="es-h">Completed</h3>
+          <b className="esc-num"><CountUp value={d.done} /></b>
+          <p>{d.cycle} this cycle · {d.done - d.cycle} permanently</p>
+          <Link to="/my-tasks?view=completed" className="round-btn" aria-label="Open my completed tasks"><ArrowUpRight size={20} aria-hidden="true" /></Link>
         </section>
       </div>
     </>

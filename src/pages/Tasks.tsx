@@ -107,6 +107,21 @@ export default function Tasks({ mode }: { mode: Mode }) {
     if (error) return setError(error.message);
     load();
   }
+  // same steps as deleting one task: subtasks and repeat copies point at these tasks without cascade
+  async function remove() {
+    const n = selected.length;
+    if (!(await ask({ title: `Delete ${n} task${n > 1 ? 's' : ''}?`, message: `${n > 1 ? 'They' : 'It'} will be permanently deleted with subtasks, comments, files and history. This can't be undone.`, confirmLabel: 'Delete', danger: true })).ok) return;
+    for (const step of [
+      () => supabase.from('tt_tasks').delete().in('parent_task_id', selected),
+      () => supabase.from('tt_tasks').update({ recurrence_parent_id: null }).in('recurrence_parent_id', selected),
+      () => supabase.from('tt_tasks').delete().in('id', selected),
+    ]) {
+      const { error } = await step();
+      if (error) return setError(error.message);
+    }
+    setSelected([]);
+    load();
+  }
 
   const title = mode === 'mine' ? 'My Tasks' : 'Tasks';
   const pages = Math.max(1, Math.ceil(total / PAGE));
@@ -137,6 +152,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
           <span>{selected.length} selected</span>
           <button onClick={async () => { if ((await ask({ title: `Archive ${selected.length} task${selected.length > 1 ? 's' : ''}?`, message: 'They will be hidden from lists, the calendar and the dashboard. You can restore them from the Archived view.', confirmLabel: 'Archive', danger: true })).ok) bulk({ archived_at: new Date().toISOString() }); }}>Archive</button>
           <button onClick={() => bulk({ archived_at: null })}>Restore</button>
+          <button className="danger" onClick={remove}>Delete</button>
           {PRIORITIES.map((p) => <button key={p} className="link" onClick={() => bulk({ priority: p })}>Set {label(p)}</button>)}
         </div>
       )}

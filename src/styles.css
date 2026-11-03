@@ -357,7 +357,7 @@ dialog .actions { display: flex; gap: var(--space-2); justify-content: flex-end;
 .inbox { padding: 8px 10px 14px; }
 .inbox-day + .inbox-day { margin-top: 6px; }
 .inbox-day-title { margin: 14px 12px 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
-.inbox-list { list-style: none; margin: 0; padding: 0; }
+.inbox-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .inbox-item { position: relative; display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 14px; }
 .inbox-item:hover { background: var(--surface-2); }
 .inbox-item.new { background: var(--brand-tint); }

@@ -18,6 +18,9 @@ const BRANDS: [string, string | null][] = [
   ['Taskify green', null], ['Ocean blue', '#2563eb'], ['Indigo', '#4f46e5'], ['Violet', '#7c3aed'], ['Teal', '#0d9488'],
   ['Crimson', '#dc2626'], ['Orange', '#ea580c'], ['Rose', '#db2777'], ['Slate', '#475569'],
   ['Sky', '#0284c7'], ['Gold', '#eab308'], ['Brown', '#92400e'], ['Black', '#111111'],
+  ['Navy', '#1e3a8a'], ['Cyan', '#0891b2'], ['Emerald', '#059669'], ['Lime', '#65a30d'], ['Olive', '#4d7c0f'],
+  ['Amber', '#d97706'], ['Coral', '#f97362'], ['Maroon', '#7f1d1d'], ['Magenta', '#c026d3'], ['Purple', '#6b21a8'],
+  ['Lavender', '#8b5cf6'], ['Plum', '#86198f'], ['Steel', '#4b6584'], ['Charcoal', '#374151'],
 ];
 type View = 'hub' | 'orgs' | 'depts';
 

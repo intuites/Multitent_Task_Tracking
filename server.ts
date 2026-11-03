@@ -1,7 +1,7 @@
 // Production server for Render: serves the built SPA from dist/ and the api/ handlers on one port.
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { extname, join, normalize, resolve } from 'node:path';
+import { extname, join, normalize, resolve, sep } from 'node:path';
 import invite from './api/invite';
 import tick from './api/cron/tick';
 import type { Req, Res } from './api/_lib/http';
@@ -41,8 +41,11 @@ const server = createServer(async (req, res) => {
   }
 
   // static files, falling back to index.html for client-side routes
-  const file = normalize(join(DIST, decodeURIComponent(url.pathname)));
-  if (!file.startsWith(DIST)) return send(400, 'Bad path', 'text/plain');
+  let file: string;
+  // a malformed %-escape throws; answer 400 instead of crashing the process
+  try { file = normalize(join(DIST, decodeURIComponent(url.pathname))); } catch { return send(400, 'Bad path', 'text/plain'); }
+  // DIST + sep, so sibling folders like dist-server/ don't pass
+  if (file !== DIST && !file.startsWith(DIST + sep)) return send(400, 'Bad path', 'text/plain');
   try {
     if ((await stat(file)).isFile()) {
       const hashed = url.pathname.startsWith('/assets/');

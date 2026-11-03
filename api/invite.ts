@@ -28,13 +28,17 @@ export default handler('POST', async (req) => {
   const invited = await db.auth.admin.inviteUserByEmail(email, { redirectTo: process.env.APP_URL || process.env.RENDER_EXTERNAL_URL, data: { full_name } });
   let uid = invited.data.user?.id;
   if (!uid) {
-    // already registered: look the user up instead of failing
-    const { data: p } = await db.from('tt_profiles').select('user_id').ilike('email', email).maybeSingle();
-    uid = p?.user_id;
+    // already registered: find them by their login email (exact match), never by the editable profile email
+    const { data: found } = await db.rpc('tt_user_id_by_email', { p_email: email });
+    uid = found ?? undefined;
   }
   if (!uid) throw new HttpError(400, 'Could not invite that email');
 
-  const { error } = await db.from('tt_org_members').upsert({ org_id, user_id: uid, role, active: true });
+  // inviting is for new people; roles and deactivation are changed on the person's page
+  const { data: existing } = await db.from('tt_org_members').select('user_id').eq('org_id', org_id).eq('user_id', uid).maybeSingle();
+  if (existing) throw new HttpError(409, 'This person is already in this organization. Change their role or reactivate them on their page.');
+
+  const { error } = await db.from('tt_org_members').insert({ org_id, user_id: uid, role, active: true });
   if (error) throw new HttpError(400, 'Could not add member');
   await db.from('tt_activity_logs').insert({
     org_id, entity_type: 'organization', entity_id: org_id, action: 'member_invited',

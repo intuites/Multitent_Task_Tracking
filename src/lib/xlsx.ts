@@ -120,7 +120,7 @@ const labels = (pct: boolean, ink = '333F38') => `<c:dLbls><c:spPr><a:noFill/><a
 
 function chartXml(ch: Chart, sh: Sheet) {
   const read = (s: Span) => sh.rows.slice(s.from, s.to + 1).map((r) => unwrap(r[s.col] ?? null).v);
-  const rng = (s: Span) => `${quote(sh.name)}!${ref(s.col, s.from, true)}:${ref(s.col, s.to, true)}`;
+  const rng = (s: Span) => `${esc(quote(sh.name))}!${ref(s.col, s.from, true)}:${ref(s.col, s.to, true)}`;
   const n = ch.cats.to - ch.cats.from + 1;
   const cat = `<c:cat><c:strRef><c:f>${rng(ch.cats)}</c:f><c:strCache><c:ptCount val="${n}"/>${read(ch.cats).map((v, i) => `<c:pt idx="${i}"><c:v>${esc(String(v ?? ''))}</c:v></c:pt>`).join('')}</c:strCache></c:strRef></c:cat>`;
   const val = (s: Span) => `<c:val><c:numRef><c:f>${rng(s)}</c:f><c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${n}"/>${read(s).map((v, i) => `<c:pt idx="${i}"><c:v>${Number(v) || 0}</c:v></c:pt>`).join('')}</c:numCache></c:numRef></c:val>`;
@@ -192,7 +192,7 @@ export function buildXlsx(sheets: Sheet[]): Blob {
     files.push([`xl/drawings/_rels/drawing${drawNo}.xml.rels`, rels(targets)]);
   });
   const filters = sheets.map((sh, i) => sh.filter
-    ? `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">${quote(sh.name)}!${ref(0, sh.filter.row, true)}:${ref(sh.filter.cols - 1, sh.filter.last, true)}</definedName>` : '').join('');
+    ? `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">${esc(quote(sh.name))}!${ref(0, sh.filter.row, true)}:${ref(sh.filter.cols - 1, sh.filter.last, true)}</definedName>` : '').join('');
   files.unshift(
     ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>`

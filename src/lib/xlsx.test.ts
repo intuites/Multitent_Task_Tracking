@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { writeFileSync } from 'node:fs';
-import { crc32, zip } from './xlsx';
+import { buildXlsx, crc32, zip } from './xlsx';
 import { platformWorkbook, reportPdf, reportWorkbook } from './reportWorkbook';
 import { reportHtml } from './printReport';
 
@@ -17,6 +17,14 @@ describe('xlsx writer', () => {
     const end = new DataView(z.buffer, z.length - 22);
     expect(end.getUint32(0, true)).toBe(0x06054b50);
     expect(end.getUint16(10, true)).toBe(2);
+  });
+
+  it('escapes a sheet name inside chart formulas', async () => {
+    const text = new TextDecoder().decode(new Uint8Array(await buildXlsx([
+      { name: 'AT&T <x', rows: [['a', 1], ['b', 2]], charts: [{ type: 'bar', title: 'T', cats: { col: 0, from: 0, to: 1 }, series: [{ name: 'n', vals: { col: 1, from: 0, to: 1 }, color: '1B5E3B' }], at: { col: 3, row: 0, w: 6, h: 10 } }] },
+    ]).arrayBuffer()));
+    expect(text).toContain("<c:f>'AT&amp;T &lt;x'!");
+    expect(text).not.toContain("<c:f>'AT&T <x'");
   });
 
   it('builds a report workbook with sheets, charts and escaped text', async () => {

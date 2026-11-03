@@ -9,7 +9,7 @@ export interface NavItem { path: string; label: string; icon: LucideIcon; group:
 export const NAV: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, group: 'Menu' },
   { path: '/my-tasks', label: 'My Tasks', icon: ListTodo, group: 'Menu', needs: 'task:read' },
-  { path: '/tasks', label: 'Tasks', icon: ClipboardList, group: 'Menu', needs: 'task:read' },
+  { path: '/tasks', label: 'Tasks', icon: ClipboardList, group: 'Menu', needs: 'task:write' },
   { path: '/templates', label: 'Task Templates', icon: CopyPlus, group: 'Menu', needs: 'task:write' },
   { path: '/calendar', label: 'Calendar', icon: CalendarDays, group: 'Menu', needs: 'task:read' },
   { path: '/employees', label: 'Employees & Departments', icon: Users, group: 'Team', needs: 'task:write' },

@@ -104,9 +104,9 @@ function Shell() {
 }
 
 const Pending = ({ name }: { name: string }) => <div className="card"><h2>{name}</h2><p>Not available yet.</p></div>;
-const Guard = ({ need, children }: { need: Parameters<typeof can>[1]; children: JSX.Element }) => {
+const Guard = ({ need, to = '/', children }: { need: Parameters<typeof can>[1]; to?: string; children: JSX.Element }) => {
   const { membership } = useAuth();
-  return can(membership!.role, need) ? children : <Navigate to="/" replace />;
+  return can(membership!.role, need) ? children : <Navigate to={to} replace />;
 };
 
 function Gate() {
@@ -122,7 +122,7 @@ function Gate() {
     <Routes>
       <Route element={<Shell />}>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/tasks" element={<Tasks mode="all" />} />
+        <Route path="/tasks" element={<Guard need="task:write" to="/my-tasks"><Tasks mode="all" /></Guard>} />
         <Route path="/tasks/:id" element={<TaskDetail />} />
         <Route path="/my-tasks" element={<Tasks mode="mine" />} />
         <Route path="/calendar" element={<Calendar />} />

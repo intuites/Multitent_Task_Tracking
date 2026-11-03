@@ -62,7 +62,7 @@ export default function TaskDetail() {
   const must = async (p: PromiseLike<{ error: { message: string } | null }>) => { const { error } = await p; if (error) throw new Error(error.message); };
 
   if (loading) return <PageSkeleton />;
-  if (!t) return <div className="card">Task not found. <Link to="/tasks">Back to tasks</Link></div>;
+  if (!t) return <div className="card">Task not found. <Link to={canAssign ? '/tasks' : '/my-tasks'}>Back to tasks</Link></div>;
 
   const isAssignee = d.assignees.some((a: any) => a.user_id === uid);
   const canStatus = canAssign || isAssignee;
@@ -149,7 +149,7 @@ export default function TaskDetail() {
   return (
     <div className="td">
       {d.parent ? <Link to={`/tasks/${d.parent.id}`} className="back-link"><ArrowLeft size={16} aria-hidden="true" />Subtask of {d.parent.title}</Link>
-        : <Link to="/tasks" className="back-link"><ArrowLeft size={16} aria-hidden="true" />All tasks</Link>}
+        : <Link to={canAssign ? '/tasks' : '/my-tasks'} className="back-link"><ArrowLeft size={16} aria-hidden="true" />{canAssign ? 'All tasks' : 'My tasks'}</Link>}
 
       <header className={`card td-hero ${overdue ? 'is-overdue' : ''}`}>
         <div className="td-hero-top">

@@ -1775,7 +1775,8 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .side-toggle:focus-visible, .side-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; transition: none; }
 @media (max-width: 860px) { .side-toggle { display: none; } }
 @media (min-width: 861px) {
-  .side.collapsed { width: 76px; padding-inline: 10px; overflow: visible; }
+  /* overflow is visible here so the org menu can open past the 76px rail; z-index keeps it above the page */
+  .side.collapsed { width: 76px; padding-inline: 10px; overflow: visible; z-index: 16; }
   .side.collapsed .side-toggle { justify-content: center; padding-inline: 0; }
   .side.collapsed .brand, .side.collapsed .org-btn { justify-content: center; padding-inline: 0; }
   .side.collapsed .org-name, .side.collapsed .org-chev, .side.collapsed .side-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

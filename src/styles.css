@@ -541,7 +541,7 @@ tbody tr, .inbox-item, .plist li, .team li { transition: background-color .25s v
    One light sweep is shared by every skeleton bar (fixed background), so a page reads as a single glass surface catching light.
    Colours come from tokens, redefined for dark mode below. */
 :root { --sk-base: #e1e8e4; --sk-hi: #fbfdfc; --sk-tint: rgb(46 125 79 / .07); --boot-glow: rgb(46 125 79 / .30); }
-:root[data-theme="dark"] { --sk-base: #1d2a24; --sk-hi: #2e4138; --sk-tint: rgb(116 214 160 / .06); --boot-glow: rgb(116 214 160 / .28); }
+:root[data-theme="dark"] { --sk-base: #26272a; --sk-hi: #36383c; --sk-tint: rgb(116 214 160 / .06); --boot-glow: rgb(116 214 160 / .28); }
 
 .sk { display: block; border-radius: 99px; background-color: var(--sk-base);
   background-image: linear-gradient(105deg, transparent 0 38%, var(--sk-hi) 50%, transparent 62% 100%);
@@ -871,7 +871,7 @@ dialog .actions > * { min-width: 104px; }
    Set on <html data-theme="dark"> by index.html / lib/theme.ts. Tokens first, then the few places that hard-code light colours. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0a100d; --panel: #101814; --surface: #141e19; --surface-2: #1b2722; --line: #25322c; --control-line: #4b5b53;
+  --bg: #161718; --panel: #1c1d1f; --surface: #212224; --surface-2: #28292c; --line: #323438; --control-line: #575a5f;
   --text: #e5ede8; --muted: #92a299;
   --brand: #74d6a0; --brand-2: #3f9d6b; --brand-3: #2b6e4a; --brand-deep: #b6ecca; --link: #86dcac;
   --brand-grad: linear-gradient(135deg, #2f8a58 0%, #17553a 100%);
@@ -880,7 +880,7 @@ dialog .actions > * { min-width: 104px; }
   --warn-bg: #30250d; --warn-fg: #f1c56c; --warn-line: #4d3b14;
   --bad-bg: #371613; --bad-fg: #ff9e8c; --bad-line: #5a241d;
   --info-bg: #122339; --info-fg: #a0c6f2; --info-line: #23395a;
-  --neutral-bg: #1e2924; --neutral-fg: #bdcac3; --neutral-line: #2c3a33;
+  --neutral-bg: #2a2b2e; --neutral-fg: #bdcac3; --neutral-line: #383a3e;
   --brand-tint: #15301f; --pop-shadow: 0 14px 36px rgb(0 0 0 / .55);
 }
 /* Organization brand color (lib/theme.ts applyBrand sets --accent and data-brand). Every brand shade is mixed from
@@ -897,16 +897,16 @@ dialog .actions > * { min-width: 104px; }
   --link: color-mix(in oklab, var(--accent) 55%, #fff); --brand-tint: color-mix(in oklab, var(--accent) 16%, var(--surface));
   --brand-grad: linear-gradient(135deg, color-mix(in oklab, var(--accent) 75%, #000) 0%, color-mix(in oklab, var(--accent) 45%, #000) 100%);
 }
-:root[data-theme="dark"] { --glass-bg: rgb(20 30 25 / .6); --glass-bg-float: rgb(20 30 25 / .84); --glass-line: rgb(255 255 255 / .08);
+:root[data-theme="dark"] { --glass-bg: rgb(33 34 36 / .6); --glass-bg-float: rgb(33 34 36 / .84); --glass-line: rgb(255 255 255 / .08);
   --glass-shadow: inset 0 1px 0 rgb(255 255 255 / .1), inset 0 0 18px rgb(255 255 255 / .03); }
 :root[data-theme="dark"] .topbar { animation-name: bar-solid-dark; }
-@keyframes bar-solid-dark { to { background: rgb(20 30 25 / .95); box-shadow: inset 0 1px 0 rgb(255 255 255 / .05), 0 12px 32px rgb(0 0 0 / .45); } }
+@keyframes bar-solid-dark { to { background: rgb(33 34 36 / .95); box-shadow: inset 0 1px 0 rgb(255 255 255 / .05), 0 12px 32px rgb(0 0 0 / .45); } }
 :root[data-theme="dark"] .side-link .count { background: var(--brand-2); }
 :root[data-theme="dark"] .bar.best { background: var(--brand); }
-:root[data-theme="dark"] .switch { background: #3a4842; }
+:root[data-theme="dark"] .switch { background: #414347; }
 :root[data-theme="dark"] .switch.on { background: var(--brand-2); }
-:root[data-theme="dark"] * { scrollbar-color: #33413a transparent; }
-:root[data-theme="dark"] ::-webkit-scrollbar-thumb { background-color: #33413a; }
+:root[data-theme="dark"] * { scrollbar-color: #3c3e42 transparent; }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb { background-color: #3c3e42; }
 :root[data-theme="dark"] .auth .login input[aria-invalid=true] { background: var(--bad-bg); }
 :root[data-theme="dark"] .auth-msg.error { background: var(--bad-bg); border-color: var(--bad-line); color: var(--bad-fg); }
 :root[data-theme="dark"] .cal-cell:hover { border-color: var(--control-line); box-shadow: 0 10px 22px rgb(0 0 0 / .35); }
@@ -1809,7 +1809,7 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
    A slow liquid wash sits behind the dashboard and the cards are frosted glass over it, so the colour moves under the glass.
    Transform-only animation; falls back to solid cards when transparency or motion is reduced. */
 :root { --dash-wash-1: rgb(92 184 134 / .22); --dash-wash-2: rgb(46 125 79 / .16); --dash-glass: rgb(255 255 255 / .72); }
-:root[data-theme="dark"] { --dash-wash-1: rgb(92 184 134 / .14); --dash-wash-2: rgb(46 125 79 / .18); --dash-glass: rgb(20 30 25 / .66); }
+:root[data-theme="dark"] { --dash-wash-1: rgb(92 184 134 / .14); --dash-wash-2: rgb(46 125 79 / .18); --dash-glass: rgb(33 34 36 / .66); }
 .dash { position: relative; isolation: isolate; }
 .dash::before, .dash::after { content: ''; position: absolute; z-index: -1; pointer-events: none; border-radius: 50%; filter: blur(40px); }
 .dash::before { width: 46%; aspect-ratio: 1; left: 0; top: 0; background: radial-gradient(circle, var(--dash-wash-1), transparent 65%); }
@@ -1860,9 +1860,9 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .bp.light { --b: color-mix(in oklab, var(--pv) 72%, #000); --tint: color-mix(in oklab, var(--pv) 11%, #fff);
   --grad: linear-gradient(135deg, color-mix(in oklab, var(--pv) 82%, #000), color-mix(in oklab, var(--pv) 52%, #000));
   --bp-bg: #f7f8f7; --bp-fg: #121a16; --bp-muted: #66726b; --bp-line: #e4e8e6; --bp-track: #e4e8e6; }
-.bp.dark { --b: color-mix(in oklab, var(--pv) 62%, #fff); --tint: color-mix(in oklab, var(--pv) 16%, #141e19);
+.bp.dark { --b: color-mix(in oklab, var(--pv) 62%, #fff); --tint: color-mix(in oklab, var(--pv) 16%, #212224);
   --grad: linear-gradient(135deg, color-mix(in oklab, var(--pv) 75%, #000), color-mix(in oklab, var(--pv) 45%, #000));
-  --bp-bg: #101814; --bp-fg: #e5ede8; --bp-muted: #92a299; --bp-line: #25322c; --bp-track: #25322c; }
+  --bp-bg: #1c1d1f; --bp-fg: #e5ede8; --bp-muted: #92a299; --bp-line: #323438; --bp-track: #323438; }
 .bp { background: var(--bp-bg); color: var(--bp-fg); border-color: var(--bp-line); }
 .bp-mode { color: var(--bp-muted); font-weight: 600; }
 .bp-nav { padding: 6px 10px; border-radius: 10px; background: var(--tint); color: var(--b); font-weight: 600; box-shadow: inset 3px 0 0 var(--b); }

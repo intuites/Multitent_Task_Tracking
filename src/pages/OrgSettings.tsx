@@ -4,18 +4,13 @@ import { ArrowLeft, Building2, Check, CopyPlus, Database, Globe2, Layers, LifeBu
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
-import { fmt, label, usePeople } from '../lib/ui';
+import { fmt, label, usePeople, zoneList } from '../lib/ui';
 import { ROLE_TEXT } from '../lib/roles';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { Departments, type Msg } from './Employees';
 
 const ROLES = ['admin', 'employee'] as const;
-// every IANA zone the browser knows; falls back to a short US-first list on old browsers
-const ZONES: string[] = (() => {
-  try { return (Intl as any).supportedValuesOf('timeZone'); } catch { return ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'UTC', 'Europe/London', 'Asia/Kolkata']; }
-})();
-const zoneList = (tz: string) => (ZONES.includes(tz) ? ZONES : [tz, ...ZONES]);
 type View = 'hub' | 'orgs' | 'depts';
 
 export default function OrgSettings() {

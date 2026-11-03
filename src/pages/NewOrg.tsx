@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Building2 } from 'lucide-react';
-import { rpc } from '../lib/ui';
+import { rpc, ZoneSelect } from '../lib/ui';
 import { useAuth } from '../lib/auth';
 
 // Create another organization from inside the app. A platform admin's is ready at once; others wait for approval.
@@ -43,7 +43,7 @@ export default function NewOrg() {
         <form className="pf-form" onSubmit={submit}>
           <label className="pf-wide">Organization name<input value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} placeholder="Acme Inc." /></label>
           <label>URL slug<input name="slug" key={slug} defaultValue={slug} required pattern="[a-z0-9][a-z0-9-]{1,40}" /></label>
-          <label>Time zone<input name="tz" defaultValue="America/New_York" required /></label>
+          <label>Time zone<ZoneSelect /></label>
           {err && <p role="alert" className="form-alert pf-wide">{err}</p>}
           <div className="pf-wide pf-actions"><button type="submit" disabled={busy}>{busy ? 'Sending…' : platformAdmin ? 'Create organization' : 'Send for approval'}</button></div>
         </form>

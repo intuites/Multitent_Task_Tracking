@@ -72,3 +72,12 @@ export const Due = ({ t }: { t: { due_date?: string | null; status: string } }) 
   <span className={isOverdue(t) ? 'overdue' : ''}>{fmt(t.due_date)}{isOverdue(t) && ' (overdue)'}</span>;
 
 export const Badge = ({ v }: { v: string }) => <span className={`badge b-${v}`}>{label(v)}</span>;
+
+// every IANA zone the browser knows; falls back to a short US-first list on old browsers
+export const ZONES: string[] = (() => {
+  try { return (Intl as any).supportedValuesOf('timeZone'); } catch { return ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'UTC', 'Europe/London', 'Asia/Kolkata']; }
+})();
+export const zoneList = (tz: string) => (ZONES.includes(tz) ? ZONES : [tz, ...ZONES]);
+/** time zone dropdown for organization forms; New York unless told otherwise */
+export const ZoneSelect = ({ value = 'America/New_York' }: { value?: string }) =>
+  <select name="tz" defaultValue={value} required>{zoneList(value).map((z) => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}</select>;

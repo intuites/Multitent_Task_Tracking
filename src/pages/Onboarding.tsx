@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { rpc } from '../lib/ui';
+import { rpc, ZoneSelect } from '../lib/ui';
 import { useAuth } from '../lib/auth';
 import { AuthLayout } from './Login';
 
@@ -63,7 +63,7 @@ export default function Onboarding() {
           <p className="muted auth-sub">You will be its admin and can invite your team once it's approved. A Taskify admin approves new organizations within 24 hours.</p>
           <label>Organization name<input name="name" required maxLength={120} /></label>
           <label>URL slug<input name="slug" required pattern="[a-z0-9][a-z0-9-]{1,40}" placeholder="my-company" /></label>
-          <label>Time zone<input name="tz" defaultValue={Intl.DateTimeFormat().resolvedOptions().timeZone} required /></label>
+          <label>Time zone<ZoneSelect /></label>
           {err && <p role="alert">{err}</p>}
           <button type="submit">Send for approval</button>
           <button type="button" className="link" onClick={() => { setCreating(false); setErr(''); }}>Back</button>

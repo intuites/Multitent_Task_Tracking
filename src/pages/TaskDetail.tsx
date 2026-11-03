@@ -270,6 +270,8 @@ export default function TaskDetail() {
               // escalations were retired; a task left in that state can be put straight back into the normal flow
               <div className="stack"><p className="note">This task was escalated before escalations were removed.</p>
                 {canAssign && openEsc && <button type="button" onClick={() => run(() => rpc('tt_resolve_escalation', { p_esc: openEsc.id, p_next_status: openEsc.previous_task_status ?? 'pending', p_resolution: 'Returned to work' }))}>Return to {label(openEsc.previous_task_status ?? 'pending')}</button>}</div>
+            ) : t.status === 'completed' && !canAssign ? (
+              <p className="note">Completed permanently. This task is closed; only an admin can reopen it.</p>
             ) : canStatus ? (
               <form className="stack" onSubmit={changeStatus}>
                 <select aria-label="New status" value={to} onChange={(e) => setToSel(e.target.value)} required disabled={!nexts.length}>{nexts.map((s) => <option key={s} value={s}>{s === 'completed' ? 'Completed permanently' : s === 'completed_cycle' ? 'Completed this cycle' : label(s)}</option>)}</select>

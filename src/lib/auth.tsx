@@ -6,12 +6,15 @@ import type { Role } from '../../api/_lib/permissions';
 /** platform: a platform admin working in an org they aren't a member of (acts as owner there; the database agrees, see migration 0018) */
 export interface Membership { org_id: string; role: Role; org_name: string; time_zone: string; platform?: boolean }
 const ORG_KEY = 'tt-org';
+/** an organization this user created that a platform admin hasn't approved (newest first) */
+export interface OrgRequest { id: string; name: string; status: 'pending' | 'rejected'; created_at: string }
 interface Ctx {
   session: Session | null;
   membership: Membership | null;
   /** every organization this user belongs to; membership is the active one */
   memberships: Membership[];
   switchOrg: (orgId: string) => void;
+  requests: OrgRequest[];
   platformAdmin: boolean;
   loading: boolean;
   /** set when the user arrived from a password-reset or invite link and must choose a password */
@@ -20,7 +23,7 @@ interface Ctx {
   refresh: () => void;
   signOut: () => Promise<void>;
 }
-const AuthCtx = createContext<Ctx>({ session: null, membership: null, memberships: [], switchOrg: () => {}, platformAdmin: false, loading: true, passwordSetup: null, finishPasswordSetup: () => {}, refresh: () => {}, signOut: async () => {} });
+const AuthCtx = createContext<Ctx>({ session: null, membership: null, memberships: [], switchOrg: () => {}, requests: [], platformAdmin: false, loading: true, passwordSetup: null, finishPasswordSetup: () => {}, refresh: () => {}, signOut: async () => {} });
 export const useAuth = () => useContext(AuthCtx);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -28,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [membership, setMembership] = useState<Membership | null>(null);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [platformAdmin, setPlatformAdmin] = useState(false);
+  const [requests, setRequests] = useState<OrgRequest[]>([]);
   const [loading, setLoading] = useState(configured);
   const [tick, setTick] = useState(0);
   const [passwordSetup, setPasswordSetup] = useState<'recovery' | 'invite' | null>(
@@ -53,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!session) { setMembership(null); setMemberships([]); return; }
+    if (!session) { setMembership(null); setMemberships([]); setRequests([]); return; }
     (async () => {
       // RLS limits these reads to the caller's own rows; roles are never taken from the browser.
       const { data } = await supabase.from('tt_org_members').select('org_id, role, organizations:tt_organizations(name, time_zone)')
@@ -70,13 +74,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const m = all.find((x) => x.org_id === saved) ?? all[0];
       setMemberships(all);
       setMembership(m ?? null);
+      // before migration 0026 there is no status column; the query errors and the list stays empty
+      const { data: reqs } = pa ? { data: [] } : await supabase.from('tt_organizations').select('id, name, status, created_at')
+        .eq('created_by', session.user.id).neq('status', 'approved').order('created_at', { ascending: false });
+      setRequests((reqs ?? []) as OrgRequest[]);
       setPlatformAdmin(pa);
       setLoading(false);
     })();
   }, [session?.user.id, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <AuthCtx.Provider value={{ session, membership, memberships, switchOrg, platformAdmin, loading, passwordSetup, finishPasswordSetup, refresh, signOut: async () => { await supabase.auth.signOut(); } }}>
+    <AuthCtx.Provider value={{ session, membership, memberships, switchOrg, requests, platformAdmin, loading, passwordSetup, finishPasswordSetup, refresh, signOut: async () => { await supabase.auth.signOut(); } }}>
       {children}
     </AuthCtx.Provider>
   );

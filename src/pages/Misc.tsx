@@ -4,6 +4,7 @@ import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { fetchAll, fileStamp, fmtTime, label, rpc, saveBlob, usePeople } from '../lib/ui';
+import { ask } from '../components/Dialog';
 
 export function ActivityLogs() {
   const { membership } = useAuth();
@@ -51,6 +52,12 @@ export function Platform() {
     try { await rpc('tt_platform_set_admin', { p_email: email, p_on: on }); setMsg({ kind: 'ok', text: on ? `${email} is now a platform admin.` : `${email} is no longer a platform admin.` }); load(); }
     catch (e) { setMsg({ kind: 'error', text: (e as Error).message }); }
   };
+  const review = async (o: any, approve: boolean) => {
+    if (!approve && !(await ask({ title: `Reject ${o.name}?`, message: 'Its creator will be told it was not approved and won’t be able to use it.', confirmLabel: 'Reject', danger: true })).ok) return;
+    try { await rpc('tt_platform_review_org', { p_org: o.id, p_approve: approve }); setMsg({ kind: 'ok', text: `${o.name} ${approve ? 'is approved' : 'was rejected'}. Its creator has been notified.` }); load(); }
+    catch (e) { setMsg({ kind: 'error', text: /function/i.test((e as Error).message) ? 'Approvals need database update 0026.' : (e as Error).message }); }
+  };
+  const waiting = (orgs ?? []).filter((o) => o.status === 'pending');
   const shown = (orgs ?? []).filter((o) => !q || o.name.toLowerCase().includes(q.toLowerCase()));
   // every organization side by side; reads go through RLS, which lets platform admins see all organizations
   async function exportAs(f: ExportFormat) {
@@ -82,14 +89,26 @@ export function Platform() {
       {msg && <p role={msg.kind === 'error' ? 'alert' : 'status'} className={`auth-msg ${msg.kind}`}><span>{msg.text}</span></p>}
       {s && <div className="perf-kpis">{Object.entries(s).map(([k, v], i) => <div key={k} className="perf-kpi" style={{ '--i': i } as React.CSSProperties}><b>{String(v)}</b><small>{label(k.replace(/^tt_/, ''))}</small></div>)}</div>}
 
+      {waiting.length > 0 && (
+        <section className="card" aria-labelledby="pw-h">
+          <div className="panel-head"><h3 id="pw-h">Waiting for approval ({waiting.length})</h3></div>
+          <p className="muted">New organizations can’t be used until you approve them. Creators are told to expect a decision within 24 hours.</p>
+          <ul className="help-list">{waiting.map((o) => (
+            <li key={o.id}><span className="grow"><b>{o.name}</b><small className="muted">{o.creator_email ?? 'Unknown creator'}, {fmtTime(o.created_at)}</small></span>
+              <button type="button" onClick={() => review(o, true)}>Approve</button>
+              <button type="button" className="link danger-text" onClick={() => review(o, false)}>Reject</button></li>))}</ul>
+        </section>
+      )}
+
       <section className="card" aria-labelledby="po-h">
         <div className="panel-head"><h3 id="po-h">Organizations</h3>
           <input className="plat-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search organizations" aria-label="Search organizations" /></div>
         {orgs === null ? <p className="muted">Loading…</p> : shown.length === 0 ? <p className="muted">No organizations.</p> : (
           <table className="emp-table">
-            <thead><tr><th>Organization</th><th>Members</th><th>Open tasks</th><th>Time zone</th><th>Created</th><th><span className="sr-only">Open</span></th></tr></thead>
+            <thead><tr><th>Organization</th><th>Status</th><th>Members</th><th>Open tasks</th><th>Time zone</th><th>Created</th><th><span className="sr-only">Open</span></th></tr></thead>
             <tbody>{shown.map((o) => (
-              <tr key={o.id}><td><b>{o.name}</b>{o.id === membership?.org_id && <small className="muted"> (open now)</small>}</td><td>{o.members}</td><td>{o.open_tasks}</td><td>{o.time_zone}</td><td>{fmtTime(o.created_at)}</td>
+              <tr key={o.id}><td><b>{o.name}</b>{o.id === membership?.org_id && <small className="muted"> (open now)</small>}</td>
+                <td>{o.status === 'rejected' ? <button type="button" className="link" title="Approve it after all" onClick={() => review(o, true)}>Rejected</button> : label(o.status ?? 'approved')}</td><td>{o.members}</td><td>{o.open_tasks}</td><td>{o.time_zone}</td><td>{fmtTime(o.created_at)}</td>
                 <td>{o.id !== membership?.org_id && <button type="button" className="pill-btn ghost" onClick={() => switchOrg(o.id)}>Open</button>}</td></tr>))}</tbody>
           </table>)}
       </section>

@@ -27,6 +27,7 @@ const TYPES: Record<string, TypeInfo> = {
   escalation_resolved: { label: 'Escalation resolved', hint: 'Someone resolves it', icon: Siren, tone: 'ok' },
   approval_requested: { label: 'Approval requested', hint: 'Your decision is needed', icon: BadgeCheck, tone: 'ok' },
   approval_completed: { label: 'Approval decided', hint: 'Approved or rejected', icon: BadgeCheck, tone: 'ok' },
+  org_review: { label: 'Organization review', hint: 'New organizations and approval decisions', icon: BadgeCheck, tone: 'brand' },
 };
 const GROUPS: [string, string[]][] = [
   ['Tasks', ['task_assigned', 'task_assignment_changed', 'task_status', 'task_comment', 'review_requested']],

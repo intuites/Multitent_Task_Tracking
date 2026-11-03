@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlarmClock, BadgeCheck, BellOff, Building2, CalendarClock, Check, CheckCheck, Eye, MessageSquare, RefreshCw, Siren, UserPlus,
+  AlarmClock, BadgeCheck, BellOff, CalendarClock, Check, CheckCheck, Eye, MessageSquare, RefreshCw, Siren, UserPlus,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -27,7 +27,6 @@ const TYPES: Record<string, TypeInfo> = {
   escalation_resolved: { label: 'Escalation resolved', hint: 'Someone resolves it', icon: Siren, tone: 'ok' },
   approval_requested: { label: 'Approval requested', hint: 'Your decision is needed', icon: BadgeCheck, tone: 'ok' },
   approval_completed: { label: 'Approval decided', hint: 'Approved or rejected', icon: BadgeCheck, tone: 'ok' },
-  portal_update: { label: 'Client updates', hint: 'Client requests and replies', icon: Building2, tone: 'brand' },
 };
 const GROUPS: [string, string[]][] = [
   ['Tasks', ['task_assigned', 'task_assignment_changed', 'task_status', 'task_comment', 'review_requested']],

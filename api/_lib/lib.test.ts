@@ -3,9 +3,9 @@ import { can } from './permissions';
 import { canTransition, createsCycle, DEFAULT_TASK_STATUS } from './taskStatus';
 
 describe('permissions', () => {
-  it('denies unknown role and client_user', () => {
+  it('denies an unknown role', () => {
     expect(can(undefined, 'task:read')).toBe(false);
-    expect(can('client_user', 'task:read')).toBe(false);
+    expect(can('manager' as never, 'task:read')).toBe(false);
   });
   it('employee cannot create or assign tasks; admin can', () => {
     expect(can('employee', 'task:write')).toBe(false);

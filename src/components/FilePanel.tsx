@@ -8,13 +8,12 @@ const OK = ['image/png', 'image/jpeg', 'image/gif', 'application/pdf', 'text/pla
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
 
 interface Props {
-  orgId: string; userId: string; entityType: 'task' | 'project' | 'client'; entityId: string;
-  canUpload: boolean; canDelete: boolean; portal?: boolean; // portal uploads are always client-visible
+  orgId: string; userId: string; entityType: 'task' | 'project'; entityId: string;
+  canUpload: boolean; canDelete: boolean;
 }
 
-export default function FilePanel({ orgId, userId, entityType, entityId, canUpload, canDelete, portal }: Props) {
+export default function FilePanel({ orgId, userId, entityType, entityId, canUpload, canDelete }: Props) {
   const [files, setFiles] = useState<any[]>([]);
-  const [shared, setShared] = useState(!!portal);
   const [error, setError] = useState('');
   const load = useCallback(async () => {
     const { data } = await supabase.from('tt_files').select('*').eq('entity_type', entityType).eq('entity_id', entityId).order('created_at', { ascending: false });
@@ -33,8 +32,7 @@ export default function FilePanel({ orgId, userId, entityType, entityId, canUplo
     const up = await supabase.storage.from('tt-files').upload(path, file, { contentType: file.type });
     if (up.error) return setError(up.error.message);
     const { error } = await supabase.from('tt_files').insert({
-      org_id: orgId, entity_type: entityType, entity_id: entityId, path, name: file.name, mime: file.type, size_bytes: file.size,
-      visibility: portal || shared ? 'client' : 'internal', uploaded_by: userId,
+      org_id: orgId, entity_type: entityType, entity_id: entityId, path, name: file.name, mime: file.type, size_bytes: file.size, uploaded_by: userId,
     });
     if (error) { await supabase.storage.from('tt-files').remove([path]); return setError(error.message); }
     setError(''); load();
@@ -58,7 +56,7 @@ export default function FilePanel({ orgId, userId, entityType, entityId, canUplo
         <ul className="plain">{files.map((f) => (
           <li key={f.id}>
             <button className="link" onClick={() => open(f)}>{f.name}</button>{' '}
-            <small>{f.visibility === 'client' ? 'shared with client' : 'internal'} · {Math.ceil((f.size_bytes ?? 0) / 1024)} KB · {fmtTime(f.created_at)}</small>
+            <small>{Math.ceil((f.size_bytes ?? 0) / 1024)} KB · {fmtTime(f.created_at)}</small>
             {canDelete && <button className="link" onClick={() => remove(f)}>Delete</button>}
           </li>))}
         </ul>
@@ -66,7 +64,6 @@ export default function FilePanel({ orgId, userId, entityType, entityId, canUplo
       {canUpload && (
         <div className="row filters">
           <input type="file" onChange={upload} aria-label="Upload file" />
-          {!portal && <label className="inline"><input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> Share with client</label>}
         </div>
       )}
     </div>

@@ -69,7 +69,7 @@ export default function Templates() {
     try {
       const id = await rpc<string>('tt_create_from_template', {
         p_template: use.id, p_title: String(f.get('title') || ''), p_department: f.get('department') || null, p_assignee: f.get('assignee') || null,
-        p_client: null, p_project: null, p_start: f.get('start') || null, p_extra_emails: extra,
+        p_project: null, p_start: f.get('start') || null, p_extra_emails: extra,
       });
       navigate(`/tasks/${id}`);
     } catch (x) { setError((x as Error).message); }

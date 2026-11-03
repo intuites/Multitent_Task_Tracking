@@ -2,19 +2,16 @@
 
 Source of truth in code: `api/_lib/permissions.ts` (UI) and RLS/functions in the migrations (enforcement). The UI check is only convenience.
 
-| Capability | Owner | Admin | Manager | Employee | Client portal user |
-|---|---|---|---|---|---|
-| Org settings, roles, invites | ✔ | ✔ (not owners) | – | – | – |
-| Clients / contacts / notes: read | ✔ | ✔ | ✔ | ✔ (read) | own client only |
-| Clients / contacts / notes: write | ✔ | ✔ | ✔ | – | – |
-| Projects / milestones: write | ✔ | ✔ | ✔ | – | – |
-| Tasks: create/edit/assign/archive/dependencies | ✔ | ✔ | ✔ | – | request via portal only |
-| Task status change | ✔ | ✔ | ✔ | assigned tasks only | – |
-| Comments (internal) | ✔ | ✔ | ✔ | ✔ | never visible |
-| Comments (client-visible) | ✔ | ✔ | ✔ | ✔ | on shared tasks |
-| Raise escalation | ✔ | ✔ | ✔ | ✔ | – |
-| Update/resolve escalation | ✔ | ✔ | ✔ | if owner | never visible |
-| Reports, activity logs, employees page | ✔ | ✔ | ✔ | – | – |
-| Approve deliverable | assigned approver | | | | contacts with `can_approve` |
+Inside an organization there are two roles, admin and employee. The platform admin belongs to no organization and opens every one with admin rights (it appears as `owner` in code).
 
-Known simplifications: any org member can *read* all org tasks/clients (no per-team read scoping); the dependency-override is available to all managers (not configurable per org).
+| Capability | Admin | Employee | Platform admin |
+|---|---|---|---|
+| Org settings, roles, invites, departments | ✔ | – | ✔ (any org) |
+| Tasks: create/edit/assign/archive | ✔ | – | ✔ |
+| Task status change | ✔ | assigned tasks only | ✔ |
+| Comments and files on tasks | ✔ | ✔ | ✔ |
+| Raise escalation | ✔ | ✔ | ✔ |
+| Reports, activity log, employees page | ✔ | – | ✔ |
+| Admin site (all organizations, platform admins) | – | – | ✔ |
+
+Known simplification: any org member can *read* all org tasks (no per-department read scoping).

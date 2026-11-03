@@ -4,8 +4,6 @@ import type { Action, Role } from '../../api/_lib/permissions';
 export const ACTION_TEXT: Record<Action, string> = {
   'org:manage': 'Manage organization settings',
   'members:manage': 'Invite people and change roles',
-  'client:write': 'Add and edit clients and contacts',
-  'client:read': 'View clients and contacts',
   'project:write': 'Create, edit and delete projects',
   'project:read': 'View projects',
   'task:write': 'Create, assign and edit tasks',
@@ -14,10 +12,9 @@ export const ACTION_TEXT: Record<Action, string> = {
   'escalation:manage': 'Raise and resolve escalations',
   'report:read': 'View reports and export them to Excel or PDF',
   'activity:read': 'See the activity log',
-  'internal_comment:read': 'Read internal comments',
 };
 
-export const ROLE_TEXT: Record<Exclude<Role, 'platform_admin' | 'client_user'>, { title: string; blurb: string }> = {
+export const ROLE_TEXT: Record<Exclude<Role, 'platform_admin'>, { title: string; blurb: string }> = {
   owner: { title: 'Owner', blurb: 'Created this organization. Full control, including who else is an owner.' },
   admin: { title: 'Admin', blurb: 'Full control of this organization: people, departments, settings, and creating and assigning tasks to anyone.' },
   employee: { title: 'Employee', blurb: 'Works on assigned tasks, updates their status and comments.' },

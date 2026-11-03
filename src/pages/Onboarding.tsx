@@ -3,7 +3,7 @@ import { rpc } from '../lib/ui';
 import { useAuth } from '../lib/auth';
 import { AuthLayout } from './Login';
 
-// Shown to a signed-in user who belongs to no organization and is not a portal contact.
+// Shown to a signed-in user who belongs to no organization.
 // Most people here are employees waiting for an invite, so that path comes first.
 export default function Onboarding() {
   const { session, refresh, signOut } = useAuth();

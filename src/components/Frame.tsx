@@ -16,7 +16,7 @@ export function ThemeToggle() {
   );
 }
 
-// Shared app frame (sidebar + top bar) for the staff app and the client portal.
+// Shared app frame (sidebar + top bar) for the app.
 export interface FrameItem { label: string; icon: LucideIcon; to?: string; onClick?: () => void; active?: boolean; badge?: number }
 export interface FrameGroup { title: string; items: FrameItem[] }
 export interface BellProps { userId: string; unread: number; onChanged: () => void; allTo?: string; onAll?: () => void }

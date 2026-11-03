@@ -6,14 +6,12 @@ import type { Role } from '../../api/_lib/permissions';
 /** platform: a platform admin working in an org they aren't a member of (acts as owner there; the database agrees, see migration 0018) */
 export interface Membership { org_id: string; role: Role; org_name: string; time_zone: string; platform?: boolean }
 const ORG_KEY = 'tt-org';
-export interface Portal { client_id: string; contact_id: string; client_name: string; can_approve: boolean; full_name: string }
 interface Ctx {
   session: Session | null;
   membership: Membership | null;
   /** every organization this user belongs to; membership is the active one */
   memberships: Membership[];
   switchOrg: (orgId: string) => void;
-  portal: Portal | null;
   platformAdmin: boolean;
   loading: boolean;
   /** set when the user arrived from a password-reset or invite link and must choose a password */
@@ -22,14 +20,13 @@ interface Ctx {
   refresh: () => void;
   signOut: () => Promise<void>;
 }
-const AuthCtx = createContext<Ctx>({ session: null, membership: null, memberships: [], switchOrg: () => {}, portal: null, platformAdmin: false, loading: true, passwordSetup: null, finishPasswordSetup: () => {}, refresh: () => {}, signOut: async () => {} });
+const AuthCtx = createContext<Ctx>({ session: null, membership: null, memberships: [], switchOrg: () => {}, platformAdmin: false, loading: true, passwordSetup: null, finishPasswordSetup: () => {}, refresh: () => {}, signOut: async () => {} });
 export const useAuth = () => useContext(AuthCtx);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [membership, setMembership] = useState<Membership | null>(null);
   const [memberships, setMemberships] = useState<Membership[]>([]);
-  const [portal, setPortal] = useState<Portal | null>(null);
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [loading, setLoading] = useState(configured);
   const [tick, setTick] = useState(0);
@@ -56,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!session) { setMembership(null); setMemberships([]); setPortal(null); return; }
+    if (!session) { setMembership(null); setMemberships([]); return; }
     (async () => {
       // RLS limits these reads to the caller's own rows; roles are never taken from the browser.
       const { data } = await supabase.from('tt_org_members').select('org_id, role, organizations:tt_organizations(name, time_zone)')
@@ -73,19 +70,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const m = all.find((x) => x.org_id === saved) ?? all[0];
       setMemberships(all);
       setMembership(m ?? null);
-      if (!m) {
-        const { data: c } = await supabase.from('tt_client_contacts').select('id, client_id, full_name, can_approve, clients:tt_clients(name)')
-          .eq('user_id', session.user.id).eq('portal_access', true).eq('status', 'active').limit(1);
-        const x = c?.[0] as any;
-        setPortal(x ? { client_id: x.client_id, contact_id: x.id, client_name: x.clients?.name ?? '', can_approve: x.can_approve, full_name: x.full_name } : null);
-      } else setPortal(null);
       setPlatformAdmin(pa);
       setLoading(false);
     })();
   }, [session?.user.id, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <AuthCtx.Provider value={{ session, membership, memberships, switchOrg, portal, platformAdmin, loading, passwordSetup, finishPasswordSetup, refresh, signOut: async () => { await supabase.auth.signOut(); } }}>
+    <AuthCtx.Provider value={{ session, membership, memberships, switchOrg, platformAdmin, loading, passwordSetup, finishPasswordSetup, refresh, signOut: async () => { await supabase.auth.signOut(); } }}>
       {children}
     </AuthCtx.Provider>
   );

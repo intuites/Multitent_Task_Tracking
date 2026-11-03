@@ -5,24 +5,21 @@ All tables have RLS enabled. `org_id` = tenant. Migrations: `supabase/migrations
 | Table | Purpose | Notes |
 |---|---|---|
 | tt_organizations | Tenant root | name, slug (unique), time_zone |
-| tt_org_members | User role per org | roles owner/admin/manager/employee; `active` flag; owner changes guarded by trigger |
+| tt_org_members | User role per org | roles admin/employee (platform admins are in `tt_platform_admins`, not here); `active` flag; owner changes guarded by trigger |
 | tt_profiles | Display name/email per auth user | filled by trigger on `auth.users` |
-| tt_clients | CRM clients | type individual/business; status lead…archived |
-| tt_client_contacts | People at a client | `user_id` + `portal_access` + `can_approve` drive portal; one primary per client |
-| tt_client_notes | Internal notes | never exposed to portal |
-| tt_projects | Projects | `client_visible`, progress_mode manual/milestones/tasks |
+| tt_projects | Projects | progress_mode manual/milestones/tasks |
 | tt_project_milestones | Milestones | `completed_at` null = open |
 | tt_project_members | Project team | table only; UI not built |
-| tt_tasks | Tasks | status check constraint; trigger guards status; `archived_at`, `client_visible`, `requires_approval`, recurrence columns |
+| tt_tasks | Tasks | status check constraint; trigger guards status; `archived_at`, `requires_approval`, recurrence columns |
 | tt_task_assignees | Many assignees | PK (task,user) prevents duplicates |
 | tt_task_watchers | Watchers | separate from assignees |
 | tt_task_status_history | Every transition | written by functions/trigger only |
 | tt_task_checklist_items | Checklist | position for ordering |
 | tt_task_dependencies | blocked-by edges | cycles rejected in `tt_add_dependency` |
-| tt_task_comments / tt_task_comment_edits | Comments + edit audit | visibility internal/client; soft delete |
+| tt_task_comments / tt_task_comment_edits | Comments + edit audit | soft delete |
 | tt_files | File metadata | bytes in storage bucket `tt-files` |
 | tt_escalations / tt_escalation_updates | Escalation record + history | `previous_task_status`, `resolved_task_status` |
-| tt_approvals | Approval requests | approver is a user or a client contact |
+| tt_approvals | Approval requests | unused since 0007 |
 | tt_notifications / tt_notification_preferences | In-app notifications, per-type prefs | unique (user, dedup_key) |
 | tt_email_delivery_logs | Email queue + log | status pending/sent/failed, attempts ≤5 |
 | tt_task_recurrence | Recurrence rule per template task | unique (recurrence_parent_id, occurrence_date) on tasks gives idempotency |

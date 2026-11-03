@@ -3,11 +3,10 @@ import { admin, authUser, handler, HttpError } from './_lib/http';
 const ROLES = ['admin', 'employee'];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// POST { org_id, email, full_name?, role }            -> invite an employee
-// POST { org_id, email, full_name?, client_contact_id } -> invite a client contact to the portal
+// POST { org_id, email, full_name?, role } -> invite an admin or employee
 export default handler('POST', async (req) => {
   const user = await authUser(req);
-  const { org_id, email, full_name, role, client_contact_id } = req.body ?? {};
+  const { org_id, email, full_name, role } = req.body ?? {};
   if (typeof org_id !== 'string' || typeof email !== 'string' || !EMAIL.test(email)) throw new HttpError(400, 'Valid org_id and email required');
   const db = admin();
 
@@ -23,14 +22,8 @@ export default handler('POST', async (req) => {
   }
   if (!me) throw new HttpError(403, 'Not authorized');
 
-  if (client_contact_id) {
-    if (!['owner', 'admin'].includes(me.role)) throw new HttpError(403, 'Not authorized');
-    const { data: c } = await db.from('tt_client_contacts').select('id').eq('id', client_contact_id).eq('org_id', org_id).maybeSingle();
-    if (!c) throw new HttpError(404, 'Contact not found');
-  } else {
-    if (!ROLES.includes(role)) throw new HttpError(400, 'Invalid role');
-    if (!['owner', 'admin'].includes(me.role)) throw new HttpError(403, 'Not authorized');
-  }
+  if (!ROLES.includes(role)) throw new HttpError(400, 'Invalid role');
+  if (!['owner', 'admin'].includes(me.role)) throw new HttpError(403, 'Not authorized');
 
   const invited = await db.auth.admin.inviteUserByEmail(email, { redirectTo: process.env.APP_URL || process.env.RENDER_EXTERNAL_URL, data: { full_name } });
   let uid = invited.data.user?.id;
@@ -41,16 +34,11 @@ export default handler('POST', async (req) => {
   }
   if (!uid) throw new HttpError(400, 'Could not invite that email');
 
-  if (client_contact_id) {
-    const { error } = await db.from('tt_client_contacts').update({ user_id: uid, portal_access: true }).eq('id', client_contact_id).eq('org_id', org_id);
-    if (error) throw new HttpError(400, 'Could not link contact (is this user already linked to this client?)');
-  } else {
-    const { error } = await db.from('tt_org_members').upsert({ org_id, user_id: uid, role, active: true });
-    if (error) throw new HttpError(400, 'Could not add member');
-  }
+  const { error } = await db.from('tt_org_members').upsert({ org_id, user_id: uid, role, active: true });
+  if (error) throw new HttpError(400, 'Could not add member');
   await db.from('tt_activity_logs').insert({
-    org_id, entity_type: 'organization', entity_id: org_id, action: client_contact_id ? 'portal_invited' : 'member_invited',
-    actor_id: user.id, detail: { role: role ?? 'portal' },
+    org_id, entity_type: 'organization', entity_id: org_id, action: 'member_invited',
+    actor_id: user.id, detail: { role },
   });
   return { ok: true };
 });

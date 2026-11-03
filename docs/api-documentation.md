@@ -3,8 +3,8 @@
 Most data access is Supabase (PostgREST + RPC) under RLS. Custom HTTP endpoints (all JSON, errors as `{ "error": "..." }`):
 
 ## POST /api/invite
-Header `Authorization: Bearer <user JWT>`. Body: `{ org_id, email, full_name?, role }` (employee) or `{ org_id, email, full_name?, client_contact_id }` (portal).
-Caller's role is read from `org_members`. Employee invites: owner/admin (only an owner can invite owners). Portal invites: manager+. 401/403/400/404/405 as appropriate.
+Header `Authorization: Bearer <user JWT>`. Body: `{ org_id, email, full_name?, role }`, role `admin` or `employee`.
+Caller must be an admin of the org (read from `org_members`) or a platform admin. 401/403/400/405 as appropriate.
 
 ## GET /api/cron/tick
 Header `Authorization: Bearer $CRON_SECRET` (Vercel Cron sends this automatically when `CRON_SECRET` is set). Runs `tt_generate_recurrences(100)`, `tt_generate_reminders(500)`, then sends up to 50 queued emails. Returns counts. Safe to call repeatedly.

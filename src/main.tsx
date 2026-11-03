@@ -26,7 +26,6 @@ const PersonPage = lazy(() => import('./pages/Person'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const Reports = lazy(() => import('./pages/Reports'));
-const Portal = lazy(() => import('./pages/Portal'));
 const Guide = lazy(() => import('./pages/Guide'));
 const ProfilePage = lazy(() => import('./pages/Profile'));
 const NewOrg = lazy(() => import('./pages/NewOrg'));
@@ -111,13 +110,12 @@ const Guard = ({ need, children }: { need: Parameters<typeof can>[1]; children: 
 };
 
 function Gate() {
-  const { session, membership, portal, platformAdmin, loading, passwordSetup } = useAuth();
+  const { session, membership, platformAdmin, loading, passwordSetup } = useAuth();
   if (!configured) return <div className="card">Set the Supabase variables in <code>.env.local</code>, then restart <code>npm run dev</code>.</div>;
   if (loading) return <Boot />;
   // the product guide is public so people can read it before signing in
   if (!session) return window.location.pathname === '/guide' ? <Suspense fallback={<Boot />}><Guide standalone /></Suspense> : <Login />;
   if (passwordSetup) return <SetPassword />;
-  if (portal) return <Suspense fallback={<Boot />}><Portal /></Suspense>;
   if (!membership) return <Onboarding />;
   return (
     <Suspense fallback={<Boot />}>

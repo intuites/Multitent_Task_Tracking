@@ -102,7 +102,7 @@ export default function TaskDetail() {
     e.preventDefault();
     const form = e.currentTarget, f = new FormData(form);
     run(async () => {
-      await must(supabase.from('tt_task_comments').insert({ org_id: orgId, task_id: id, user_id: uid, body: String(f.get('body')).trim(), visibility: 'internal' }));
+      await must(supabase.from('tt_task_comments').insert({ org_id: orgId, task_id: id, user_id: uid, body: String(f.get('body')).trim() }));
       form.reset();
     });
   };

@@ -1,16 +1,14 @@
 export type Role =
-  | 'platform_admin' | 'owner' | 'admin' | 'employee' | 'client_user';
+  | 'platform_admin' | 'owner' | 'admin' | 'employee';
 
 export type Action =
-  | 'org:manage' | 'members:manage' | 'client:write' | 'client:read'
+  | 'org:manage' | 'members:manage'
   | 'project:write' | 'project:read' | 'task:write' | 'task:read'
-  | 'task:status' | 'escalation:manage' | 'report:read' | 'activity:read'
-  | 'internal_comment:read';
+  | 'task:status' | 'escalation:manage' | 'report:read' | 'activity:read';
 
 const ALL: Action[] = [
-  'org:manage', 'members:manage', 'client:write', 'client:read', 'project:write',
-  'project:read', 'task:write', 'task:read', 'task:status', 'escalation:manage',
-  'report:read', 'activity:read', 'internal_comment:read',
+  'org:manage', 'members:manage', 'project:write', 'project:read', 'task:write',
+  'task:read', 'task:status', 'escalation:manage', 'report:read', 'activity:read',
 ];
 
 export const MATRIX: Record<Role, Action[]> = {
@@ -18,8 +16,7 @@ export const MATRIX: Record<Role, Action[]> = {
   owner: ALL,
   // organizations have two roles, admin and employee; 'owner' is how a platform admin acts inside any organization
   admin: ALL,
-  employee: ['client:read', 'project:read', 'task:read', 'task:status', 'internal_comment:read'],
-  client_user: [], // portal access is checked per-record, never via this matrix
+  employee: ['project:read', 'task:read', 'task:status'],
 };
 
 /** Role must come from a verified org_members row, never from the request. */

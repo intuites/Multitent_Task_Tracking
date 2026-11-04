@@ -48,6 +48,22 @@ const mix = (a: string, b: string, t: number) => { // t of a, in OKLCH-ish via l
   return '#' + x.map((v, i) => Math.round(fromLin(v * t + y[i] * (1 - t)) * 255).toString(16).padStart(2, '0')).join('');
 };
 
+const toHex = (rgb: number[]) => '#' + rgb.map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+/** `fg` at opacity `a` painted over `back`, the way the browser composites it. */
+export const over = (fg: string, a: number, back: string) => { const [x, y] = [hexToRgb(fg), hexToRgb(back)]; return toHex(x.map((v, i) => v * a + y[i] * (1 - a))); };
+
+/** Frosted-glass top bar: a brand-tinted frost at the lowest opacity that keeps the bar's text readable over anything
+ *  that scrolls under it (the page, cards, and the brand's solid fill). Returns the frost color and its opacity. */
+export function glassBar(o: { tint: string; surface: string; bg: string; solid: string; text: string; muted: string; dark: boolean }) {
+  const frost = mix(o.tint, o.dark ? o.surface : '#ffffff', o.dark ? 0.55 : 0.4);
+  const ok = (a: number) => [o.bg, o.surface].every((b) => contrast(o.text, over(frost, a, b)) >= 7 && contrast(o.muted, over(frost, a, b)) >= 4.5)
+    && contrast(o.text, over(frost, a, o.solid)) >= 4.5;
+  let a = o.dark ? 0.5 : 0.45;
+  while (a < 0.97 && !ok(a)) a = Math.round((a + 0.01) * 100) / 100;
+  return { frost, alpha: a };
+}
+const rgba = (hex: string, a: number) => `rgb(${hexToRgb(hex).map((v) => Math.round(v * 255)).join(' ')} / ${a})`;
+
 const SURFACE: Record<Mode, { surface: string; bg: string }> = { light: { surface: '#ffffff', bg: '#eceeed' }, dark: { surface: '#212224', bg: '#161718' } };
 const INK_DARK = '#111214';
 
@@ -106,6 +122,8 @@ export function brandPalette(hex: string, mode: Mode): Palette {
     '--bg': neutral(0.94), '--panel': neutral(0.978), '--surface-2': neutral(0.965), '--line': neutral(0.925), '--control-line': neutral(0.66),
     '--text': neutral(0.2), '--muted': neutral(0.53), '--neutral-bg': neutral(0.955), '--neutral-fg': neutral(0.38), '--neutral-line': neutral(0.9), '--hatch': neutral(0.74),
   });
+  const bar = glassBar({ tint, surface, bg: p['--bg'], solid, text: p['--text'], muted: p['--muted'], dark });
+  p['--bar-bg'] = rgba(bar.frost, bar.alpha);
   return p;
 }
 

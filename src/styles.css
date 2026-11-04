@@ -1895,6 +1895,45 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .brand-swatch.sm[aria-pressed=true] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent), 0 0 0 2px var(--surface), 0 0 0 4px var(--sw); }
 @media (max-width: 520px) { .brand-fam { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
 
+/* ---------- activity log ----------
+   A timeline per day: day heading (sticky under the top bar), then a rail through each actor's avatar.
+   The small badge on the avatar says what kind of change it was (task, people, organization, projects & clients). */
+.al-who select { min-width: 200px; }
+.al-filters { margin: 0 2px 14px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.al-filters button { white-space: nowrap; }
+.al-card { padding: 8px 24px 20px; overflow: visible; } /* .card scrolls sideways for tables; that would trap the sticky day headings */
+.al-day + .al-day { margin-top: 6px; }
+.al-day h3 { position: sticky; top: 92px; z-index: 2; display: flex; align-items: center; gap: 8px; margin: 0 -24px; padding: 14px 24px 10px;
+  background: var(--surface); font-size: var(--fs-md); }
+.al-day h3 small { padding: 1px 8px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--muted); font-size: var(--fs-2xs); font-weight: var(--fw-semibold); }
+.al-day ol { position: relative; list-style: none; margin: 0; padding: 0; }
+.al-day ol::before { content: ''; position: absolute; left: 15px; top: 18px; bottom: 18px; width: 2px; border-radius: 2px; background: var(--line); }
+.al-item { position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 4px 14px; padding: 9px 10px 9px 0;
+  border-radius: 12px; }
+.al-item:hover { background: var(--surface-2); }
+.al-item p { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.al-item p b { font-weight: var(--fw-semibold); }
+.al-item p a { font-weight: var(--fw-semibold); }
+.al-av { position: relative; overflow: visible; box-shadow: 0 0 0 3px var(--surface); }
+.al-av i { position: absolute; right: -8px; bottom: -6px; display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface); background: var(--cat-bg); color: var(--cat-fg); }
+.c-task { --cat-bg: var(--info-bg); --cat-fg: var(--info-fg); }
+.c-people { --cat-bg: var(--ok-bg); --cat-fg: var(--ok-fg); }
+.c-org { --cat-bg: var(--neutral-bg); --cat-fg: var(--neutral-fg); }
+.c-work { --cat-bg: var(--warn-bg); --cat-fg: var(--warn-fg); }
+.al-count { display: inline-block; margin-left: 8px; padding: 0 7px; border-radius: var(--r-pill); background: var(--brand-tint); color: var(--brand-deep);
+  font-size: var(--fs-2xs); font-weight: var(--fw-bold); vertical-align: 1px; }
+.al-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; }
+.al-meta time { color: var(--text); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+.al-older { display: flex; margin: 16px auto 0; }
+@media (max-width: 860px) { .al-day h3 { top: 116px; } }
+@media (max-width: 640px) {
+  .al-who, .al-who select { width: 100%; }
+  .al-card { padding: 4px 14px 16px; } .al-day h3 { margin: 0 -14px; padding: 12px 14px 8px; }
+  .al-item { grid-template-columns: 32px minmax(0, 1fr); padding-right: 4px; }
+  .al-meta { grid-column: 2; flex-direction: row; align-items: center; gap: 8px; }
+}
+
 /* ---------- organization settings ----------
    Identity header across the top; the form (details, brand color with a live preview that stays in view, a glass save bar)
    beside a narrow rail; one column on tablets and phones. */

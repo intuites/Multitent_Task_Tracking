@@ -5,30 +5,91 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { fetchAll, fileStamp, fmtTime, label, rpc, saveBlob, usePeople } from '../lib/ui';
 import { ask } from '../components/Dialog';
+import { ListSkeleton } from '../components/Skeleton';
+import { Building2, FolderKanban, History, ListChecks, Users } from 'lucide-react';
+import { byDay, describe, fold, FILTERS, type Category, type LogRow } from '../lib/activityText';
+import { safeZone } from '../lib/greeting';
 
+const PAGE = 50;
+const CAT_ICON: Record<Category, typeof ListChecks> = { task: ListChecks, people: Users, org: Building2, work: FolderKanban };
+const CAT_NAME: Record<Category, string> = { task: 'Task', people: 'People', org: 'Organization', work: 'Projects & clients' };
+const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+
+/** Who changed what, as a day-by-day timeline in the organization's time zone. */
 export function ActivityLogs() {
   const { membership } = useAuth();
   const orgId = membership!.org_id;
-  const { name } = usePeople(orgId);
-  const [rows, setRows] = useState<any[]>([]);
-  const [type, setType] = useState('');
-  const [page, setPage] = useState(0);
-  useEffect(() => {
-    let q = supabase.from('tt_activity_logs').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).range(page * 50, page * 50 + 49);
-    if (type) q = q.eq('entity_type', type);
-    q.then(({ data }) => setRows(data ?? []));
-  }, [orgId, type, page]);
+  const zone = safeZone(membership!.time_zone);
+  const { people, name: rawName } = usePeople(orgId);
+  const name = (id?: string | null) => { const n = rawName(id); return n === 'Unknown' ? 'a former member' : n; }; // people who left the organization
+  const [rows, setRows] = useState<LogRow[] | null>(null);
+  const [titles, setTitles] = useState<Record<string, string>>({});
+  const [filter, setFilter] = useState('');
+  const [who, setWho] = useState('');
+  const [more, setMore] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function load(from: number) {
+    setBusy(true);
+    let q = supabase.from('tt_activity_logs').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).range(from, from + PAGE - 1);
+    const types = FILTERS.find((f) => f.key === filter)!.types;
+    if (types.length) q = q.in('entity_type', types);
+    if (who) q = q.eq('actor_id', who);
+    const { data } = await q;
+    const got = (data ?? []) as LogRow[];
+    const ids = [...new Set(got.filter((r) => r.entity_type === 'task').map((r) => r.entity_id))];
+    if (ids.length) {
+      const { data: t } = await supabase.from('tt_tasks').select('id, title').in('id', ids);
+      setTitles((old) => ({ ...old, ...Object.fromEntries((t ?? []).map((x) => [x.id, x.title])) }));
+    }
+    setRows((old) => (from ? [...(old ?? []), ...got] : got));
+    setMore(got.length === PAGE);
+    setBusy(false);
+  }
+  useEffect(() => { setRows(null); load(0); }, [orgId, filter, who]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const time = (s: string) => new Date(s).toLocaleTimeString('en-US', { timeZone: zone, hour: 'numeric', minute: '2-digit' });
+  const days = rows ? byDay(fold(rows), (f) => f.row.created_at, zone) : [];
+
   return (
-    <div className="card">
-      <h2>Activity Logs</h2>
-      <div className="row filters"><select aria-label="Filter by entity type" value={type} onChange={(e) => { setPage(0); setType(e.target.value); }}>
-        <option value="">All</option>{['task', 'organization'].map((t) => <option key={t} value={t}>{label(t)}</option>)}</select></div>
-      {rows.length === 0 ? <p>No activity.</p> : (
-        <table><thead><tr><th>When</th><th>Who</th><th>Entity</th><th>Action</th></tr></thead>
-          <tbody>{rows.map((r) => <tr key={r.id}><td>{fmtTime(r.created_at)}</td><td>{name(r.actor_id)}</td>
-            <td>{r.entity_type === 'task' ? <Link to={`/tasks/${r.entity_id}`}>task</Link> : label(r.entity_type)}</td>
-            <td>{label(r.action)}</td></tr>)}</tbody></table>)}
-      <div className="row"><button disabled={!page} onClick={() => setPage(page - 1)}>Newer</button><button disabled={rows.length < 50} onClick={() => setPage(page + 1)}>Older</button></div>
+    <div className="al">
+      <div className="page-head">
+        <div>
+          <h2 className="page-title">Activity log</h2>
+          <p className="page-sub">Everything that changed in {membership!.org_name}, newest first. Times are in {zone.replace(/_/g, ' ')}.</p>
+        </div>
+        <label className="al-who"><span className="sr-only">Filter by person</span>
+          <select value={who} onChange={(e) => setWho(e.target.value)}>
+            <option value="">Everyone</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="seg al-filters" role="group" aria-label="Show">
+        {FILTERS.map((f) => <button key={f.key} type="button" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>{f.name}</button>)}
+      </div>
+
+      <section className="card al-card" aria-busy={rows === null}>
+        {rows === null ? <ListSkeleton rows={6} /> : rows.length === 0 ? (
+          <div className="inbox-empty"><span className="empty-ico"><History size={22} aria-hidden="true" /></span><b>No activity yet</b>
+            <p className="muted">{who || filter ? 'Nothing matches these filters. Try Everyone or All.' : 'Changes to tasks, people and settings will show up here.'}</p></div>
+        ) : days.map((g) => (
+          <section key={g.key} className="al-day" aria-labelledby={`d-${g.key}`}>
+            <h3 id={`d-${g.key}`}>{g.title}<small>{g.items.reduce((n, f) => n + f.count, 0)}</small></h3>
+            <ol>{g.items.map(({ row: r, count }) => {
+              const s = describe(r, name, (id) => titles[id]);
+              const Icon = CAT_ICON[s.category];
+              const actor = r.actor_id ? name(r.actor_id).replace(/^a /, 'A ') : 'Taskify';
+              return (
+                <li key={r.id} className={`al-item c-${s.category}`}>
+                  <span className="avatar sm al-av" aria-hidden="true">{initials(actor)}<i><Icon size={11} /></i></span>
+                  <p><b>{actor}</b> {s.verb}{s.target && <> {s.target.to ? <Link to={s.target.to}>{s.target.text}</Link> : s.target.text}</>}{s.rest}
+                    {count > 1 && <span className="al-count" title={`${count} times in a row`}>×{count}</span>}</p>
+                  <small className="al-meta"><time dateTime={r.created_at}>{time(r.created_at)}</time><span>{CAT_NAME[s.category]}</span></small>
+                </li>);
+            })}</ol>
+          </section>))}
+        {more && <button type="button" className="pill-btn ghost al-older" disabled={busy} onClick={() => load(rows!.length)}>{busy ? 'Loading…' : 'Load older activity'}</button>}
+      </section>
     </div>
   );
 }

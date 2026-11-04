@@ -3,10 +3,10 @@ import { supabase } from './supabase';
 
 // Live updates: one Supabase Realtime channel per signed-in person (opened by the app shell). Every change is re-sent on
 // window as a 'tt-live' event and pages listen with useLive. Realtime applies RLS, so nobody hears about rows they can't read.
-export type LiveTable = 'tt_tasks' | 'tt_task_assignees' | 'tt_task_comments' | 'tt_notifications';
+export type LiveTable = 'tt_tasks' | 'tt_task_assignees' | 'tt_task_comments' | 'tt_notifications' | 'tt_organizations';
 export interface LiveEvent { table: LiveTable; row: Record<string, any> }
 const EVT = 'tt-live';
-const ALL: LiveTable[] = ['tt_tasks', 'tt_task_assignees', 'tt_task_comments', 'tt_notifications'];
+const ALL: LiveTable[] = ['tt_tasks', 'tt_task_assignees', 'tt_task_comments', 'tt_notifications', 'tt_organizations'];
 
 const send = (table: LiveTable, row: Record<string, any> = {}) => window.dispatchEvent(new CustomEvent<LiveEvent>(EVT, { detail: { table, row } }));
 
@@ -14,9 +14,11 @@ export function startLive(orgId: string, uid: string) {
   const on = (table: LiveTable) => (p: any) => send(table, { ...p.old, ...p.new });
   let joined = false;
   // after a dropped connection or a hidden tab, changes may have been missed: tell every listener to refresh
-  const catchUp = () => ALL.forEach((t) => send(t));
+  // (not the organization: it rarely changes, and re-reading it reloads every page)
+  const catchUp = () => ALL.filter((t) => t !== 'tt_organizations').forEach((t) => send(t));
   const filters: Record<LiveTable, string | undefined> = {
     tt_tasks: `org_id=eq.${orgId}`, tt_task_assignees: undefined, tt_task_comments: `org_id=eq.${orgId}`, tt_notifications: `user_id=eq.${uid}`,
+    tt_organizations: `id=eq.${orgId}`,
   };
   // one channel per table: if a table isn't broadcast yet (migration not run), Realtime rejects the whole channel, so keep them apart
   const chans = ALL.map((table) => supabase.channel(`live-${table}-${uid}`)

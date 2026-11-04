@@ -41,7 +41,7 @@ import './styles.css';
 import { Boot, PageSkeleton } from './components/Skeleton';
 
 function Shell() {
-  const { membership, memberships, switchOrg, session, platformAdmin, signOut } = useAuth();
+  const { membership, memberships, switchOrg, session, platformAdmin, signOut, refresh: reloadOrg } = useAuth();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const uid = session!.user.id;
@@ -68,6 +68,8 @@ function Shell() {
   const orgId = membership!.org_id;
   useEffect(() => startLive(orgId, uid), [orgId, uid]);
   useLive(['tt_notifications', 'tt_tasks', 'tt_task_assignees'], refresh);
+  // an admin changed the organization (brand color, name, time zone): re-read it so colors and greeting update for everyone
+  useLive(['tt_organizations'], reloadOrg);
   useEffect(() => {
     refresh();
     const h = setInterval(refresh, 60000);

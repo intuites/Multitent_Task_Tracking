@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { Badge, fetchAll, fileStamp, label, loadPeople, rpc, saveBlob, type Person } from '../lib/ui';
 import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ask } from '../components/Dialog';
 import { Avatar } from '../components/Frame';
 import { ListSkeleton } from '../components/Skeleton';
@@ -23,6 +23,9 @@ export default function Employees() {
   const [people, setPeople] = useState<Person[] | null>(null);
   const [load, setLoad] = useState<Record<string, { open: number; overdue: number }>>({});
   const [inviting, setInviting] = useState(false);
+  // /employees?invite=1 (the C then I shortcut) opens the invite form
+  const { search } = useLocation();
+  useEffect(() => { if (new URLSearchParams(search).get('invite') === '1') setInviting(true); }, [search]);
   const [q, setQ] = useState(''), [roleFilter, setRoleFilter] = useState('');
   const [msg, setMsg] = useState<Msg>(null);
   const [tasks, setTasks] = useState<any[]>([]);

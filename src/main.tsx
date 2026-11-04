@@ -16,6 +16,7 @@ import SelectEnhancer from './components/SelectEnhancer';
 import DateEnhancer from './components/DateEnhancer';
 import ErrorBoundary, { reloadForNewBuild } from './components/ErrorBoundary';
 import Frame, { type FrameGroup } from './components/Frame';
+import { ShortcutListener } from './components/Shortcuts';
 import { label } from './lib/ui';
 
 // Route-level code splitting keeps the first load small.
@@ -33,6 +34,7 @@ const Templates = lazy(() => import('./pages/Templates'));
 const misc = (k: 'ActivityLogs' | 'Platform') => lazy(() => import('./pages/Misc').then((m) => ({ default: m[k] })));
 const ActivityLogs = misc('ActivityLogs'), Platform = misc('Platform');
 const Settings = lazy(() => import('./pages/OrgSettings'));
+const ShortcutsPage = lazy(() => import('./components/Shortcuts'));
 import '@fontsource-variable/plus-jakarta-sans';
 import './styles.css';
 import { Boot, PageSkeleton } from './components/Skeleton';
@@ -99,6 +101,7 @@ function Shell() {
         </div>
       )}>
       <ErrorBoundary resetKey={pathname}><Suspense fallback={<PageSkeleton />}><Outlet /></Suspense></ErrorBoundary>
+      <ShortcutListener />
     </Frame>
   );
 }
@@ -134,6 +137,7 @@ function Gate() {
         <Route path="/settings" element={<Guard need="task:write"><Settings /></Guard>} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/guide" element={<Guide />} />
+        <Route path="/shortcuts" element={<ShortcutsPage />} />
         <Route path="/organizations/new" element={<NewOrg />} />
         <Route path="/templates" element={<Guard need="task:write"><Templates /></Guard>} />
         <Route path="/admin-site" element={platformAdmin ? <Platform /> : <Navigate to="/" replace />} />

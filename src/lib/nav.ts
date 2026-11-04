@@ -1,5 +1,5 @@
 import {
-  BarChart3, Bell, BookOpen, CopyPlus, CalendarDays, ClipboardList, History, LayoutDashboard,
+  BarChart3, Bell, BookOpen, CopyPlus, CalendarDays, ClipboardList, History, Keyboard, LayoutDashboard,
   ListTodo, Settings, UserCircle, Users, type LucideIcon,
 } from 'lucide-react';
 import { can, type Action, type Role } from '../../api/_lib/permissions';
@@ -18,6 +18,7 @@ export const NAV: NavItem[] = [
   { path: '/notifications', label: 'Notifications', icon: Bell, group: 'General' },
   { path: '/settings', label: 'Organization Settings', icon: Settings, group: 'General', needs: 'task:write' },
   { path: '/profile', label: 'My Profile', icon: UserCircle, group: 'General' },
+  { path: '/shortcuts', label: 'Shortcuts', icon: Keyboard, group: 'General' },
   { path: '/guide', label: 'Guide', icon: BookOpen, group: 'General' },
 ];
 

@@ -210,6 +210,13 @@ export default function Frame({ brand, timeZone, groups, footer, title, search, 
 }) {
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [closeKey]);
+  // the phone menu closes on Escape too (clicks outside it land on the scrim below)
+  useEffect(() => {
+    if (!open) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); document.querySelector<HTMLElement>('.menu-btn')?.focus(); } };
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, [open]);
   const navRef = useRef<HTMLElement>(null);
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('tt-side') === 'icons'; } catch { return false; } });
   const toggleSide = () => setCollapsed((c) => { try { localStorage.setItem('tt-side', c ? 'full' : 'icons'); } catch { /* private window: the choice just won't be remembered */ } return !c; });
@@ -238,6 +245,7 @@ export default function Frame({ brand, timeZone, groups, footer, title, search, 
 
   return (
     <div className="app">
+      {open && <div className="side-scrim" aria-hidden="true" onClick={() => setOpen(false)} />}
       <aside id="side" className={`side${open ? ' open' : ''}${collapsed ? ' collapsed' : ''}`}>
         {orgs && onSwitchOrg ? <OrgSwitcher brand={brand} orgs={orgs} current={currentOrg} onSwitch={onSwitchOrg} onCreate={onCreateOrg} />
           : <div className="brand"><span className="mark" aria-hidden="true">{initials(brand).charAt(0)}</span><span>{brand}</span></div>}

@@ -317,6 +317,8 @@ dialog .actions { display: flex; gap: var(--space-2); justify-content: flex-end;
   .side { display: none; position: fixed; inset: 0 auto 0 0; z-index: 20; height: 100vh; border-radius: 0 var(--r-frame) var(--r-frame) 0;
     background: var(--glass-bg-float); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-shadow), var(--pop-shadow); }
   .side.open { display: flex; }
+  /* behind the open phone menu: dims the page; a click anywhere on it closes the menu */
+  .side-scrim { position: fixed; inset: 0; z-index: 19; background: color-mix(in srgb, var(--black) 35%, transparent); animation: fade-in .2s ease both; }
   .menu-btn { display: inline-grid; }
   .topbar { top: 0; border-radius: 0; border-width: 0 0 1px; flex-wrap: wrap; gap: 10px; padding: 10px 12px; }
   .hello, .top-divider, .top-new span { display: none; }
@@ -739,6 +741,8 @@ dialog .actions > * { min-width: 104px; }
 .agenda-list, .up-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .agenda-list li { animation: fade-in-up .4s var(--ease) both; animation-delay: calc(var(--i, 0) * 50ms); }
 @keyframes fade-in-up { from { opacity: 0; transform: translateY(6px); } }
+@keyframes fade-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .side-scrim { animation: none; } }
 .agenda-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; color: var(--text); text-decoration: none;
   transition: background-color .2s, transform .2s var(--ease); }
 .content .agenda-item { background: var(--surface-2); }

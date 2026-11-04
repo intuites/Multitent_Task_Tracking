@@ -4,6 +4,7 @@ import { ask } from './Dialog';
 import { Bell, Check, CheckCheck, ChevronDown, ChevronsUpDown, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Sun, X, type LucideIcon } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { greeting, safeZone } from '../lib/greeting';
 import { useTheme } from '../lib/theme';
 
 export function ThemeToggle() {
@@ -31,9 +32,6 @@ export interface OrgOption { id: string; name: string; role: string }
 export const initials = (s: string) => s.split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
 
 // Greeting and date follow New York time; Intl switches EST/EDT on its own, so daylight saving needs no code.
-const TZ = 'America/New_York';
-const nyHour = (d: Date) => Number(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', hourCycle: 'h23' }).format(d));
-const greeting = (d: Date) => { const h = nyHour(d); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
 const ago = (d: string) => {
   const m = Math.round((Date.now() - new Date(d).getTime()) / 60000);
   return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`;
@@ -205,8 +203,8 @@ function ProfileMenu({ user, menu, onSignOut }: { user: FrameUser; menu: MenuEnt
   );
 }
 
-export default function Frame({ brand, groups, footer, title, search, action, bell, user, menu, onSignOut, closeKey, children, orgs, currentOrg, onSwitchOrg, onCreateOrg }: {
-  brand: string; groups: FrameGroup[]; footer?: ReactNode; title: string; search?: ReactNode; action?: ReactNode; bell: BellProps;
+export default function Frame({ brand, timeZone, groups, footer, title, search, action, bell, user, menu, onSignOut, closeKey, children, orgs, currentOrg, onSwitchOrg, onCreateOrg }: {
+  brand: string; timeZone?: string; groups: FrameGroup[]; footer?: ReactNode; title: string; search?: ReactNode; action?: ReactNode; bell: BellProps;
   user: FrameUser; menu: MenuEntry[]; onSignOut: () => void; closeKey: string; children: ReactNode;
   orgs?: OrgOption[]; currentOrg?: string; onSwitchOrg?: (id: string) => void; onCreateOrg?: () => void;
 }) {
@@ -235,7 +233,8 @@ export default function Frame({ brand, groups, footer, title, search, action, be
   // re-render each minute so the greeting rolls over (morning → afternoon) without a reload
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(t); }, []);
-  const today = now.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' });
+  const tz = safeZone(timeZone);
+  const today = now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <div className="app">
@@ -267,7 +266,7 @@ export default function Frame({ brand, groups, footer, title, search, action, be
             <span className="sr-only">{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span>
           </button>
           <h1 className="sr-only">{title}</h1>
-          <div className="hello"><b>{greeting(now)}{first && `, ${first}`}</b><small>{today}</small></div>
+          <div className="hello"><b>{greeting(now, tz)}{first && `, ${first}`}</b><small>{today}</small></div>
           {search ?? <span className="grow" />}
           <div className="top-actions">
             {action}

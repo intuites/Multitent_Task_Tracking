@@ -78,7 +78,7 @@ function Shell() {
   if (platformAdmin) groups[2].items.push({ label: 'Admin site', icon: Shield, to: '/admin-site' });
 
   return (
-    <Frame brand={membership?.org_name || 'Taskify'} groups={groups} title={crumb} search={<Search />}
+    <Frame brand={membership?.org_name || 'Taskify'} timeZone={membership?.time_zone} groups={groups} title={crumb} search={<Search />}
       action={can(membership!.role, 'task:write') ? <Link to="/tasks?new=1" className="pill-btn top-new"><Plus size={16} aria-hidden="true" /><span>New task</span></Link> : undefined}
       bell={{ userId: uid, unread, onChanged: refresh, allTo: '/notifications' }}
       user={{ name: name || session!.user.email!, email: session!.user.email!, role: `${membership!.platform ? 'Platform admin' : label(membership!.role)} · ${membership!.org_name}`, avatar }}

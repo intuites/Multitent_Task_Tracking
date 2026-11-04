@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { fetchAll, fileStamp, fmtTime, label, rpc, saveBlob, usePeople } from '../lib/ui';
+import { fetchAll, fileStamp, fmtTime, label, NO_ESC, rpc, saveBlob, usePeople } from '../lib/ui';
 import { ask } from '../components/Dialog';
 import { ListSkeleton } from '../components/Skeleton';
 import { Building2, FolderKanban, History, ListChecks, Users } from 'lucide-react';
@@ -31,7 +31,7 @@ export function ActivityLogs() {
 
   async function load(from: number) {
     setBusy(true);
-    let q = supabase.from('tt_activity_logs').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).range(from, from + PAGE - 1);
+    let q = supabase.from('tt_activity_logs').select('*').eq('org_id', orgId).not('action', 'like', NO_ESC).order('created_at', { ascending: false }).range(from, from + PAGE - 1);
     const types = FILTERS.find((f) => f.key === filter)!.types;
     if (types.length) q = q.in('entity_type', types);
     if (who) q = q.eq('actor_id', who);

@@ -1,7 +1,7 @@
 import type { Action, Role } from '../../api/_lib/permissions';
 
 // Plain-English names for each permission, used by the guide and the profile page.
-export const ACTION_TEXT: Record<Action, string> = {
+export const ACTION_TEXT: Partial<Record<Action, string>> = {
   'org:manage': 'Manage organization settings',
   'members:manage': 'Invite people and change roles',
   'project:write': 'Create, edit and delete projects',
@@ -9,7 +9,6 @@ export const ACTION_TEXT: Record<Action, string> = {
   'task:write': 'Create, assign and edit tasks',
   'task:read': 'View tasks',
   'task:status': 'Update the status of their tasks',
-  'escalation:manage': 'Raise and resolve escalations',
   'report:read': 'View reports and export them to Excel or PDF',
   'activity:read': 'See the activity log',
 };

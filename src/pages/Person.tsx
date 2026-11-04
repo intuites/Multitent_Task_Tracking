@@ -6,7 +6,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
-import { Badge, Due, fmt, fmtTime, label, loadPeople, rpc, type Person } from '../lib/ui';
+import { Badge, Due, fmt, fmtTime, label, loadPeople, NO_ESC, rpc, type Person } from '../lib/ui';
 import { ROLE_TEXT } from '../lib/roles';
 import { ask } from '../components/Dialog';
 import { Avatar } from '../components/Frame';
@@ -44,7 +44,7 @@ export default function PersonPage() {
         .eq('org_id', orgId).eq('tt_task_assignees.user_id', id!).is('archived_at', null).order('due_date', { nullsFirst: false }).limit(2000),
       supabase.from('tt_department_members').select('department_id').eq('org_id', orgId).eq('user_id', id!),
       supabase.from('tt_departments').select('id, name').eq('org_id', orgId).order('name'),
-      supabase.from('tt_activity_logs').select('*').eq('org_id', orgId).eq('actor_id', id!).order('created_at', { ascending: false }).limit(60),
+      supabase.from('tt_activity_logs').select('*').eq('org_id', orgId).eq('actor_id', id!).not('action', 'like', NO_ESC).order('created_at', { ascending: false }).limit(60),
       supabase.from('tt_organizations').select('*').eq('id', orgId).maybeSingle(),
     ]);
     setCreator(o.data?.created_by ?? null);

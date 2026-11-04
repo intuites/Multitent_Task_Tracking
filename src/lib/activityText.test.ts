@@ -11,7 +11,6 @@ group('activity sentences', () => {
   it('reads every kind of task activity', () => {
     expect(say({ action: 'status_changed', detail: { from: 'not_yet_started', to: 'in_progress' } })).toBe('moved Fix login from Not Yet Started to In Progress');
     expect(say({ action: 'assignee_added', detail: { user: 'u2' } })).toBe('assigned Priya Shah to Fix login');
-    expect(say({ action: 'escalation_raised', detail: { severity: 'critical' } })).toBe('raised a critical escalation on Fix login');
     expect(say({ action: 'recurrence_set', detail: { every: 10, frequency: 'daily' } })).toBe('set Fix login to repeat every 10 days');
     expect(say({ action: 'recurrence_set', detail: { every: 1, frequency: 'weekly' } })).toBe('set Fix login to repeat every week');
     expect(say({ entity_id: 'gone', action: 'created' })).toBe('created a task');
@@ -27,7 +26,7 @@ group('activity sentences', () => {
     expect(say({ entity_type: 'client', action: 'something_new' })).toBe('something new on a client');
   });
   it('never crashes on a missing detail', () => {
-    for (const action of ['status_changed', 'assignee_added', 'escalation_raised', 'recurrence_set', 'cycle_set', 'role_changed', 'deleted'])
+    for (const action of ['status_changed', 'assignee_added', 'recurrence_set', 'cycle_set', 'role_changed', 'deleted'])
       for (const entity_type of ['task', 'organization', 'project']) expect(() => describe(row({ action, entity_type, detail: null }), person, title)).not.toThrow();
   });
 });

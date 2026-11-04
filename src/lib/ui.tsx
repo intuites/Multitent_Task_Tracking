@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 
 const LABELS: Record<string, string> = { completed_cycle: 'Completed This Cycle' };
+// escalations were retired: their old notifications and log lines stay in the database, filtered out with .not(col, 'like', NO_ESC)
+export const NO_ESC = 'escalation%';
 export const label = (s: string) => LABELS[s] ?? s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 export const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
 export const fmtDay = (d?: string | null) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');

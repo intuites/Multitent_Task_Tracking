@@ -10,6 +10,7 @@ import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { ListSkeleton } from '../components/Skeleton';
 import { ask } from '../components/Dialog';
 import NewTaskForm from '../components/NewTaskForm';
+import { useLive } from '../lib/live';
 
 export type Mode = 'all' | 'mine';
 const PAGE = 25;
@@ -73,8 +74,10 @@ export default function Tasks({ mode }: { mode: Mode }) {
     return qy.order(view === 'overdue' || view === 'upcoming' ? 'due_date' : 'created_at', { ascending: view === 'overdue' || view === 'upcoming' }).order('id');
   }, [orgId, uid, mode, view, q, priority]);
 
-  const load = useCallback(async () => {
-    setLoading(true); setError('');
+  // quiet = a live refresh: no skeleton flash, and ticked rows stay ticked
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true);
+    setError('');
     const { data, count, error } = await query(true).range(page * PAGE, page * PAGE + PAGE - 1);
     if (error) setError(error.message);
     const ids = (data ?? []).map((t: any) => t.id);
@@ -84,9 +87,11 @@ export default function Tasks({ mode }: { mode: Mode }) {
     const bySub: Record<string, any[]> = {};
     for (const k of kids ?? []) (bySub[k.parent_task_id] ??= []).push(k);
     setSubs(bySub);
-    setRows(data ?? []); setTotal(count ?? 0); setSelected([]); setLoading(false);
+    setRows(data ?? []); setTotal(count ?? 0); setLoading(false);
+    setSelected((s) => (quiet ? s.filter((x) => ids.includes(x)) : []));
   }, [query, page]);
   useEffect(() => { load(); }, [load]);
+  useLive(['tt_tasks', 'tt_task_assignees'], () => load(true));
 
   // exports cover every task matching the current view and filters, not just this page
   async function exportAs(f: ExportFormat) {

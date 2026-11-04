@@ -17,7 +17,8 @@ import DateEnhancer from './components/DateEnhancer';
 import ErrorBoundary, { reloadForNewBuild } from './components/ErrorBoundary';
 import Frame, { type FrameGroup } from './components/Frame';
 import { ShortcutListener } from './components/Shortcuts';
-import { label } from './lib/ui';
+import { label, NO_ESC } from './lib/ui';
+import { startLive, useLive } from './lib/live';
 
 // Route-level code splitting keeps the first load small.
 const Tasks = lazy(() => import('./pages/Tasks'));
@@ -60,10 +61,13 @@ function Shell() {
   }, [uid]);
 
   const refresh = useCallback(() => {
-      supabase.from('tt_notifications').select('id', { count: 'exact', head: true }).eq('user_id', uid).is('read_at', null).then(({ count }) => setUnread(count ?? 0));
+      supabase.from('tt_notifications').select('id', { count: 'exact', head: true }).eq('user_id', uid).not('type', 'like', NO_ESC).is('read_at', null).then(({ count }) => setUnread(count ?? 0));
       supabase.from('tt_tasks').select('id, tt_task_assignees!inner(user_id)', { count: 'exact', head: true }).eq('org_id', membership!.org_id)
         .eq('tt_task_assignees.user_id', uid).is('archived_at', null).not('status', 'in', '(completed,completed_cycle)').then(({ count }) => setMine(count ?? 0));
   }, [uid, membership]);
+  const orgId = membership!.org_id;
+  useEffect(() => startLive(orgId, uid), [orgId, uid]);
+  useLive(['tt_notifications', 'tt_tasks', 'tt_task_assignees'], refresh);
   useEffect(() => {
     refresh();
     const h = setInterval(refresh, 60000);

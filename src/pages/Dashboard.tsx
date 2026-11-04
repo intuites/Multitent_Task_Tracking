@@ -8,6 +8,7 @@ import { Badge, fmt, fmtTime, rpc, usePeople } from '../lib/ui';
 import { initials } from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
 import { DashSkeleton } from '../components/Skeleton';
+import { useLive } from '../lib/live';
 
 const OPEN = '(completed,completed_cycle)';
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -149,19 +150,12 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [tick, setTick] = useState(0);
 
-  // live: reload when any task in this org changes (Supabase Realtime, migration 0016), when the tab comes back, and every 2 minutes
-  const timer = useRef(0);
+  // live: reload when any task in this org changes (and on the clock every 2 minutes, so "due today" stays right)
+  useLive(['tt_tasks', 'tt_task_assignees'], () => setTick((n) => n + 1));
   useEffect(() => {
-    const soon = () => { clearTimeout(timer.current); timer.current = window.setTimeout(() => setTick((n) => n + 1), 600); };
-    const ch = supabase.channel(`dash-${orgId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tt_tasks', filter: `org_id=eq.${orgId}` }, soon)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tt_task_assignees' }, soon)
-      .subscribe();
-    const vis = () => { if (document.visibilityState === 'visible') soon(); };
-    document.addEventListener('visibilitychange', vis);
-    const iv = window.setInterval(() => { if (document.visibilityState === 'visible') soon(); }, 120_000);
-    return () => { supabase.removeChannel(ch); document.removeEventListener('visibilitychange', vis); clearInterval(iv); clearTimeout(timer.current); };
-  }, [orgId]);
+    const iv = window.setInterval(() => { if (document.visibilityState === 'visible') setTick((n) => n + 1); }, 120_000);
+    return () => clearInterval(iv);
+  }, []);
 
   useEffect(() => {
     (async () => {

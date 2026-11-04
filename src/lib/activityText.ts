@@ -26,9 +26,6 @@ export function describe(r: LogRow, person: (id?: string | null) => string, task
       case 'approval_requested': return t('asked for approval on');
       case 'approval_approved': return t('approved');
       case 'approval_rejected': return t('sent back');
-      case 'escalation_raised': return t(`raised ${d.severity ? `a ${lower(d.severity)}` : 'an'} escalation on`);
-      case 'escalation_updated': return t('updated the escalation on', d.state ? ` to ${label(d.state)}` : undefined);
-      case 'escalation_resolved': return t('resolved the escalation on', d.next_status ? ` and moved it to ${label(d.next_status)}` : undefined);
       case 'recurrence_set': {
         const unit = UNIT[d.frequency] ?? d.frequency;
         return t('set', unit ? ` to repeat every ${Number(d.every) > 1 ? `${d.every} ${unit}s` : unit}` : ' to repeat');

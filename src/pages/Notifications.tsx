@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlarmClock, BadgeCheck, BellOff, CalendarClock, Check, CheckCheck, Eye, MessageSquare, RefreshCw, Siren, UserPlus,
+  AlarmClock, BadgeCheck, BellOff, CalendarClock, Check, CheckCheck, Eye, MessageSquare, RefreshCw, UserPlus,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { ListSkeleton } from '../components/Skeleton';
+import { useLive } from '../lib/live';
+import { NO_ESC } from '../lib/ui';
 
 type Tone = 'brand' | 'warn' | 'bad' | 'ok';
 interface TypeInfo { label: string; hint: string; icon: LucideIcon; tone: Tone }
@@ -21,10 +23,6 @@ const TYPES: Record<string, TypeInfo> = {
   deadline_upcoming: { label: 'Due soon', hint: 'Within the next 24 hours', icon: CalendarClock, tone: 'warn' },
   due_today: { label: 'Due today', hint: 'On the morning it is due', icon: CalendarClock, tone: 'warn' },
   task_overdue: { label: 'Overdue', hint: 'Once a day while overdue', icon: AlarmClock, tone: 'bad' },
-  escalation_raised: { label: 'Escalation raised', hint: 'A task is escalated to you', icon: Siren, tone: 'bad' },
-  escalation_reassigned: { label: 'Escalation reassigned', hint: 'You become the owner', icon: Siren, tone: 'bad' },
-  escalation_due: { label: 'Escalation target near', hint: 'Target date is close', icon: Siren, tone: 'bad' },
-  escalation_resolved: { label: 'Escalation resolved', hint: 'Someone resolves it', icon: Siren, tone: 'ok' },
   approval_requested: { label: 'Approval requested', hint: 'Your decision is needed', icon: BadgeCheck, tone: 'ok' },
   approval_completed: { label: 'Approval decided', hint: 'Approved or rejected', icon: BadgeCheck, tone: 'ok' },
   org_review: { label: 'Organization review', hint: 'New organizations and approval decisions', icon: BadgeCheck, tone: 'brand' },
@@ -68,11 +66,11 @@ export default function Notifications() {
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    let q = supabase.from('tt_notifications').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(limit + 1);
+    let q = supabase.from('tt_notifications').select('*').eq('user_id', uid).not('type', 'like', NO_ESC).order('created_at', { ascending: false }).limit(limit + 1);
     if (filter === 'unread') q = q.is('read_at', null);
     const [n, c, p] = await Promise.all([
       q,
-      supabase.from('tt_notifications').select('id', { count: 'exact', head: true }).eq('user_id', uid).is('read_at', null),
+      supabase.from('tt_notifications').select('id', { count: 'exact', head: true }).eq('user_id', uid).not('type', 'like', NO_ESC).is('read_at', null),
       supabase.from('tt_notification_preferences').select('*').eq('user_id', uid),
     ]);
     if (n.error) setError(n.error.message);
@@ -84,6 +82,7 @@ export default function Notifications() {
     window.addEventListener('tt-notifications', load);
     return () => window.removeEventListener('tt-notifications', load);
   }, [load]);
+  useLive(['tt_notifications'], load);
 
   async function markRead(ids: string[] | 'all') {
     let q = supabase.from('tt_notifications').update({ read_at: new Date().toISOString() }).eq('user_id', uid).is('read_at', null);

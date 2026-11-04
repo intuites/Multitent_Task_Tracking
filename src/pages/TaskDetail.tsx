@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Archive, ArchiveRestore, ArrowLeft, CalendarClock, Layers, Pencil, Plus, Send, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { canTransition, TASK_STATUSES, type TaskStatus } from '../../api/_lib/taskStatus';
-import { Badge, dateToTs, fmt, fmtTime, isOverdue, label, rpc, usePeople } from '../lib/ui';
+import { Badge, dateToTs, fmt, fmtTime, isOverdue, label, NO_ESC, rpc, usePeople } from '../lib/ui';
 import FilePanel from '../components/FilePanel';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
+import { useLive } from '../lib/live';
 import { Avatar, initials } from '../components/Frame';
 
 const CYCLES: [string, string][] = [['daily', 'Daily'], ['weekdays', 'Weekdays'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['semiannual', 'Every 6 months'], ['yearly', 'Yearly']];
@@ -22,7 +23,7 @@ export default function TaskDetail() {
   const canAssign = can(role, 'task:write');
   const { active, name } = usePeople(orgId);
   const [t, setT] = useState<any>(null);
-  const [d, setD] = useState<any>({ assignees: [], subtasks: [], parent: null, comments: [], history: [], esc: [], activity: [], contacts: [], recur: null });
+  const [d, setD] = useState<any>({ assignees: [], subtasks: [], parent: null, comments: [], history: [], activity: [], contacts: [], recur: null });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState(false);
@@ -36,24 +37,31 @@ export default function TaskDetail() {
     setT(tr.data);
     if (tr.data) {
       const q = (tbl: string) => supabase.from(tbl).select('*');
-      const [as, cm, hi, es, ac, rc, sb, pa] = await Promise.all([
+      const [as, cm, hi, ac, rc, sb, pa] = await Promise.all([
         q('tt_task_assignees').eq('task_id', id!),
         q('tt_task_comments').eq('task_id', id!).order('created_at'),
         q('tt_task_status_history').eq('task_id', id!).order('changed_at', { ascending: false }),
-        q('tt_escalations').eq('task_id', id!).order('raised_at', { ascending: false }),
-        q('tt_activity_logs').eq('entity_type', 'task').eq('entity_id', id!).order('created_at', { ascending: false }).limit(30),
+        q('tt_activity_logs').eq('entity_type', 'task').eq('entity_id', id!).not('action', 'like', NO_ESC).order('created_at', { ascending: false }).limit(30),
         q('tt_task_recurrence').eq('task_id', id!).maybeSingle(),
         supabase.from('tt_tasks').select('id, title, status, start_date, due_date, tt_task_assignees(user_id)').eq('parent_task_id', id!).is('archived_at', null).order('start_date', { nullsFirst: false }),
         tr.data.parent_task_id ? supabase.from('tt_tasks').select('id, title').eq('id', tr.data.parent_task_id).maybeSingle() : Promise.resolve({ data: null }),
       ]);
       setD({
         assignees: as.data ?? [], subtasks: sb.data ?? [], parent: pa.data,
-        comments: cm.data ?? [], history: hi.data ?? [], esc: es.data ?? [], activity: ac.data ?? [], recur: rc.data,
+        comments: cm.data ?? [], history: hi.data ?? [], activity: ac.data ?? [], recur: rc.data,
       });
     }
     setLoading(false);
   }, [id, orgId]);
   useEffect(() => { load(); }, [load]);
+
+  // live: someone else changed this task, its people, comments or subtasks. Reload, unless a form is open (that would wipe it).
+  const [stale, setStale] = useState(false);
+  const busy = edit || subForm || editing !== null;
+  const busyRef = useRef(busy); busyRef.current = busy;
+  useLive(['tt_tasks', 'tt_task_assignees', 'tt_task_comments'], () => { if (busyRef.current) setStale(true); else load(); },
+    (r) => r.id === id || r.task_id === id || r.parent_task_id === id);
+  useEffect(() => { if (!busy && stale) { setStale(false); load(); } }, [busy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // run an action, show its error, reload
   async function run(fn: () => Promise<unknown>) {
@@ -71,7 +79,6 @@ export default function TaskDetail() {
   const nexts = TASK_STATUSES.filter((s) => canTransition(t.status as TaskStatus, s));
   const to = nexts.includes(toSel as TaskStatus) ? toSel : nexts[0];
   const askCycle = to === 'completed_cycle' && !repeats;
-  const openEsc = d.esc.find((e: any) => !['resolved', 'closed'].includes(e.state));
   const unassigned = active.filter((p) => !d.assignees.some((a: any) => a.user_id === p.id));
 
   const changeStatus = (e: FormEvent<HTMLFormElement>) => {
@@ -171,6 +178,7 @@ export default function TaskDetail() {
         </div>
       </header>
       {error && <p role="alert" className="form-alert">{error}</p>}
+      {stale && <p role="status" className="note">Someone else just updated this task. It refreshes when you close the form you have open.</p>}
 
       <div className="td-grid">
         <div className="td-col">
@@ -266,11 +274,7 @@ export default function TaskDetail() {
         <aside className="td-col">
           <section className="card td-status" aria-labelledby="st-h">
             <h3 id="st-h">Status</h3>
-            {t.status === 'escalation' ? (
-              // escalations were retired; a task left in that state can be put straight back into the normal flow
-              <div className="stack"><p className="note">This task was escalated before escalations were removed.</p>
-                {canAssign && openEsc && <button type="button" onClick={() => run(() => rpc('tt_resolve_escalation', { p_esc: openEsc.id, p_next_status: openEsc.previous_task_status ?? 'pending', p_resolution: 'Returned to work' }))}>Return to {label(openEsc.previous_task_status ?? 'pending')}</button>}</div>
-            ) : t.status === 'completed' && !canAssign ? (
+            {t.status === 'completed' && !canAssign ? (
               <p className="note">Completed permanently. This task is closed; only an admin can reopen it.</p>
             ) : canStatus ? (
               <form className="stack" onSubmit={changeStatus}>

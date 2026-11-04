@@ -6,6 +6,8 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { greeting, safeZone } from '../lib/greeting';
 import { useTheme } from '../lib/theme';
+import { useLive } from '../lib/live';
+import { NO_ESC } from '../lib/ui';
 
 export function ThemeToggle() {
   const { theme, toggle } = useTheme();
@@ -105,9 +107,10 @@ function NotificationBell({ userId, unread, onChanged, allTo, onAll }: BellProps
   const close = () => setOpen(false);
   useDismiss(ref, open, close);
 
-  const load = () => supabase.from('tt_notifications').select('id, title, body, link, read_at, created_at').eq('user_id', userId)
+  const load = () => supabase.from('tt_notifications').select('id, title, body, link, read_at, created_at').eq('user_id', userId).not('type', 'like', NO_ESC)
     .order('created_at', { ascending: false }).limit(6).then(({ data }) => setRows(data ?? []));
   useEffect(() => { if (open) load(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLive(['tt_notifications'], () => { if (open) load(); });
 
   async function markAll() {
     await supabase.from('tt_notifications').update({ read_at: new Date().toISOString() }).eq('user_id', userId).is('read_at', null);

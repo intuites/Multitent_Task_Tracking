@@ -32,6 +32,7 @@ export default function OrgSettings() {
   // brand color being picked: previewed live across the app, saved with the form, undone if you leave without saving
   const [brand, setBrand] = useState<string | null>(membership!.brand_color ?? null);
   useEffect(() => { applyBrand(brand, false); }, [brand]);
+  const [edited, setDirty] = useState(false); // name or time zone typed in
   const saved = membership!.brand_color;
   useEffect(() => () => applyBrand(saved, false), [saved]);
 
@@ -50,12 +51,13 @@ export default function OrgSettings() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz'), brand_color: brand }).eq('id', orgId);
-    if (!error) { await supabase.from('tt_activity_logs').insert({ org_id: orgId, entity_type: 'organization', entity_id: orgId, action: 'settings_updated', actor_id: uid, detail: {} }); refresh(); load(); }
+    if (!error) { setDirty(false); await supabase.from('tt_activity_logs').insert({ org_id: orgId, entity_type: 'organization', entity_id: orgId, action: 'settings_updated', actor_id: uid, detail: {} }); refresh(); load(); }
     setMsg(error ? { kind: 'error', text: error.message.includes('time zone') ? 'That time zone isn’t recognized.' : error.message.includes('brand_color') ? 'Brand colors need database update 0029. Run it in Supabase, then try again.' : error.message } : { kind: 'ok', text: 'Organization updated.' });
   }
 
   if (!org) return <PageSkeleton />;
   const total = ROLES.reduce((n, r) => n + (roles[r] ?? 0), 0);
+  const dirty = edited || brand !== (org.brand_color ?? null);
   const TILES = [
     { name: 'Manage users', hint: 'Invite people, change roles', icon: Users, to: '/employees' },
     { name: 'Manage organizations', hint: 'The organizations you created', icon: Building2, view: 'orgs' as View },
@@ -92,17 +94,42 @@ export default function OrgSettings() {
       {view === 'depts' && <Departments say={setMsg} />}
 
       {!view && (
-        <div className="pf-grid">
-          <section className="card" aria-labelledby="org-h">
-            <h3 id="org-h"><Building2 size={16} aria-hidden="true" /> Organization {!canEdit && <span className="prio"><Lock size={12} aria-hidden="true" />View only</span>}</h3>
-            <form className="pf-form" onSubmit={saveOrg}>
-              <label className="pf-wide">Name<input name="name" defaultValue={org.name} required maxLength={120} disabled={!canEdit} /></label>
-              <label className="pf-wide">Time zone
-                <select name="tz" defaultValue={org.time_zone} disabled={!canEdit}>{zoneList(org.time_zone).map((z) => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}</select>
-              </label>
-              <p className="muted pf-wide tpl-note"><Globe2 size={14} aria-hidden="true" /> Reminders, recurring tasks and “due today” use this time zone.{org.created_at && ` Created ${fmt(org.created_at)}.`}</p>
-              <fieldset className="pf-wide brand-pick" disabled={!canEdit}>
-                <legend><Palette size={14} aria-hidden="true" /> Brand color</legend>
+        <div className="os">
+          <section className="card os-hero" aria-labelledby="org-h">
+            <span className="os-mark" aria-hidden="true">{org.name.trim().charAt(0).toUpperCase()}</span>
+            <div className="os-id">
+              <h3 id="org-h">{org.name}</h3>
+              <p className="os-facts">
+                <span><Globe2 size={14} aria-hidden="true" />{org.time_zone.replace(/_/g, ' ')}</span>
+                {org.created_at && <span>Created {fmt(org.created_at)}</span>}
+                {!canEdit && <span className="prio"><Lock size={12} aria-hidden="true" />View only</span>}
+              </p>
+            </div>
+            <ul className="os-stats" aria-label="People">
+              {ROLES.map((r) => <li key={r}><b>{roles[r] ?? 0}</b><small>{label(r)}{(roles[r] ?? 0) === 1 ? '' : 's'}</small></li>)}
+              <li><b>{total}</b><small>Active</small></li>
+            </ul>
+            {can(role, 'members:manage') && <Link to="/employees" className="pill-btn ghost os-people"><Users size={15} aria-hidden="true" />Manage people</Link>}
+          </section>
+
+          <form className="os-main" onSubmit={saveOrg} onChange={() => setDirty(true)}>
+            <section className="card os-sec" aria-labelledby="det-h">
+              <header><h3 id="det-h"><Building2 size={16} aria-hidden="true" /> Details</h3><p className="muted">The name everyone sees, and the clock reminders run on.</p></header>
+              <div className="os-fields">
+                <label>Name<input name="name" defaultValue={org.name} required maxLength={120} disabled={!canEdit} /></label>
+                <label>Time zone
+                  <select name="tz" defaultValue={org.time_zone} disabled={!canEdit}>{zoneList(org.time_zone).map((z) => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}</select>
+                </label>
+              </div>
+              <p className="muted tpl-note"><Globe2 size={14} aria-hidden="true" /> Reminders, recurring tasks and “due today” use this time zone.</p>
+            </section>
+
+            <section className="card os-sec" aria-labelledby="brand-h">
+              <header><h3 id="brand-h"><Palette size={16} aria-hidden="true" /> Brand color</h3><p className="muted">Everyone in {org.name} sees this color, in light and dark mode. The whole app previews it as you pick.</p></header>
+              <div className="os-brand">
+              <fieldset className="brand-pick" disabled={!canEdit}>
+                <legend className="sr-only">Brand color</legend>
+                <p className="os-current"><span style={{ '--sw': brand ?? '#2e7d4f' } as React.CSSProperties} aria-hidden="true" /><b>{colorName(brand)}</b><small className="muted">{(brand ?? '#2e7d4f').toUpperCase()}</small></p>
                 <div className="brand-swatches">
                   {QUICK.map(([name, hex]) => <Swatch key={name} name={name} hex={hex} brand={brand} pick={setBrand} />)}
                   <label className="brand-custom" title="Pick any color">
@@ -124,7 +151,8 @@ export default function OrgSettings() {
                     </div>
                   </div>
                 </details>
-                <div className="brand-preview" aria-label="Preview of the brand color" role="img">
+              </fieldset>
+                <div className="brand-preview os-preview" aria-label="Preview of the brand color" role="img">
                   {(['light', 'dark'] as const).map((m) => {
                     const p = brandPalette(brand ?? '#2e7d4f', m);
                     const vars = { '--b': p['--brand'], '--tint': p['--brand-tint'], '--grad': p['--brand-grad'], '--ink': p['--brand-ink'],
@@ -139,22 +167,21 @@ export default function OrgSettings() {
                     </div>);
                   })}
                 </div>
-                <small className="muted">Everyone in {org.name} sees this color, in light and dark mode. The whole app is previewing it now; save to keep it.</small>
-              </fieldset>
-              {canEdit && <div className="pf-wide pf-actions"><button type="submit">Save changes</button></div>}
-            </form>
-          </section>
+              </div>
+            </section>
 
-          <div className="pf-col">
+            {canEdit && <div className={`os-save${dirty ? ' on' : ''}`}>
+              <span className={dirty ? 'os-dirty' : 'muted'}>{dirty ? 'You have unsaved changes.' : 'All changes saved.'}</span>
+              {dirty && <button type="button" className="link" onClick={(e) => { e.currentTarget.form!.reset(); setBrand(org.brand_color ?? null); setDirty(false); }}>Discard</button>}
+              <button type="submit" disabled={!dirty}>Save changes</button>
+            </div>}
+          </form>
+
+          <aside className="os-side">
             <section className="card" aria-labelledby="you-h">
               <h3 id="you-h"><ShieldCheck size={16} aria-hidden="true" /> Your access</h3>
               <p><span className="prio prio-low">{membership!.platform ? 'Platform admin' : label(role)}</span></p>
               <p className="muted">{membership!.platform ? 'You look after every organization on Taskify.' : ROLE_TEXT[role as keyof typeof ROLE_TEXT]?.blurb}</p>
-            </section>
-            <section className="card" aria-labelledby="ppl-h">
-              <div className="panel-head"><h3 id="ppl-h"><Users size={16} aria-hidden="true" /> People</h3>{can(role, 'members:manage') && <Link to="/employees" className="mini-link">Manage people</Link>}</div>
-              <ul className="role-counts">{ROLES.map((r) => <li key={r}><b>{roles[r] ?? 0}</b><small>{label(r)}{(roles[r] ?? 0) === 1 ? '' : 's'}</small></li>)}</ul>
-              <p className="muted pf-hint">{total} active member{total === 1 ? '' : 's'}.</p>
             </section>
             {admins.length > 0 && <section className="card" aria-labelledby="help-h">
               <h3 id="help-h"><LifeBuoy size={16} aria-hidden="true" /> Need help?</h3>
@@ -162,12 +189,15 @@ export default function OrgSettings() {
               <ul className="help-list">{admins.map((p) => <li key={p.id}><span className="grow"><b>{p.name}</b><small className="muted">{label(p.role)}</small></span>
                 {p.email && <a className="mini-link" href={`mailto:${p.email}?subject=${encodeURIComponent(`Taskify help: ${membership!.org_name}`)}`}><Mail size={14} aria-hidden="true" />Email</a>}</li>)}</ul>
             </section>}
-          </div>
+          </aside>
         </div>
       )}
     </div>
   );
 }
+
+const NAMES = new Map<string | null, string>([...FAMILIES.flatMap((f) => f.colors.map((c) => [c.hex, c.name] as const)), ...TRENDING.map((t) => [t.hex, t.name] as const), ...QUICK.map(([n, h]) => [h, n] as const)]);
+const colorName = (hex: string | null) => NAMES.get(hex) ?? 'Custom color';
 
 /** One brand color choice; the check mark takes whichever of white/dark reads on it. */
 function Swatch({ name, hex, brand, pick, small }: { name: string; hex: string | null; brand: string | null; pick: (h: string | null) => void; small?: boolean }) {

@@ -310,6 +310,8 @@ dialog .actions { display: flex; gap: var(--space-2); justify-content: flex-end;
   .a-an { grid-column: span 12; } .a-re { grid-column: span 12; }
   .a-tm { grid-column: span 12; } .a-pg, .a-es { grid-column: span 6; }
 }
+/* tablets with the sidebar still showing: the bar keeps its buttons on one line (icon-only New task, no name block) */
+@media (max-width: 1080px) { .top-new span, .me-text, .hello small { display: none; } .top-new { padding: 10px; } }
 @media (max-width: 860px) {
   .app { padding: 0; gap: 0; }
   .side { display: none; position: fixed; inset: 0 auto 0 0; z-index: 20; height: 100vh; border-radius: 0 var(--r-frame) var(--r-frame) 0;
@@ -900,8 +902,8 @@ dialog .actions > * { min-width: 104px; }
   --warn: #e0a93a; --switch-off: #414347; --scroll-thumb: #3c3e42; --scroll-thumb-hover: #575a5f; --line-strong: #4b4e53;
   --bg: #161718; --panel: #1c1d1f; --surface: #212224; --surface-2: #28292c; --line: #323438; --control-line: #575a5f;
   --text: #e5ede8; --muted: #92a299;
-  --brand: #74d6a0; --brand-2: #3f9d6b; --brand-3: #2b6e4a; --brand-deep: #b6ecca; --link: #86dcac;
-  --brand-grad: linear-gradient(135deg, #2f8a58 0%, #17553a 100%);
+  --brand: #74d6a0; --brand-2: #2e7d4f; --brand-3: #2b6e4a; --brand-deep: #b6ecca; --link: #86dcac;
+  --brand-grad: linear-gradient(135deg, #2e7d4f 0%, #086336 100%); /* white text 5:1, stands out 3.6:1 (what lib/palette.ts gives this green) */
   --danger: #f28471; --overdue: #f28471; --hatch: #4b5a53;
   --ok-bg: #12301f; --ok-fg: #92e2b3; --ok-line: #1f4a31;
   --warn-bg: #30250d; --warn-fg: #f1c56c; --warn-line: #4d3b14;
@@ -1892,3 +1894,58 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .brand-swatch.sm { width: 26px; height: 26px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent), 0 0 0 2px var(--surface), 0 0 0 3px var(--line); }
 .brand-swatch.sm[aria-pressed=true] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent), 0 0 0 2px var(--surface), 0 0 0 4px var(--sw); }
 @media (max-width: 520px) { .brand-fam { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+
+/* ---------- organization settings ----------
+   Identity header across the top; the form (details, brand color with a live preview that stays in view, a glass save bar)
+   beside a narrow rail; one column on tablets and phones. */
+.os { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 16px; align-items: start; }
+.os .card { margin: 0; }
+.os-hero { grid-column: 1 / -1; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 22px 24px; }
+.os-mark { flex: none; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; background: var(--brand-grad); color: var(--brand-ink);
+  font-size: var(--fs-3xl); font-weight: var(--fw-black); }
+.os-id { flex: 1 1 220px; min-width: 0; }
+.os-id h3 { margin: 0 0 6px; font-size: var(--fs-2xl); overflow-wrap: anywhere; }
+.os-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0; color: var(--muted); font-size: var(--fs-sm); }
+.os-facts > span { display: inline-flex; align-items: center; gap: 6px; }
+.os-stats { list-style: none; margin: 0; padding: 0; display: flex; gap: 8px; }
+.os-stats li { display: grid; min-width: 78px; padding: 8px 14px; border-radius: 14px; background: var(--brand-tint); text-align: center; }
+.os-stats b { font-size: var(--fs-2xl); line-height: 1.15; color: var(--brand-deep); font-variant-numeric: proportional-nums; }
+.os-stats small { color: var(--muted); font-size: var(--fs-xs); }
+.os-main { display: grid; gap: 16px; min-width: 0; }
+.os-sec > header { margin-bottom: 16px; }
+.os-sec > header h3 { margin: 0 0 4px; }
+.os-sec > header p { margin: 0; font-size: var(--fs-sm); }
+.os-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; margin-bottom: 12px; }
+.os-brand { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 260px); gap: 20px; align-items: start; }
+.os-current { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+.os-current > span { width: 22px; height: 22px; border-radius: 50%; background: var(--sw); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent); }
+.os-current small { margin-left: auto; font-size: var(--fs-xs); }
+/* the preview stays beside the swatches while the long color list scrolls */
+.os-preview { position: sticky; top: 104px; grid-template-columns: 1fr; }
+/* it floats (sticky) only while there is something to save */
+.os-save.on { position: sticky; bottom: 14px; z-index: 5; }
+.os-save { display: flex; align-items: center; justify-content: flex-end; gap: 14px; flex-wrap: wrap; padding: 12px 14px 12px 20px;
+  border-radius: var(--r-frame); border: 1px solid var(--bar-edge); background: var(--bar-sheen), var(--bar-bg); -webkit-backdrop-filter: var(--bar-blur); backdrop-filter: var(--bar-blur);
+  box-shadow: inset 0 1px 0 var(--bar-edge), var(--bar-drop); }
+.os-save > span { margin-right: auto; font-size: var(--fs-sm); }
+.os-dirty { color: var(--text); font-weight: var(--fw-semibold); }
+.os-side { display: grid; gap: 16px; }
+@media (prefers-reduced-transparency: reduce) { .os-save { background: var(--surface); } }
+@media (max-width: 1100px) {
+  .os { grid-template-columns: minmax(0, 1fr); }
+  .os-side { grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+}
+@media (max-width: 860px) {
+  .os-brand { grid-template-columns: minmax(0, 1fr); }
+  .os-preview { position: static; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); }
+  .os-preview { top: auto; }
+  .os-save { bottom: 10px; }
+}
+@media (max-width: 640px) {
+  .os-hero { padding: 18px; gap: 14px; }
+  .os-mark { width: 52px; height: 52px; border-radius: 16px; font-size: var(--fs-2xl); }
+  .os-stats { width: 100%; } .os-stats li { flex: 1; min-width: 0; }
+  .os-people { width: 100%; justify-content: center; }
+  .os-fields { grid-template-columns: minmax(0, 1fr); }
+  .os-save { justify-content: stretch; } .os-save > span { flex: 1 0 100%; } .os-save button[type=submit] { flex: 1; }
+}

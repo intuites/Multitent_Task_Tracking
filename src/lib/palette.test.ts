@@ -18,6 +18,7 @@ describe('brand palette', () => {
       expect(contrast(p['--brand-on-white'], '#ffffff')).toBeGreaterThanOrEqual(4.5);
       expect(contrast(p['--text'], SURFACE[mode])).toBeGreaterThanOrEqual(7);
       expect(contrast(p['--muted'], SURFACE[mode])).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(p['--brand-deep'], p['--brand-tint'])).toBeGreaterThanOrEqual(4.5); // numbers on brand-tint chips (org settings)
       // glass top bar: readable over the page, a card, or the brand fill scrolling under it, and still see-through
       const [, r, g, b, a] = p['--bar-bg'].match(/rgb\((\d+) (\d+) (\d+) \/ ([\d.]+)\)/)!.map(Number);
       const frost = '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
@@ -31,7 +32,7 @@ describe('brand palette', () => {
   }
   it('the default bar glass in styles.css matches the generator for Taskify green', () => {
     expect(glassBar({ tint: '#e8f5ee', surface: '#ffffff', bg: '#eceeed', solid: '#2e7d4f', text: '#121a16', muted: '#66726b', dark: false })).toEqual({ frost: '#f6fbf8', alpha: 0.45 });
-    expect(glassBar({ tint: '#15301f', surface: '#212224', bg: '#161718', solid: '#3f9d6b', text: '#e5ede8', muted: '#92a299', dark: true })).toEqual({ frost: '#1b2a21', alpha: 0.5 });
+    expect(glassBar({ tint: '#15301f', surface: '#212224', bg: '#161718', solid: '#2e7d4f', text: '#e5ede8', muted: '#92a299', dark: true })).toEqual({ frost: '#1b2a21', alpha: 0.5 });
   });
   it('keeps the exact color on buttons when it already works', () => {
     expect(brandPalette('#2563eb', 'light')['--brand-2']).toBe('#2563eb');

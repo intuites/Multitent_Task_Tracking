@@ -9,6 +9,7 @@ import { ListSkeleton } from '../components/Skeleton';
 import { Building2, FolderKanban, History, ListChecks, Users } from 'lucide-react';
 import { byDay, describe, fold, FILTERS, type Category, type LogRow } from '../lib/activityText';
 import { safeZone } from '../lib/greeting';
+import { isNewOrg, markOrgsSeen, NEW_DAYS, onOrgsSeen, seenOrgs } from '../lib/newOrgs';
 
 const PAGE = 50;
 const CAT_ICON: Record<Category, typeof ListChecks> = { task: ListChecks, people: Users, org: Building2, work: FolderKanban };
@@ -96,7 +97,11 @@ export function ActivityLogs() {
 
 /** Whole-CRM control for platform admins: every organization, and who else is a platform admin. */
 export function Platform() {
-  const { switchOrg, membership } = useAuth();
+  const { switchOrg, membership, session } = useAuth();
+  const uid = session!.user.id;
+  const [seen, setSeen] = useState(() => seenOrgs(uid));
+  useEffect(() => onOrgsSeen(() => setSeen(seenOrgs(uid))), [uid]);
+  const seeOrg = (id: string) => markOrgsSeen(uid, [id]);
   const [s, setS] = useState<any>(null);
   const [orgs, setOrgs] = useState<any[] | null>(null);
   const [admins, setAdmins] = useState<any[]>([]);
@@ -115,11 +120,12 @@ export function Platform() {
   };
   const review = async (o: any, approve: boolean) => {
     if (!approve && !(await ask({ title: `Reject ${o.name}?`, message: 'Its creator will be told it was not approved and won’t be able to use it.', confirmLabel: 'Reject', danger: true })).ok) return;
-    try { await rpc('tt_platform_review_org', { p_org: o.id, p_approve: approve }); setMsg({ kind: 'ok', text: `${o.name} ${approve ? 'is approved' : 'was rejected'}. Its creator has been notified.` }); load(); }
+    try { await rpc('tt_platform_review_org', { p_org: o.id, p_approve: approve }); seeOrg(o.id); setMsg({ kind: 'ok', text: `${o.name} ${approve ? 'is approved' : 'was rejected'}. Its creator has been notified.` }); load(); }
     catch (e) { setMsg({ kind: 'error', text: /function/i.test((e as Error).message) ? 'Approvals need database update 0026.' : (e as Error).message }); }
   };
   const waiting = (orgs ?? []).filter((o) => o.status === 'pending');
   const shown = (orgs ?? []).filter((o) => !q || o.name.toLowerCase().includes(q.toLowerCase()));
+  const fresh = (orgs ?? []).filter((o) => isNewOrg(o, seen));
   // every organization side by side; reads go through RLS, which lets platform admins see all organizations
   async function exportAs(f: ExportFormat) {
     setMsg(null);
@@ -155,22 +161,23 @@ export function Platform() {
           <div className="panel-head"><h3 id="pw-h">Waiting for approval ({waiting.length})</h3></div>
           <p className="muted">New organizations can’t be used until you approve them. Creators are told to expect a decision within 24 hours.</p>
           <ul className="help-list">{waiting.map((o) => (
-            <li key={o.id}><span className="grow"><b>{o.name}</b><small className="muted">{o.creator_email ?? 'Unknown creator'}, {fmtTime(o.created_at)}</small></span>
+            <li key={o.id}><span className="grow"><b>{o.name}</b>{isNewOrg(o, seen) && <span className="new-badge">New</span>}<small className="muted">{o.creator_email ?? 'Unknown creator'}, {fmtTime(o.created_at)}</small></span>
               <button type="button" onClick={() => review(o, true)}>Approve</button>
               <button type="button" className="link danger-text" onClick={() => review(o, false)}>Reject</button></li>))}</ul>
         </section>
       )}
 
       <section className="card" aria-labelledby="po-h">
-        <div className="panel-head"><h3 id="po-h">Organizations</h3>
+        <div className="panel-head"><h3 id="po-h">Organizations{fresh.length > 0 && <span className="new-badge">{fresh.length} new</span>}</h3>
+          {fresh.length > 0 && <button type="button" className="link" onClick={() => markOrgsSeen(uid, fresh.map((o) => o.id))}>Mark all seen</button>}
           <input className="plat-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search organizations" aria-label="Search organizations" /></div>
         {orgs === null ? <p className="muted">Loading…</p> : shown.length === 0 ? <p className="muted">No organizations.</p> : (
           <table className="emp-table">
             <thead><tr><th>Organization</th><th>Status</th><th>Members</th><th>Open tasks</th><th>Time zone</th><th>Created</th><th><span className="sr-only">Open</span></th></tr></thead>
             <tbody>{shown.map((o) => (
-              <tr key={o.id}><td><b>{o.name}</b>{o.id === membership?.org_id && <small className="muted"> (open now)</small>}</td>
+              <tr key={o.id} className={isNewOrg(o, seen) ? 'is-new' : undefined}><td><b>{o.name}</b>{isNewOrg(o, seen) && <span className="new-badge" title={`Added in the last ${NEW_DAYS} days`}>New</span>}{o.id === membership?.org_id && <small className="muted"> (open now)</small>}</td>
                 <td>{o.status === 'rejected' ? <button type="button" className="link" title="Approve it after all" onClick={() => review(o, true)}>Rejected</button> : label(o.status ?? 'approved')}</td><td>{o.members}</td><td>{o.open_tasks}</td><td>{o.time_zone}</td><td>{fmtTime(o.created_at)}</td>
-                <td>{o.id !== membership?.org_id && <button type="button" className="pill-btn ghost" onClick={() => switchOrg(o.id)}>Open</button>}</td></tr>))}</tbody>
+                <td>{o.id !== membership?.org_id && <button type="button" className="pill-btn ghost" onClick={() => { seeOrg(o.id); switchOrg(o.id); }}>Open</button>}</td></tr>))}</tbody>
           </table>)}
       </section>
 

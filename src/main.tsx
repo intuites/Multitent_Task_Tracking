@@ -20,6 +20,7 @@ import Frame, { type FrameGroup } from './components/Frame';
 import { ShortcutListener } from './components/Shortcuts';
 import { label, NO_ESC } from './lib/ui';
 import { startLive, useLive } from './lib/live';
+import { isNewOrg, NEW_DAYS, onOrgsSeen, seenOrgs } from './lib/newOrgs';
 
 // Route-level code splitting keeps the first load small.
 const Tasks = lazy(() => import('./pages/Tasks'));
@@ -85,13 +86,25 @@ function Shell() {
     return () => { clearInterval(h); window.removeEventListener('tt-notifications', refresh); };
   }, [refresh, pathname]);
 
-  const groups: FrameGroup[] = ['Menu', 'Team', 'General'].map((g) => ({
+  // platform admins: how many organizations were added lately that they haven't looked at (badge on Admin site)
+  const [newOrgs, setNewOrgs] = useState(0);
+  useEffect(() => {
+    if (!platformAdmin) return;
+    const count = () => supabase.from('tt_organizations').select('id, created_at').gte('created_at', new Date(Date.now() - NEW_DAYS * 864e5).toISOString())
+      .then(({ data }) => { const seen = seenOrgs(uid); setNewOrgs((data ?? []).filter((o) => isNewOrg(o, seen)).length); });
+    count();
+    const h = setInterval(count, 60000);
+    const off = onOrgsSeen(count);
+    return () => { clearInterval(h); off(); };
+  }, [platformAdmin, uid, pathname]);
+
+  const groups: FrameGroup[] =['Menu', 'Team', 'General'].map((g) => ({
     title: g,
     items: items.filter((n) => n.group === g).map((n) => ({
       label: n.label, icon: n.icon, to: n.path, badge: n.path === '/my-tasks' ? mine : n.path === '/notifications' ? unread : undefined,
     })),
   }));
-  if (platformAdmin) groups[2].items.push({ label: 'Admin site', icon: Shield, to: '/admin-site' });
+  if (platformAdmin) groups[2].items.push({ label: 'Admin site', icon: Shield, to: '/admin-site', badge: newOrgs || undefined });
 
   return (<>
     <Frame brand={membership?.org_name || 'Taskify'} timeZone={membership?.time_zone} groups={groups} title={crumb} search={<Search />}

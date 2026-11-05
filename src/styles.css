@@ -2009,6 +2009,12 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .os-save > span { margin-right: auto; font-size: var(--fs-sm); }
 .os-dirty { color: var(--text); font-weight: var(--fw-semibold); }
 .os-side { display: grid; gap: 16px; }
+/* Admin site: organizations added lately that this platform admin hasn't opened yet */
+.new-badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: var(--r-pill); vertical-align: 2px;
+  background: var(--brand-tint); color: var(--brand); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 35%, transparent);
+  font-size: var(--fs-2xs); font-weight: var(--fw-bold); line-height: 18px; white-space: nowrap; }
+tr.is-new > td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
+
 /* First-visit tour: a spotlight that glides to each part of the screen, and a card that explains it */
 /* the layer itself lets clicks through; the blocker (with its hole in "try" mode) and the card catch them */
 .tour { position: fixed; inset: 0; z-index: 200; pointer-events: none; }

@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
-import { admin, handler, HttpError } from '../_lib/http';
-import { sendEmail } from '../_lib/email';
+// .js extensions: Vercel runs each api file as plain Node ESM, which needs them
+import { admin, handler, HttpError } from '../_lib/http.js';
+import { sendEmail } from '../_lib/email.js';
 
 const MAX_ATTEMPTS = 5;
 const EMAIL_BATCH = 50;

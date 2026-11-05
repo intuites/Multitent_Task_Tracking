@@ -1,4 +1,4 @@
-import { admin, authUser, handler, HttpError } from './_lib/http';
+import { admin, authUser, handler, HttpError } from './_lib/http.js';
 
 const ROLES = ['admin', 'employee'];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

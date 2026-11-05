@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Building2, Check, CopyPlus, Database, Globe2, Layers, LifeBuoy, Lock, Mail, Palette, Pencil, Plus, ShieldCheck, Trash2, Users, X } from 'lucide-react';
+import { ArrowLeft, Building2, Check, Clock, CopyPlus, Database, Globe2, Layers, LifeBuoy, Lock, Mail, Palette, Pencil, Plus, ShieldCheck, Sun, Sunset, Trash2, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
@@ -33,6 +33,8 @@ export default function OrgSettings() {
   const [brand, setBrand] = useState<string | null>(membership!.brand_color ?? null);
   useEffect(() => { applyBrand(brand, false); }, [brand]);
   const [edited, setDirty] = useState(false); // name or time zone typed in
+  const [dg, setDg] = useState<Dg>(dgOf({}));
+  const [tz, setTz] = useState(membership!.time_zone ?? 'America/New_York');
   const saved = membership!.brand_color;
   useEffect(() => () => applyBrand(saved, false), [saved]);
 
@@ -43,6 +45,7 @@ export default function OrgSettings() {
     ]);
     setOrg(o.data ?? { name: membership!.org_name, time_zone: membership!.time_zone });
     setBrand(o.data?.brand_color ?? null);
+    setDg(dgOf(o.data ?? {})); setTz(o.data?.time_zone ?? membership!.time_zone);
     setRoles((m.data ?? []).reduce((acc: Record<string, number>, r: any) => ({ ...acc, [r.role]: (acc[r.role] ?? 0) + 1 }), {}));
   }, [orgId, membership]);
   useEffect(() => { load(); }, [load]);
@@ -50,14 +53,22 @@ export default function OrgSettings() {
   async function saveOrg(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz'), brand_color: brand }).eq('id', orgId);
+    const extra = dg.extra.split(/[\s,;]+/).filter(Boolean);
+    const bad = extra.find((x) => !EMAIL.test(x));
+    if (bad) return setMsg({ kind: 'error', text: `“${bad}” isn’t a valid email address.` });
+    if (extra.length > 20) return setMsg({ kind: 'error', text: 'Add at most 20 extra digest addresses.' });
+    if (dg.midOn && dg.eodOn && dg.mid >= dg.eod) return setMsg({ kind: 'error', text: 'The midday digest has to go out before the end-of-day digest.' });
+    // only once migration 0032 has added the columns
+    const digest = 'digest_midday' in org ? { digest_midday_on: dg.midOn, digest_midday: dg.mid, digest_eod_on: dg.eodOn, digest_eod: dg.eod,
+      digest_days: dg.days, digest_leads: dg.leads, digest_extra_emails: extra } : {};
+    const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz'), brand_color: brand, ...digest }).eq('id', orgId);
     if (!error) { setDirty(false); await supabase.from('tt_activity_logs').insert({ org_id: orgId, entity_type: 'organization', entity_id: orgId, action: 'settings_updated', actor_id: uid, detail: {} }); refresh(); load(); }
     setMsg(error ? { kind: 'error', text: error.message.includes('time zone') ? 'That time zone isn’t recognized.' : error.message.includes('brand_color') ? 'Brand colors need database update 0029. Run it in Supabase, then try again.' : error.message } : { kind: 'ok', text: 'Organization updated.' });
   }
 
   if (!org) return <PageSkeleton />;
   const total = ROLES.reduce((n, r) => n + (roles[r] ?? 0), 0);
-  const dirty = edited || brand !== (org.brand_color ?? null);
+  const dirty = edited || brand !== (org.brand_color ?? null) || JSON.stringify(dg) !== JSON.stringify(dgOf(org));
   const TILES = [
     { name: 'Manage users', hint: 'Invite people, change roles', icon: Users, to: '/employees' },
     { name: 'Manage organizations', hint: 'The organizations you created', icon: Building2, view: 'orgs' as View },
@@ -118,11 +129,14 @@ export default function OrgSettings() {
               <div className="os-fields">
                 <label>Name<input name="name" defaultValue={org.name} required maxLength={120} disabled={!canEdit} /></label>
                 <label>Time zone
-                  <select name="tz" defaultValue={org.time_zone} disabled={!canEdit}>{zoneList(org.time_zone).map((z) => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}</select>
+                  <select name="tz" defaultValue={org.time_zone} disabled={!canEdit} onChange={(e) => setTz(e.target.value)}>{zoneList(org.time_zone).map((z) => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}</select>
                 </label>
               </div>
-              <p className="muted tpl-note"><Globe2 size={14} aria-hidden="true" /> Reminders, recurring tasks and “due today” use this time zone.</p>
+              <p className="muted tpl-note"><Globe2 size={14} aria-hidden="true" /> Reminders, recurring tasks, digests and “due today” use this time zone.</p>
             </section>
+
+            <DigestSettings dg={dg} set={(p) => setDg((d) => ({ ...d, ...p }))} tz={tz} canEdit={canEdit} ready={'digest_midday' in org} />
+
 
             <section className="card os-sec" aria-labelledby="brand-h">
               <header><h3 id="brand-h"><Palette size={16} aria-hidden="true" /> Brand color</h3><p className="muted">Everyone in {org.name} sees this color, in light and dark mode. The whole app previews it as you pick.</p></header>
@@ -172,7 +186,7 @@ export default function OrgSettings() {
 
             {canEdit && <div className={`os-save${dirty ? ' on' : ''}`}>
               <span className={dirty ? 'os-dirty' : 'muted'}>{dirty ? 'You have unsaved changes.' : 'All changes saved.'}</span>
-              {dirty && <button type="button" className="link" onClick={(e) => { e.currentTarget.form!.reset(); setBrand(org.brand_color ?? null); setDirty(false); }}>Discard</button>}
+              {dirty && <button type="button" className="link" onClick={(e) => { e.currentTarget.form!.reset(); setBrand(org.brand_color ?? null); setDg(dgOf(org)); setTz(org.time_zone); setDirty(false); }}>Discard</button>}
               <button type="submit" disabled={!dirty}>Save changes</button>
             </div>}
           </form>
@@ -193,6 +207,77 @@ export default function OrgSettings() {
         </div>
       )}
     </div>
+  );
+}
+
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+type Dg = { midOn: boolean; mid: string; eodOn: boolean; eod: string; days: 'daily' | 'weekdays'; leads: boolean; extra: string };
+/** Digest settings as saved (defaults before migration 0032 match what the email job uses). */
+const dgOf = (o: any): Dg => ({
+  midOn: o.digest_midday_on ?? true, mid: String(o.digest_midday ?? '13:30').slice(0, 5),
+  eodOn: o.digest_eod_on ?? true, eod: String(o.digest_eod ?? '17:50').slice(0, 5),
+  days: o.digest_days === 'weekdays' ? 'weekdays' : 'daily', leads: o.digest_leads ?? true, extra: (o.digest_extra_emails ?? []).join(', '),
+});
+const at12 = (hm: string) => { const [h, m] = hm.split(':').map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
+const zoneName = (z: string) => z.split('/').pop()!.replace(/_/g, ' ');
+/** `hm` today in time zone `tz`, shown on the viewer's own clock ("12:00 AM"). */
+function onMyClock(hm: string, tz: string) {
+  const day = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+  const guess = Date.parse(`${day}T${hm}:00Z`);
+  const seen = Date.parse(`${new Date(guess).toLocaleString('sv-SE', { timeZone: tz }).replace(' ', 'T')}Z`);
+  return new Date(guess - (seen - guess)).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+/** Organization settings → Digest emails: two daily summaries of open work, each with its own time. */
+function DigestSettings({ dg, set, tz, canEdit, ready }: { dg: Dg; set: (p: Partial<Dg>) => void; tz: string; canEdit: boolean; ready: boolean }) {
+  const off = !canEdit || !ready;
+  const mine = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const rows = [
+    { key: 'mid' as const, on: dg.midOn, time: dg.mid, name: 'Midday digest', hint: 'What is still open halfway through the day.', icon: Sun },
+    { key: 'eod' as const, on: dg.eodOn, time: dg.eod, name: 'End-of-day digest', hint: 'What is left before everyone signs off.', icon: Sunset },
+  ];
+  const live = rows.filter((r) => r.on);
+  const when = live.map((r) => at12(r.time)).join(' and ');
+  const sameClock = live.every((r) => onMyClock(r.time, tz) === at12(r.time));
+  return (
+    <section className="card os-sec" aria-labelledby="dg-h">
+      <header><h3 id="dg-h"><Mail size={16} aria-hidden="true" /> Digest emails</h3>
+        <p className="muted">A summary of open and overdue tasks, grouped by department, with a link to each task.</p></header>
+      {!ready && <p className="muted tpl-note"><Lock size={14} aria-hidden="true" /> Run database update 0032 in Supabase to change these. Until then digests go out at 1:30 PM and 5:50 PM, every day.</p>}
+      <ul className="dg-list">
+        {rows.map((r) => (
+          <li key={r.key} className={r.on ? 'on' : ''}>
+            <span className="dg-ico"><r.icon size={18} aria-hidden="true" /></span>
+            <span className="dg-name"><b>{r.name}</b><small className="muted">{r.hint}</small></span>
+            <label className="dg-time"><span className="sr-only">{r.name} time</span>
+              <input type="time" value={r.time} required disabled={off || !r.on} onChange={(e) => set({ [r.key]: e.target.value || r.time })} /></label>
+            <button type="button" role="switch" aria-checked={r.on} aria-label={`${r.name} ${r.on ? 'on' : 'off'}`} disabled={off}
+              className={r.on ? 'switch on' : 'switch'} onClick={() => set({ [`${r.key}On`]: !r.on } as Partial<Dg>)}><span /></button>
+          </li>))}
+      </ul>
+      <div className="dg-opts">
+        <div className="dg-field"><span id="dg-days">Send on</span>
+          <div className="seg" role="group" aria-labelledby="dg-days">
+            {([['daily', 'Every day'], ['weekdays', 'Monday to Friday']] as const).map(([v, l]) =>
+              <button key={v} type="button" aria-pressed={dg.days === v} disabled={off} onClick={() => set({ days: v })}>{l}</button>)}
+          </div></div>
+        <div className="dg-field"><span id="dg-who">Who gets them</span>
+          <p className="dg-who"><ShieldCheck size={15} aria-hidden="true" /> Admins: the whole organization</p>
+          <label className="dg-check"><input type="checkbox" checked={dg.leads} disabled={off} onChange={(e) => set({ leads: e.target.checked })} />
+            Leads and managers: only the tasks they lead or manage</label>
+        </div>
+      </div>
+      <label className="dg-extra"><span>Also send to <small className="muted">(optional)</small></span>
+        <input value={dg.extra} disabled={off} onChange={(e) => set({ extra: e.target.value })} placeholder="ops@company.com, director@company.com" />
+        <small className="muted nt-help">Separate with commas. They get the whole-organization digest.</small></label>
+      <p className="dg-summary" role="status">
+        <Clock size={15} aria-hidden="true" />
+        {live.length === 0 ? <span>Digests are off. Nobody gets a summary email.</span> : <span>
+          <b>{live.length === 2 ? 'Two digests' : live[0].name}</b> at {when} {zoneName(tz)} time, {dg.days === 'daily' ? 'every day' : 'Monday to Friday'}.
+          {!sameClock && <> That is {live.map((r) => onMyClock(r.time, tz)).join(' and ')} on your clock ({zoneName(mine)}).</>}
+        </span>}
+      </p>
+    </section>
   );
 }
 

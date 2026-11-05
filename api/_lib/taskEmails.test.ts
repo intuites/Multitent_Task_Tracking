@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { digestDue, localClock } from './taskEmails';
+import { digestCfg, digestDue, localClock } from './taskEmails';
 import { digest, taskCompleted, taskReminder, type TaskMail } from './emailTemplates';
 import { mime } from './email';
 
@@ -20,6 +20,14 @@ describe('digest timing', () => {
     expect(digestDue('13:30')).toBe('midday');
     expect(digestDue('17:49')).toBe('midday');
     expect(digestDue('17:50')).toBe('eod');
+  });
+  it('follows the organization settings: own times, one turned off, weekdays only', () => {
+    const c = digestCfg({ digest_midday: '12:00:00', digest_eod: '18:30:00', digest_days: 'weekdays' });
+    expect(digestDue('12:05', c, '2026-11-06')).toBe('midday'); // Friday
+    expect(digestDue('12:05', c, '2026-11-07')).toBeNull(); // Saturday
+    expect(digestDue('18:30', c, '2026-11-06')).toBe('eod');
+    expect(digestDue('19:00', digestCfg({ digest_eod_on: false }))).toBe('midday');
+    expect(digestDue('14:00', digestCfg({ digest_midday_on: false }))).toBeNull();
   });
 });
 

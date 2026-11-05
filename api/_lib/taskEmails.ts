@@ -3,8 +3,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { digest, generic, taskCompleted, taskCreated, taskReminder, type Ctx, type DigestRow, type Mail, type TaskMail } from './emailTemplates.js';
 
 const NY = 'America/New_York';
-/** Digest times in each organization's own time zone (9:00 to 18:00 New York workday: middle, and 10 minutes before the end). */
-export const DIGEST_AT = { midday: '13:30', eod: '17:50' } as const;
+/** An organization's digest settings (Organization settings → Digest emails), in its own time zone. */
+export interface DigestCfg { midOn: boolean; mid: string; eodOn: boolean; eod: string; days: 'daily' | 'weekdays'; leads: boolean; extra: string[] }
+/** Defaults (and the values used before migration 0032): the 9:00-18:00 New York workday's middle, and 10 minutes before close. */
+export const digestCfg = (o: any = {}): DigestCfg => ({
+  midOn: o.digest_midday_on ?? true, mid: String(o.digest_midday ?? '13:30').slice(0, 5),
+  eodOn: o.digest_eod_on ?? true, eod: String(o.digest_eod ?? '17:50').slice(0, 5),
+  days: o.digest_days === 'weekdays' ? 'weekdays' : 'daily', leads: o.digest_leads ?? true, extra: o.digest_extra_emails ?? [],
+});
 const DONE = ['completed', 'completed_cycle'];
 const appUrl = () => (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, '');
 
@@ -67,15 +73,20 @@ export function localClock(now: Date, tz: string) {
   const hm = now.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   return { date, hm };
 }
-/** Which digest is due now, if any: midday from 13:30, end of day from 17:50, once each per day. */
-export const digestDue = (hm: string): 'midday' | 'eod' | null => (hm >= DIGEST_AT.eod ? 'eod' : hm >= DIGEST_AT.midday ? 'midday' : null);
+/** Which digest is due at local time `hm` on `date`, if any (the caller sends each at most once per day). */
+export function digestDue(hm: string, c: DigestCfg = digestCfg(), date?: string): 'midday' | 'eod' | null {
+  const dow = date ? new Date(`${date}T12:00:00Z`).getUTCDay() : 1;
+  if (c.days === 'weekdays' && (dow === 0 || dow === 6)) return null;
+  if (c.eodOn && hm >= c.eod) return 'eod';
+  return c.midOn && hm >= c.mid ? 'midday' : null;
+}
 
 /** Queues today's digest for every organization whose time has come (admins: everything; leads and managers: their tasks). */
 export async function queueDigests(db: Db, now = new Date()) {
-  const { data: orgs } = await db.from('tt_organizations').select('id, name, time_zone');
+  const { data: orgs } = await db.from('tt_organizations').select('*'); // '*': digest settings arrive with migration 0032
   let queued = 0;
   for (const o of orgs ?? []) {
-    const tz = o.time_zone || NY, { date, hm } = localClock(now, tz), kind = digestDue(hm);
+    const cfg = digestCfg(o), tz = o.time_zone || NY, { date, hm } = localClock(now, tz), kind = digestDue(hm, cfg, date);
     if (!kind) continue;
     const key = `digest:${kind}:${o.id}:${date}`;
     const { data: seen } = await db.from('tt_email_delivery_logs').select('id').eq('org_id', o.id).eq('dedup_key', key).limit(1);
@@ -100,13 +111,13 @@ export async function queueDigests(db: Db, now = new Date()) {
       lead_id: t.lead_id, manager_id: t.manager_id,
     }));
     const admins = new Set((members.data ?? []).filter((m: any) => m.active !== false && ['owner', 'admin'].includes(m.role)).map((m: any) => m.user_id as string));
-    const leads = new Set(rows.flatMap((r) => [r.lead_id, r.manager_id]).filter((u): u is string => !!u && !admins.has(u)));
+    const leads = new Set(cfg.leads ? rows.flatMap((r) => [r.lead_id, r.manager_id]).filter((u): u is string => !!u && !admins.has(u)) : []);
     const emails = new Map((await db.from('tt_profiles').select('user_id, email').in('user_id', [...admins, ...leads])).data?.map((p: any) => [p.user_id, p.email]) ?? []);
     const ctx: Ctx = { org: o.name, tz, appUrl: appUrl() };
 
     const out: any[] = [];
-    const add = (uid: string, list: typeof rows, doneN: number, scope: string) => {
-      const to = emails.get(uid);
+    // uid null = an extra address from settings (not a Taskify user): it gets the whole-organization digest
+    const add = (uid: string | null, list: typeof rows, doneN: number, scope: string, to = uid ? emails.get(uid) : undefined) => {
       if (!to) return;
       const counts = {
         open: list.length, overdue: list.filter((r) => r.due_date && new Date(r.due_date) < now).length,
@@ -116,6 +127,8 @@ export async function queueDigests(db: Db, now = new Date()) {
       out.push({ org_id: o.id, user_id: uid, to_email: to, subject: mail.subject, body: mail.text, html: mail.html, dedup_key: key, kind: 'digest' });
     };
     for (const u of admins) add(u, rows, doneToday.length, `All departments in ${o.name}`);
+    const sentTo = new Set(out.map((r) => String(r.to_email).toLowerCase()));
+    for (const e of cfg.extra) if (!sentTo.has(e.toLowerCase())) add(null, rows, doneToday.length, `All departments in ${o.name}`, e);
     for (const u of leads) {
       const mine = rows.filter((r) => r.lead_id === u || r.manager_id === u);
       if (mine.length) add(u, mine, doneToday.filter((t: any) => t.lead_id === u || t.manager_id === u).length, 'Tasks you lead or manage');

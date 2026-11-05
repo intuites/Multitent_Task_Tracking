@@ -16,6 +16,7 @@ export default handler('GET', async (req) => {
   const want = `Bearer ${secret}`;
   if (!secret || given.length !== want.length || !timingSafeEqual(Buffer.from(given), Buffer.from(want))) throw new HttpError(401, 'Unauthorized');
 
+  const started = Date.now();
   const db = admin();
   const rec = await db.rpc('tt_generate_recurrences', { p_limit: 100 });
   const rem = await db.rpc('tt_generate_reminders', { p_limit: 500 });
@@ -29,11 +30,11 @@ export default handler('GET', async (req) => {
     .in('status', ['pending', 'failed']).lt('attempts', MAX_ATTEMPTS).order('created_at').limit(EMAIL_BATCH);
   let sent = 0, failed = 0;
   const orgs = new Map<string, Ctx>();
-  for (const m of queue ?? []) {
+  const send = async (m: any) => {
     // claim the row (optimistic lock on attempts) so overlapping ticks cannot double-send
     const { data: claimed } = await db.from('tt_email_delivery_logs').update({ attempts: m.attempts + 1 })
       .eq('id', m.id).eq('attempts', m.attempts).in('status', ['pending', 'failed']).select('id');
-    if (!claimed?.length) continue;
+    if (!claimed?.length) return;
     const mail = m.html ? { subject: m.subject, text: m.body ?? m.subject, html: m.html }
       : await render(db, m, orgs).catch(() => ({ subject: m.subject, text: `${m.body ?? m.subject}\n\n${process.env.APP_URL || ''}`, html: undefined }));
     const r = await sendEmail(m.to_email, mail.subject, mail.text, mail.html);
@@ -44,12 +45,17 @@ export default handler('GET', async (req) => {
       failed++;
       await db.from('tt_email_delivery_logs').update({ status: 'failed', last_error: r.error }).eq('id', m.id);
     }
-  }
+  };
+  // 4 at a time; no new email starts after 45 s, so the run ends inside Vercel's 60 s limit and the rest go next run
+  const todo = [...(queue ?? [])];
+  await Promise.all(Array.from({ length: 4 }, async () => {
+    while (todo.length && Date.now() - started < 45_000) await send(todo.shift());
+  }));
   return {
     recurrences: rec.error ? `error: ${rec.error.message}` : rec.data,
     reminders: rem.error ? `error: ${rem.error.message}` : rem.data,
     task_reminders: taskRem.error ? `error: ${taskRem.error.message}` : taskRem.data,
     digests,
-    emails: { sent, failed },
+    emails: { sent, failed, left_for_next_run: todo.length },
   };
 });

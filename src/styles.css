@@ -2015,31 +2015,68 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .tour-spot { position: fixed; border-radius: 14px; pointer-events: none;
   box-shadow: 0 0 0 2px var(--brand), 0 0 0 9999px color-mix(in srgb, var(--black) 58%, transparent);
   transition: left .45s cubic-bezier(.2, .8, .2, 1), top .45s cubic-bezier(.2, .8, .2, 1), width .45s cubic-bezier(.2, .8, .2, 1), height .45s cubic-bezier(.2, .8, .2, 1); }
-.tour-spot::after { content: ""; position: absolute; inset: -2px; border-radius: inherit; box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 55%, transparent); animation: tour-pulse 1.8s ease-out infinite; }
+/* liquid ripples: two brand rings flowing out of the highlighted item, half a beat apart */
+.tour-spot i { position: absolute; inset: -2px; border-radius: inherit; border: 2px solid var(--brand); opacity: 0; animation: tour-ripple 2.4s cubic-bezier(.2, .7, .3, 1) infinite; }
+.tour-spot i + i { animation-delay: 1.2s; }
+@keyframes tour-ripple { 0% { opacity: .7; transform: scale(1); } 100% { opacity: 0; transform: scale(1.18); } }
 /* 2px, not 0: Chrome draws no shadow (so no dimming) for a zero-size box */
 .tour-spot.center { left: 50%; top: 50%; width: 2px; height: 2px; box-shadow: 0 0 0 9999px color-mix(in srgb, var(--black) 58%, transparent); }
-.tour-spot.center::after { display: none; }
-@keyframes tour-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 55%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
-.tour-card { position: fixed; padding: 18px 18px 16px; border-radius: var(--r-card); background: var(--surface); color: var(--text); border: 1px solid var(--line);
-  box-shadow: var(--pop-shadow); animation: tour-in .32s cubic-bezier(.2, .8, .2, 1) both; outline: none; }
+.tour-spot.center i { display: none; }
+
+.tour-card { position: fixed; overflow: hidden; border-radius: 22px; background: var(--surface); color: var(--text); outline: none;
+  border: 1px solid color-mix(in srgb, var(--accent-n) 22%, var(--line));
+  box-shadow: 0 24px 60px -18px color-mix(in srgb, color-mix(in oklab, var(--accent-n) 50%, var(--black)) 55%, transparent), var(--pop-shadow);
+  animation: tour-in .5s cubic-bezier(.2, .8, .2, 1) both; }
 .tour-card.center { animation-name: tour-in-center; }
-@keyframes tour-in { from { opacity: 0; transform: translateY(8px); } }
-@keyframes tour-in-center { from { opacity: 0; transform: translate(-50%, -46%); } }
-.tour-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.tour-head small { font-size: var(--fs-xs); }
-.tour-ico { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--brand-tint); color: var(--brand); }
-.tour-skip { margin-left: auto; font-size: var(--fs-sm); }
-.tour-card h2 { margin: 0 0 6px; font-size: var(--fs-lg); }
-.tour-card p { margin: 0 0 16px; color: var(--muted); font-size: var(--fs-md); line-height: 1.55; }
-.tour-foot { display: flex; align-items: center; gap: 8px; }
-.tour-foot .pill-btn { white-space: nowrap; }
-.tour-dots { display: flex; gap: 4px; margin-right: auto; min-width: 0; }
-.tour-dots i { flex: none; width: 5px; height: 5px; border-radius: 3px; background: var(--line); transition: background .2s, transform .2s; }
-.tour-dots i.past { background: color-mix(in srgb, var(--brand) 45%, var(--line)); }
-.tour-dots i.on { background: var(--brand); transform: scaleX(2.2); margin: 0 4px; }
+/* each card pours in: rises, unblurs and settles */
+@keyframes tour-in { from { opacity: 0; transform: translateY(12px) scale(.97); filter: blur(6px); } }
+@keyframes tour-in-center { from { opacity: 0; transform: translate(-50%, -46%) scale(.96); filter: blur(8px); } }
+
+/* header: the deep brand surface (as the sidebar card) with drifting liquid light, readable in any brand color */
+.tour-hero { position: relative; isolation: isolate; padding: 16px 20px 18px; color: var(--white);
+  background: radial-gradient(120% 100% at 100% 0%, color-mix(in srgb, color-mix(in oklab, var(--accent-n) 63%, var(--white)) 32%, transparent), transparent 60%),
+    color-mix(in oklab, var(--accent-n) 50%, var(--black)); }
+.tour-hero .liquid { z-index: -1; }
+.tour-hero-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.tour-ico { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 14px; color: var(--white);
+  background: color-mix(in srgb, var(--white) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--white) 24%, transparent), inset 0 1px 0 color-mix(in srgb, var(--white) 30%, transparent);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.tour-meta { display: grid; gap: 2px; min-width: 0; }
+.tour-group { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: color-mix(in oklab, var(--accent-n) 18%, var(--white)); }
+.tour-meta small { font-size: var(--fs-2xs); color: color-mix(in srgb, var(--white) 70%, transparent); }
+.tour-skip { margin-left: auto; min-height: 0; padding: 6px 12px; border-radius: var(--r-pill); font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--white);
+  background: color-mix(in srgb, var(--white) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--white) 20%, transparent); }
+.tour-skip:hover { background: color-mix(in srgb, var(--white) 20%, transparent); filter: none; }
+.tour-skip:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+.tour-hero h2 { margin: 0; font-family: var(--font-display); font-size: 22px; line-height: 1.2; letter-spacing: -.01em; color: var(--white); text-wrap: balance; }
+
+.tour-body { padding: 18px 20px 4px; }
+.tour-body p { margin: 0 0 14px; font-size: var(--fs-base); line-height: 1.6; color: var(--text); text-wrap: pretty; }
+.tour-tips { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+.tour-tips li { display: flex; align-items: flex-start; gap: 9px; font-size: var(--fs-md); line-height: 1.45; color: var(--muted); }
+.tour-tips svg { flex: none; margin-top: 2px; padding: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--brand-tint); color: var(--brand); }
+.tour-feats { list-style: none; margin: 0 0 14px; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tour-feats li { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; align-items: center; padding: 12px; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--line); animation: tour-feat .5s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(.12s + var(--n) * .07s); }
+.tour-feats li > span { grid-row: span 2; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: var(--brand-tint); color: var(--brand); }
+.tour-feats b { font-size: var(--fs-md); line-height: 1.3; }
+.tour-feats small { font-size: var(--fs-xs); line-height: 1.35; color: var(--muted); }
+@keyframes tour-feat { from { opacity: 0; transform: translateY(8px); } }
+
+.tour-foot { display: flex; align-items: center; gap: 14px; padding: 12px 20px 18px; }
+/* progress fills like liquid: brand gradient with a slow moving sheen */
+.tour-progress { position: relative; flex: 1; min-width: 60px; height: 6px; border-radius: var(--r-pill); overflow: hidden; background: color-mix(in srgb, var(--accent-n) 14%, var(--line)); }
+.tour-progress i { position: absolute; inset: 0; border-radius: inherit; transform-origin: left; transition: transform .6s cubic-bezier(.2, .8, .2, 1);
+  background: linear-gradient(90deg, var(--brand), color-mix(in oklab, var(--brand) 55%, var(--white)), var(--brand)); background-size: 200% 100%; animation: liq-drift 3s linear infinite; }
+.tour-actions { display: flex; gap: 8px; }
+.tour-actions .pill-btn { white-space: nowrap; }
+@media (max-width: 480px) {
+  .tour-feats { grid-template-columns: 1fr; }
+  .tour-hero h2 { font-size: 20px; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .tour-spot, .tour-dots i { transition: none; }
-  .tour-spot::after { animation: none; }
+  .tour-spot, .tour-progress i { transition: none; }
+  .tour-spot i, .tour-progress i, .tour-feats li { animation: none; }
   .tour-card { animation: none; }
 }
 

@@ -110,7 +110,7 @@ function Shell() {
       )}>
       <ErrorBoundary resetKey={pathname}><Suspense fallback={<PageSkeleton />}><Outlet /></Suspense></ErrorBoundary>
       <ShortcutListener />
-      <Tour uid={uid} name={name || session!.user.email!} admin={can(membership!.role, 'task:write')} />
+      <Tour uid={uid} name={name || session!.user.email!} org={membership?.org_name || 'your organization'} admin={can(membership!.role, 'task:write')} />
     </Frame>
   );
 }

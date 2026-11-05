@@ -42,6 +42,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
   const [dm, setDm] = useState<{ department_id: string; user_id: string }[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [dept, setDept] = useState(''), [assignee, setAssignee] = useState('');
+  const [lead, setLead] = useState(''), [manager, setManager] = useState('');
   const [title, setTitle] = useState(''), [desc, setDesc] = useState(''), [priority, setPriority] = useState('');
   const [subs, setSubs] = useState<Sub[]>([]);
   const [remind, setRemind] = useState(true), [freq, setFreq] = useState('daily'), [time, setTime] = useState('09:00');
@@ -51,7 +52,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
 
   // everything below depends on the organization chosen at the top
   useEffect(() => {
-    setDept(''); setAssignee(''); setSubs([]);
+    setDept(''); setAssignee(''); setLead(''); setManager(''); setSubs([]);
     if (!orgId) { setPeople([]); setDepts([]); setDm([]); setTemplates([]); return; }
     (async () => {
       const [p, d, m, tp] = await Promise.all([
@@ -94,6 +95,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
     const bad = cc.find((x) => !EMAIL.test(x));
     if (bad) return setError(`“${bad}” isn’t a valid email address.`);
     if (!orgId || !dept || !assignee) return setError('Select the organization, then the department, then the member.');
+    if (!lead || !manager) return setError('Choose the lead and the manager for this task.');
     if (!priority) return setError('Choose a priority.');
     if (subs.some((s) => !s.title.trim())) return setError('Give every sub-task a title, or remove the empty ones.');
     setBusy(true); setError('');
@@ -105,16 +107,17 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
         estimated_hours: f.get('estimated_hours') ? Number(f.get('estimated_hours')) : null,
         tags: String(f.get('tags') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
         ...(dept ? { department_id: dept } : {}),
+        lead_id: lead, manager_id: manager,
         ...(cc.length ? { notify_emails: cc } : {}),
         ...(remind ? { reminder_enabled: true, reminder_frequency: freq, reminder_time: time, reminder_start: rStart, reminder_interval_days: freq === 'custom' ? every : null } : {}),
       };
       const { data, error: err } = await supabase.from('tt_tasks').insert(row).select('id').single();
-      if (err) throw new Error(/column|schema cache/i.test(err.message) ? 'Departments, CC emails and reminders need the database updates (migrations 0010, 0012 and 0013). Turn those off or run the updates.' : err.message);
+      if (err) throw new Error(/column|schema cache/i.test(err.message) ? 'This form needs the latest database updates (migrations 0010, 0012, 0013 and 0031). Run them in the Supabase SQL Editor, then try again.' : err.message);
       if (assignee) await rpc('tt_assign', { p_task: data.id, p_user: assignee, p_add: true });
       for (const s of subs) {
         const { data: sd, error: se } = await supabase.from('tt_tasks').insert({
           org_id: orgId, created_by: uid, parent_task_id: data.id, title: s.title.trim(), priority,
-          due_date: dateToTs(s.due || null), ...(s.department_id ? { department_id: s.department_id } : {}),
+          due_date: dateToTs(s.due || null), ...(s.department_id ? { department_id: s.department_id } : {}), lead_id: lead, manager_id: manager,
         }).select('id').single();
         if (se) throw new Error(se.message);
         const who = s.assignee_id || assignee;
@@ -137,6 +140,13 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
         <label>Assign to<select value={assignee} onChange={(e) => setAssignee(e.target.value)} required disabled={!dept || !deptPeople.length}>
           <option value="">{!dept ? 'Select department first' : deptPeople.length ? 'Select member' : 'No members in this department'}</option>{deptPeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       </div>
+      <div className="nt-row">
+        <label>Lead<select value={lead} onChange={(e) => setLead(e.target.value)} required disabled={!orgId}>
+          <option value="">{orgId ? 'Select lead' : 'Select organization first'}</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+        <label>Manager<select value={manager} onChange={(e) => setManager(e.target.value)} required disabled={!orgId}>
+          <option value="">{orgId ? 'Select manager' : 'Select organization first'}</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+      </div>
+      <small className="muted nt-help">The lead and manager get the completed email and the daily digests for this task.</small>
       <label>Task title<input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={200} placeholder="What needs to be done" /></label>
       <label>Task description<textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} placeholder="Enter task details…" /></label>
       <div className="nt-row">

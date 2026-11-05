@@ -100,6 +100,8 @@ export default function TaskDetail() {
         estimated_hours: f.get('estimated_hours') ? Number(f.get('estimated_hours')) : null,
         actual_hours: f.get('actual_hours') ? Number(f.get('actual_hours')) : null,
         tags: String(f.get('tags')).split(',').map((s) => s.trim()).filter(Boolean),
+        // only once migration 0031 has added the columns
+        ...('lead_id' in t ? { lead_id: f.get('lead_id') || null, manager_id: f.get('manager_id') || null } : {}),
       }).eq('id', id!));
       await supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'task', entity_id: id, action: 'edited' });
       setEdit(false);
@@ -193,6 +195,10 @@ export default function TaskDetail() {
                 <label>Estimated hours<input type="number" step="0.25" min="0" name="estimated_hours" defaultValue={t.estimated_hours ?? ''} /></label>
                 <label>Actual hours<input type="number" step="0.25" min="0" name="actual_hours" defaultValue={t.actual_hours ?? ''} /></label>
                 <label>Tags<input name="tags" defaultValue={t.tags.join(', ')} /></label>
+                {'lead_id' in t && <>
+                  <label>Lead<select name="lead_id" defaultValue={t.lead_id ?? ''}><option value="">No lead</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+                  <label>Manager<select name="manager_id" defaultValue={t.manager_id ?? ''}><option value="">No manager</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+                </>}
                 <label className="span-all">Description<textarea name="description" rows={4} defaultValue={t.description ?? ''} /></label>
                 <span className="row filters span-all td-edit-actions"><button type="submit">Save changes</button><button type="button" className="link" onClick={() => setEdit(false)}>Cancel</button>
                   <button type="button" className="pill-btn ghost danger-text" onClick={deleteTask}><Trash2 size={15} aria-hidden="true" />Delete task</button></span>
@@ -293,6 +299,7 @@ export default function TaskDetail() {
             <dl className="facts">
               <dt>Start</dt><dd>{fmt(t.start_date)}</dd>
               <dt>Due</dt><dd className={overdue ? 'overdue' : ''}>{fmt(t.due_date)}</dd>
+              {'lead_id' in t && <><dt>Lead</dt><dd>{t.lead_id ? name(t.lead_id) : '—'}</dd><dt>Manager</dt><dd>{t.manager_id ? name(t.manager_id) : '—'}</dd></>}
               <dt>Effort</dt><dd>{t.estimated_hours ?? '—'}h est · {t.actual_hours ?? '—'}h actual</dd>
               <dt>Repeats</dt><dd>{d.recur ? `${label(d.recur.frequency)} ×${d.recur.interval_n}, next ${fmt(d.recur.next_run)}${d.recur.active ? '' : ' (ended)'}` : t.recurrence_parent_id ? <Link to={`/tasks/${t.recurrence_parent_id}`}>Part of a recurring task</Link> : 'No'}</dd>
               {t.completed_at && <><dt>Completed</dt><dd>{fmtTime(t.completed_at)}<br /><small className="muted">by {name(t.completed_by)}</small></dd></>}

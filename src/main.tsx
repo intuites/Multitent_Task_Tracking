@@ -86,7 +86,7 @@ function Shell() {
   }));
   if (platformAdmin) groups[2].items.push({ label: 'Admin site', icon: Shield, to: '/admin-site' });
 
-  return (
+  return (<>
     <Frame brand={membership?.org_name || 'Taskify'} timeZone={membership?.time_zone} groups={groups} title={crumb} search={<Search />}
       action={can(membership!.role, 'task:write') ? <Link to="/tasks?new=1" className="pill-btn top-new"><Plus size={16} aria-hidden="true" /><span>New task</span></Link> : undefined}
       bell={{ userId: uid, unread, onChanged: refresh, allTo: '/notifications' }}
@@ -110,8 +110,10 @@ function Shell() {
       )}>
       <ErrorBoundary resetKey={pathname}><Suspense fallback={<PageSkeleton />}><Outlet /></Suspense></ErrorBoundary>
       <ShortcutListener />
-      <Tour uid={uid} name={name || session!.user.email!} org={membership?.org_name || 'your organization'} admin={can(membership!.role, 'task:write')} />
     </Frame>
+    {/* outside Frame: its page area remounts on every route change, and the tour must keep going across pages */}
+    <Tour uid={uid} name={name || session!.user.email!} org={membership?.org_name || 'your organization'} admin={can(membership!.role, 'task:write')} />
+    </>
   );
 }
 

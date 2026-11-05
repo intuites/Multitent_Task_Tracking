@@ -76,6 +76,7 @@ export default function Profile() {
       return setMsg({ kind: 'error', text: missing ? 'Job title, phone and the other new fields need the database update (migration 0009) before they can be saved. Your name can be saved now.' : error.message });
     }
     setMsg({ kind: 'ok', text: 'Profile saved.' });
+    window.dispatchEvent(new Event('tt-profile')); // the top bar shows the new name straight away
     load(); refresh();
   }
   async function saveNameOnly() {
@@ -84,7 +85,7 @@ export default function Profile() {
     if (!v) return;
     const { error } = await supabase.from('tt_profiles').update({ full_name: v }).eq('user_id', uid);
     setMsg(error ? { kind: 'error', text: error.message } : { kind: 'ok', text: 'Name saved.' });
-    if (!error) load();
+    if (!error) { window.dispatchEvent(new Event('tt-profile')); load(); }
   }
   async function upload(file: File) {
     if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) return setMsg({ kind: 'error', text: 'Use a PNG, JPG, WebP or GIF image.' });

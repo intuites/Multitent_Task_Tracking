@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 
 const LABELS: Record<string, string> = { completed_cycle: 'Completed This Cycle' };
@@ -21,10 +21,13 @@ export async function rpc<T = any>(name: string, args: Record<string, unknown>):
 
 export interface Person { id: string; name: string; email: string; role: string; active: boolean }
 
+// short-lived: someone who joins while the app is open shows up in pickers within 30 s, without a reload
 const cache = new Map<string, Promise<Person[]>>();
+const cachedAt = new Map<string, number>();
 export function loadPeople(orgId: string, fresh = false): Promise<Person[]> {
-  if (fresh) cache.delete(orgId);
+  if (fresh || Date.now() - (cachedAt.get(orgId) ?? 0) > 30_000) cache.delete(orgId);
   if (!cache.has(orgId)) {
+    cachedAt.set(orgId, Date.now());
     cache.set(orgId, (async () => {
       const { data: m } = await supabase.from('tt_org_members').select('user_id, role, active').eq('org_id', orgId);
       const ids = (m ?? []).map((x) => x.user_id);
@@ -41,8 +44,24 @@ export function loadPeople(orgId: string, fresh = false): Promise<Person[]> {
 
 export function usePeople(orgId: string) {
   const [people, setPeople] = useState<Person[]>([]);
-  useEffect(() => { loadPeople(orgId).then(setPeople); }, [orgId]);
-  const name = (id?: string | null) => people.find((p) => p.id === id)?.name ?? (id ? 'Unknown' : '—');
+  const [loaded, setLoaded] = useState(false);
+  // people who acted here without being members (a platform admin, someone since removed), looked up once each
+  const [others, setOthers] = useState<Record<string, string>>({});
+  const asked = useRef(new Set<string>());
+  useEffect(() => { setLoaded(false); loadPeople(orgId).then((p) => { setPeople(p); setLoaded(true); }); }, [orgId]);
+  const name = (id?: string | null) => {
+    if (!id) return '—';
+    const p = people.find((x) => x.id === id);
+    if (p) return p.name;
+    if (others[id]) return others[id];
+    if (loaded && !asked.current.has(id)) {
+      asked.current.add(id);
+      // readable for platform admins; members can't read profiles outside their organization
+      supabase.from('tt_profiles').select('full_name, email').eq('user_id', id).maybeSingle()
+        .then(({ data }) => setOthers((o) => ({ ...o, [id]: data?.full_name || data?.email || 'Outside this organization' })));
+    }
+    return '…';
+  };
   return { people, active: people.filter((p) => p.active), name };
 }
 

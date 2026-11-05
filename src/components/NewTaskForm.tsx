@@ -32,11 +32,11 @@ const blank = (): Sub => ({ title: '', department_id: '', assignee_id: '', due: 
 
 /** Create-task form: organization → department → person, CC emails, due date, sub-tasks (or a template), reminder. */
 export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: string) => void; onCancel: () => void }) {
-  const { memberships, session } = useAuth();
+  const { memberships, membership, session } = useAuth();
   const uid = session!.user.id;
   const writable = memberships.filter((m) => can(m.role, 'task:write'));
-  // organization → department → member, each picked in turn (a single organization is preselected)
-  const [orgId, setOrgId] = useState(writable.length === 1 ? writable[0].org_id : '');
+  // organization → department → member, each picked in turn; starts on the organization you are working in
+  const [orgId, setOrgId] = useState(writable.find((m) => m.org_id === membership?.org_id)?.org_id ?? (writable.length === 1 ? writable[0].org_id : ''));
   const [people, setPeople] = useState<Person[]>([]);
   const [depts, setDepts] = useState<any[]>([]);
   const [dm, setDm] = useState<{ department_id: string; user_id: string }[]>([]);

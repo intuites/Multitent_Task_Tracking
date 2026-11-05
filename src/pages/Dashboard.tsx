@@ -61,7 +61,7 @@ function buckets(from: Date, to: Date) {
 }
 
 // The signed-in person's completed tasks over a chosen range, a labelled bar per day / week / month.
-function CompletedChart({ orgId, uid, tick }: { orgId: string; uid: string; tick: number }) {
+function CompletedChart({ orgId, uid, tick, reports }: { orgId: string; uid: string; tick: number; reports: boolean }) {
   const [range, setRange] = useState<Range>('this_week');
   const [cFrom, setCFrom] = useState(''), [cTo, setCTo] = useState('');
   const [dates, setDates] = useState<number[] | null>(null);
@@ -84,7 +84,8 @@ function CompletedChart({ orgId, uid, tick }: { orgId: string; uid: string; tick
   return (<>
     <div className="cc-head">
       <div><h3 id="an-h">My completed tasks</h3><small className="muted">{dates === null ? 'Loading…' : `${total} in ${title.toLowerCase()}`}</small></div>
-      <Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link>
+      {/* employees can't open Reports; the link would only bounce them back here */}
+      {reports && <Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link>}
     </div>
     <div className="cc-ranges" role="group" aria-label="Date range">
       {RANGES.map(([r, l]) => <button key={r} type="button" aria-pressed={range === r} onClick={() => setRange(r)}>{l}</button>)}
@@ -219,7 +220,7 @@ export default function Dashboard() {
         <div className="a-k4"><Kpi title="Pending" value={d.waiting} note="Waiting on something" to="/my-tasks?view=pending" /></div>
 
         <section className="card a-an" aria-labelledby="an-h">
-          <CompletedChart orgId={orgId} uid={uid} tick={tick} />
+          <CompletedChart orgId={orgId} uid={uid} tick={tick} reports={can(membership!.role, 'report:read')} />
         </section>
 
         <section className="card a-re" aria-labelledby="re-h">

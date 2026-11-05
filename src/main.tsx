@@ -51,7 +51,7 @@ function Shell() {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState<string | null>(null);
   const items = navFor(membership?.role);
-  const crumb = NAV.find((n) => n.path === pathname || (n.path !== '/' && pathname.startsWith(n.path + '/')))?.label ?? (pathname === '/admin-site' ? 'Admin site' : 'Not found');
+  const crumb = NAV.find((n) => n.path === pathname || (n.path !== '/' && pathname.startsWith(n.path + '/')))?.label ?? ({ '/admin-site': 'Admin site', '/organizations/new': 'New organization' } as Record<string, string>)[pathname] ?? 'Not found';
   useEffect(() => { document.title = `${crumb} · ${membership?.org_name || 'Taskify'}`; }, [crumb, membership?.org_name]);
   useEffect(() => {
     // select('*') so this works before migration 0010 adds avatar_url
@@ -71,6 +71,13 @@ function Shell() {
   useLive(['tt_notifications', 'tt_tasks', 'tt_task_assignees'], refresh);
   // an admin changed the organization (brand color, name, time zone): re-read it so colors and greeting update for everyone
   useLive(['tt_organizations'], reloadOrg);
+  // an organization you asked for was approved (or not): reload the list so it appears in the switcher at once
+  // (listened to directly: useLive also fires on tab-focus catch-ups, and reloading the organization then would wipe open forms)
+  useEffect(() => {
+    const on = (e: Event) => { const d = (e as CustomEvent).detail; if (d?.table === 'tt_notifications' && d.row?.type === 'org_review') reloadOrg(); };
+    window.addEventListener('tt-live', on);
+    return () => window.removeEventListener('tt-live', on);
+  }, [reloadOrg]);
   useEffect(() => {
     refresh();
     const h = setInterval(refresh, 60000);

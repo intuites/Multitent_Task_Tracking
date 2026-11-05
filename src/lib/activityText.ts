@@ -72,7 +72,7 @@ export const FILTERS: { key: string; name: string; types: string[] }[] = [
   { key: '', name: 'All', types: [] },
   { key: 'task', name: 'Tasks', types: ['task'] },
   { key: 'org', name: 'Organization & people', types: ['organization', 'member'] },
-  { key: 'work', name: 'Projects & clients', types: ['project', 'client'] },
+  // projects and clients were removed (0024); their old entries still show under All
 ];
 
 /** Back-to-back rows by the same person doing the same thing to the same item fold into one, with a count. */

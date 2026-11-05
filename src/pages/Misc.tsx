@@ -21,7 +21,7 @@ export function ActivityLogs() {
   const orgId = membership!.org_id;
   const zone = safeZone(membership!.time_zone);
   const { people, name: rawName } = usePeople(orgId);
-  const name = (id?: string | null) => { const n = rawName(id); return n === 'Unknown' ? 'a former member' : n; }; // people who left the organization
+  const name = (id?: string | null) => { const n = rawName(id); return n === 'Outside this organization' ? 'someone outside this organization' : n; }; // people who left, or a platform admin seen by a member
   const [rows, setRows] = useState<LogRow[] | null>(null);
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState('');

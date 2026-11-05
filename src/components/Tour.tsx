@@ -193,7 +193,8 @@ export default function Tour({ uid, name, org, admin }: { uid: string; name: str
             <span className="tour-meta"><span className="tour-group">{step.group}</span><small>{i + 1} of {list.length}</small></span>
             <button type="button" className="tour-skip" onClick={done}>{last ? 'Close' : 'Skip'}</button>
           </div>
-          <h2 id="tour-t">{step.title}</h2>
+          {/* the welcome title follows the name, which can load after a first sign-in opened the tour */}
+          <h2 id="tour-t">{step.group === 'Welcome' ? `Welcome to Taskify${first ? `, ${first}` : ''}` : step.title}</h2>
         </header>
         <div className="tour-body">
           <p id="tour-b">{step.body}</p>

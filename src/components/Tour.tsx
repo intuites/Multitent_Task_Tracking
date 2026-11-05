@@ -158,13 +158,21 @@ export default function Tour({ uid, name, org, admin }: { uid: string; name: str
   if (!list || !step) return null;
   const last = i === list.length - 1, pad = 8;
   const spot = box && { left: box.left - pad, top: box.top - pad, width: box.width + pad * 2, height: box.height + pad * 2 };
-  // the card sits under the target, or above it when there is no room, kept inside the window
+  // the card goes beside the target and never on it (it would block the click): the first side that fits wins,
+  // and for sidebar items (often icons only, at the screen edge) that is the right-hand side
   const W = Math.min(step.features ? 480 : 392, innerWidth - 24);
   const pos = spot ? (() => {
-    const below = spot.top + spot.height + 16;
-    const top = below + ch < innerHeight - 12 ? below : Math.max(12, spot.top - ch - 16);
-    const left = Math.min(Math.max(12, spot.left + spot.width / 2 - W / 2), innerWidth - W - 12);
-    return { top, left, width: W };
+    const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi));
+    const cx = clamp(spot.left + spot.width / 2 - W / 2, 12, innerWidth - W - 12);
+    const cy = clamp(spot.top + spot.height / 2 - ch / 2, 12, innerHeight - ch - 12);
+    const below = { top: spot.top + spot.height + 16, left: cx }, above = { top: spot.top - ch - 16, left: cx };
+    const right = { top: cy, left: spot.left + spot.width + 16 }, left = { top: cy, left: spot.left - W - 16 };
+    const fits = (p: { top: number; left: number }) => p.top >= 12 && p.top + ch <= innerHeight - 12 && p.left >= 12 && p.left + W <= innerWidth - 12;
+    const clear = (p: { top: number; left: number }) => p.left + W + 8 <= spot.left || p.left >= spot.left + spot.width + 8 || p.top + ch + 8 <= spot.top || p.top >= spot.top + spot.height + 8;
+    const inSide = !!target.current?.closest('#side');
+    const order = inSide ? [right, below, above, left] : [below, above, right, left];
+    const p = order.find((c) => fits(c) && clear(c)) ?? order.find(clear) ?? below;
+    return { top: clamp(p.top, 12, innerHeight - ch - 12), left: clamp(p.left, 12, innerWidth - W - 12), width: W };
   })() : { top: '50%', left: '50%', width: W, transform: 'translate(-50%, -50%)' };
   const Icon = step.icon;
   const trying = mode === 'try' && !!step.try && !!spot;

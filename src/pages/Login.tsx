@@ -12,6 +12,8 @@ const friendly = (m: string) =>
   : /email not confirmed/i.test(m) ? 'Confirm your email first. The link is in your inbox.'
   : /already registered/i.test(m) ? 'An account with this email already exists. Sign in instead.'
   : /rate limit|too many/i.test(m) ? 'Too many attempts. Wait a minute, then try again.'
+  // 504 here is Supabase's mail server (SMTP) not answering, so no email went out
+  : /50[234]|timeout|sending .*email/i.test(m) ? "We couldn't send the email right now. Try again in a minute, or contact your admin."
   : m;
 
 export default function Login() {

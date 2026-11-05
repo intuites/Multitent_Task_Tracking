@@ -1,7 +1,8 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, BookOpen, Plus, Settings as SettingsIcon, Shield, UserCircle } from 'lucide-react';
+import { Bell, BookOpen, Compass, Plus, Settings as SettingsIcon, Shield, UserCircle } from 'lucide-react';
+import Tour, { startTour } from './components/Tour';
 import { AuthProvider, useAuth } from './lib/auth';
 import { configured, supabase } from './lib/supabase';
 import { navFor, NAV } from './lib/nav';
@@ -96,6 +97,7 @@ function Shell() {
         { label: 'My profile', icon: UserCircle, to: '/profile' },
         { label: 'Notification settings', icon: Bell, to: '/notifications' },
         { label: 'Help & guide', icon: BookOpen, to: '/guide' },
+        { label: 'Take the tour', icon: Compass, onClick: startTour },
         ...(can(membership!.role, 'task:write') ? [{ label: 'Organization settings', icon: SettingsIcon, to: '/settings' }] : []),
       ]}
       onSignOut={signOut} closeKey={pathname}
@@ -108,6 +110,7 @@ function Shell() {
       )}>
       <ErrorBoundary resetKey={pathname}><Suspense fallback={<PageSkeleton />}><Outlet /></Suspense></ErrorBoundary>
       <ShortcutListener />
+      <Tour uid={uid} name={name || session!.user.email!} admin={can(membership!.role, 'task:write')} />
     </Frame>
   );
 }

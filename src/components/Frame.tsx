@@ -125,7 +125,7 @@ function NotificationBell({ userId, unread, onChanged, allTo, onAll }: BellProps
 
   return (
     <div className="pop-wrap" ref={ref}>
-      <button type="button" className="icon-btn" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button type="button" className="icon-btn" data-tour="bell" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen(!open)}>
         <Bell size={18} aria-hidden="true" />
         {unread > 0 && <span className="bell-count" aria-hidden="true">{unread > 9 ? '9+' : unread}</span>}
         <span className="sr-only">Notifications{unread ? `, ${unread} unread` : ''}</span>

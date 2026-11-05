@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { reducedMotion } from './Liquid';
 import { ask } from './Dialog';
-import { Bell, Check, CheckCheck, ChevronDown, ChevronsUpDown, Compass, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Sun, X, type LucideIcon } from 'lucide-react';
-import { startTour } from './Tour';
+import { Bell, Check, CheckCheck, ChevronDown, ChevronsUpDown, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Sun, X, type LucideIcon } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { greeting, safeZone } from '../lib/greeting';
@@ -282,7 +281,6 @@ export default function Frame({ brand, timeZone, groups, footer, title, search, 
           {search ?? <span className="grow" />}
           <div className="top-actions">
             {action}
-            <button type="button" className="icon-btn" onClick={startTour} aria-label="Take the tour" title="Take the tour"><Compass size={18} aria-hidden="true" /></button>
             <ThemeToggle />
             <NotificationBell {...bell} />
             <span className="top-divider" aria-hidden="true" />

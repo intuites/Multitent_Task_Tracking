@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft, ArrowRight, BarChart3, Bell, Building2, CalendarDays, Check, CheckCircle2, LayoutDashboard, ListChecks, ListTodo,
-  Eye, MessageSquare, Moon, MousePointerClick, PanelLeftClose, Plus, Rocket, Search, Settings, Sparkles, UserCircle, Users, type LucideIcon,
+  Eye, Keyboard, MessageSquare, Moon, MousePointerClick, PanelLeftClose, Plus, Rocket, Search, Settings, Sparkles, UserCircle, Users, type LucideIcon,
 } from 'lucide-react';
 import { LiquidBg } from './Liquid';
 
@@ -56,6 +56,10 @@ function steps(o: { first: string; org: string; admin: boolean; phone: boolean }
     { sel: '[data-tour="bell"]', icon: Bell, group: 'Stay informed', title: 'Notifications', body: 'New assignments, status changes and comments arrive here the moment they happen, and by email if you want them.',
       try: 'Click the bell to see your latest notifications.', pop: true },
     { sel: '.theme-btn', icon: Moon, group: 'Make it yours', title: 'Light or dark', body: `Switch themes any time. ${org}’s brand color is used in both.`, try: 'Click it to switch the theme. Click again to switch back.', wait: 1200 },
+    { sel: 'a.side-link[href="/shortcuts"]', icon: Keyboard, group: 'Work faster', title: 'Keyboard shortcuts', body: 'Move around Taskify without the mouse. Press one key, then the next.',
+      tips: admin ? ['C then T: create a task', 'G then M: My Tasks, G then T: all tasks', '/ or Ctrl+K: search, Shift+D: light or dark', '?: see every shortcut']
+        : ['G then M: My Tasks, G then C: Calendar', 'G then N: notifications', '/ or Ctrl+K: search, Shift+D: light or dark', '?: see every shortcut'],
+      try: 'Click Shortcuts to see the full list.', wait: 1400 },
     { sel: '.me', icon: UserCircle, group: 'Make it yours', title: 'Your profile', body: 'Your name and photo, which notifications you get, the guide, and log out.', try: 'Click your name to open the menu.', pop: true },
     admin && { sel: 'a.side-link[href="/settings"]', icon: Settings, group: 'Make it yours', title: 'Organization settings', body: 'The brand color everyone sees, the time zone reminders run on, and the daily digest emails.',
       try: 'Click Organization settings.', wait: 1100 },

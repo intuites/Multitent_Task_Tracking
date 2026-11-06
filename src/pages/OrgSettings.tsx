@@ -77,7 +77,7 @@ export default function OrgSettings() {
     const digest = 'digest_midday' in org ? { digest_midday_on: dg.midOn, digest_midday: dg.mid, digest_eod_on: dg.eodOn, digest_eod: dg.eod,
       digest_days: dg.days, digest_leads: dg.leads, digest_extra_emails: extra } : {};
     // only once migration 0034 has added the columns; defaults are stored as null
-    const fonts = 'font_family' in org ? { font_family: font.family === 'fabric' ? null : font.family, font_style: font.style === 'expressive' ? null : font.style } : {};
+    const fonts = 'font_family' in org ? { font_family: font.family === 'fabric' ? null : font.family, font_style: font.style === 'classic' ? null : font.style } : {};
     const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz'), brand_color: brand, ...digest, ...fonts }).eq('id', orgId);
     if (!error) { setDirty(false); await supabase.from('tt_activity_logs').insert({ org_id: orgId, entity_type: 'organization', entity_id: orgId, action: 'settings_updated', actor_id: uid, detail: {} }); refresh(); load(); }
     setMsg(error ? { kind: 'error', text: error.message.includes('time zone') ? 'That time zone isn’t recognized.' : error.message.includes('brand_color') ? 'Brand colors need database update 0029. Run it in Supabase, then try again.' : error.message } : { kind: 'ok', text: 'Organization updated.' });
@@ -319,12 +319,11 @@ type Font = { family: FontFamily; style: FontStyle };
 /** Font choice as saved (null columns, or no columns before migration 0034, mean the defaults). */
 const fontOf = (o: any): Font => ({
   family: FONT_FAMILIES.includes(o?.font_family) ? o.font_family : 'fabric',
-  style: FONT_STYLES.includes(o?.font_style) ? o.font_style : 'expressive',
+  style: FONT_STYLES.includes(o?.font_style) ? o.font_style : 'classic',
 });
 const FAMILY_TEXT: Record<FontFamily, [string, string]> = {
   fabric: ['Fabric Grotesk', 'Modern and compact. The default.'],
   jakarta: ['Plus Jakarta Sans', 'Rounded and friendly.'],
-  system: ['Device font', 'SF Pro on Apple, Segoe UI on Windows.'],
 };
 /** Appearance → Font: the family and the italic switch everyone in the organization sees (stored as font_style expressive/classic). */
 function FontSettings({ font, set, canEdit, ready }: { font: Font; set: (p: Partial<Font>) => void; canEdit: boolean; ready: boolean }) {

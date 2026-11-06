@@ -27,18 +27,18 @@ export function applyBrand(color: string | null | undefined, remember = true) {
   try { if (css) localStorage.setItem(BRAND_KEY, css); else localStorage.removeItem(BRAND_KEY); } catch { /* storage blocked: still applies now */ }
 }
 
-export const FONT_FAMILIES = ['fabric', 'jakarta', 'system'] as const;
+export const FONT_FAMILIES = ['fabric', 'jakarta'] as const;
 export const FONT_STYLES = ['expressive', 'classic'] as const;
 export type FontFamily = typeof FONT_FAMILIES[number];
 export type FontStyle = typeof FONT_STYLES[number];
 const FONT_KEY = 'tt-font';
 /** Plus Jakarta Sans only downloads where it is used (an organization picked it, or the font picker shows it). */
 export function loadJakarta() { import('@fontsource-variable/plus-jakarta-sans/wght.css'); import('@fontsource-variable/plus-jakarta-sans/wght-italic.css'); }
-/** The organization's font family and style (null = Fabric Grotesk, expressive): set on <html data-font data-type>,
+/** The organization's font family and style (null = Fabric Grotesk, italic off): set on <html data-font data-type>,
  *  which styles.css reads; index.html restores the saved pair before first paint. */
 export function applyFont(family: string | null | undefined, style: string | null | undefined, remember = true) {
   const f: FontFamily = FONT_FAMILIES.includes(family as FontFamily) ? family as FontFamily : 'fabric';
-  const s: FontStyle = FONT_STYLES.includes(style as FontStyle) ? style as FontStyle : 'expressive';
+  const s: FontStyle = FONT_STYLES.includes(style as FontStyle) ? style as FontStyle : 'classic';
   if (f === 'jakarta') loadJakarta();
   const root = document.documentElement;
   root.dataset.font = f; root.dataset.type = s;

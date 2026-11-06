@@ -3,7 +3,10 @@ import { Check, Monitor, Moon, Palette, RotateCcw, Sun, Type } from 'lucide-reac
 import { useAuth, type Membership } from '../lib/auth';
 import { applyLook, loadJakarta, restoreLook, useTheme, DEFAULT_COLOR, FONT_FAMILIES, FONT_STYLES, TEXT_SIZES, type FontFamily, type FontStyle, type Prefs, type TextSize, type ThemePref } from '../lib/theme';
 import { contrast } from '../lib/palette';
-import { QUICK } from '../lib/brandColors';
+import { FAMILIES, QUICK, TRENDING } from '../lib/brandColors';
+
+/** every color under "More colors", hex → name */
+const MORE = new Map<string, string>([...FAMILIES.flatMap((f) => f.colors.map((c) => [c.hex, c.name] as const)), ...TRENDING.map((t) => [t.hex, t.name] as const)]);
 
 // colors are saved as their hex, so a later change of Taskify's default never changes someone's own look
 const THEMES: [ThemePref, string, typeof Sun][] = [['dark', 'Dark', Moon], ['light', 'Light', Sun], ['system', 'Match device', Monitor]];
@@ -50,7 +53,7 @@ export default function MyLook() {
       setDraft(lookOf({}, membership)); setMsg({ ok: true, text: `You now follow ${membership?.org_name}'s look.` });
     } catch (x) { setMsg({ ok: false, text: (x as Error).message }); }
   }
-  const colorName = QUICK.find(([, h]) => (h ?? DEFAULT_COLOR) === draft.color)?.[0] ?? 'Custom color';
+  const colorName = QUICK.find(([, h]) => (h ?? DEFAULT_COLOR) === draft.color)?.[0] ?? MORE.get(draft.color) ?? 'Custom color';
 
   return (
     <section className="card os-sec ml" aria-labelledby="ml-h">
@@ -72,6 +75,21 @@ export default function MyLook() {
             <input type="color" value={draft.color} onChange={(e) => set({ color: e.target.value })} aria-label="Custom color" />Custom
           </label>
         </div>
+        {/* the same full list admins pick the organization color from */}
+        <details className="brand-more" open={MORE.has(draft.color) || undefined}>
+          <summary>More colors ({MORE.size})</summary>
+          <div className="brand-fams">
+            {FAMILIES.map((f) => (
+              <div key={f.family} className="brand-fam" role="group" aria-label={f.family}>
+                <small>{f.family}</small>
+                <span>{f.colors.map((c) => <Swatch key={c.hex} name={c.name} fill={c.hex} on={draft.color === c.hex} pick={() => set({ color: c.hex })} small />)}</span>
+              </div>))}
+            <div className="brand-fam trending" role="group" aria-label="Colors of the year">
+              <small>Colors of the year</small>
+              <span>{TRENDING.map((c) => <Swatch key={c.hex} name={c.name} fill={c.hex} on={draft.color === c.hex} pick={() => set({ color: c.hex })} small />)}</span>
+            </div>
+          </div>
+        </details>
         <small className="muted">{colorName}, {draft.color.toUpperCase()}.</small></div>
 
       <div className="ml-row"><span className="fp-label" id="ml-font"><Type size={14} aria-hidden="true" /> Font</span>
@@ -104,8 +122,8 @@ export default function MyLook() {
   );
 }
 
-function Swatch({ name, fill, on, pick }: { name: string; fill: string; on: boolean; pick: () => void }) {
+function Swatch({ name, fill, on, pick, small }: { name: string; fill: string; on: boolean; pick: () => void; small?: boolean }) {
   const ink = contrast(fill, '#ffffff') >= contrast(fill, '#111214') ? '#ffffff' : '#111214';
-  return <button type="button" className="brand-swatch" style={{ '--sw': fill, color: ink } as React.CSSProperties}
-    aria-pressed={on} aria-label={name} title={name} onClick={pick}>{on && <Check size={15} aria-hidden="true" />}</button>;
+  return <button type="button" className={`brand-swatch${small ? ' sm' : ''}`} style={{ '--sw': fill, color: ink } as React.CSSProperties}
+    aria-pressed={on} aria-label={name} title={name} onClick={pick}>{on && <Check size={small ? 13 : 15} aria-hidden="true" />}</button>;
 }

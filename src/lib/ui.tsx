@@ -16,7 +16,21 @@ export const isOverdue = (t: { due_date?: string | null; status: string }) => !!
 export async function rpc<T = any>(name: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.rpc(name, args);
   if (error) throw new Error(error.message);
+  kickEmails(); // assigning, status changes and the like queue emails: send them now
   return data as T;
+}
+
+let kickTimer = 0;
+/** Asks the server to send the emails just queued (api/flush), once, shortly after the last action.
+ *  Failure is fine: the job running every 5 minutes sends them anyway. */
+export function kickEmails() {
+  clearTimeout(kickTimer);
+  kickTimer = window.setTimeout(async () => {
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (token) await fetch('/api/flush', { method: 'POST', headers: { authorization: `Bearer ${token}` } });
+    } catch { /* offline or not deployed yet: the scheduled job sends them */ }
+  }, 1200);
 }
 
 export interface Person { id: string; name: string; email: string; role: string; active: boolean }

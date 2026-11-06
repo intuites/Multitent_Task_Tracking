@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { canTransition, TASK_STATUSES, type TaskStatus } from '../../api/_lib/taskStatus';
-import { Badge, dateToTs, fmt, fmtTime, isOverdue, label, NO_ESC, rpc, usePeople } from '../lib/ui';
+import { Badge, dateToTs, fmt, fmtTime, isOverdue, kickEmails, label, NO_ESC, rpc, usePeople } from '../lib/ui';
 import FilePanel from '../components/FilePanel';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
@@ -115,6 +115,7 @@ export default function TaskDetail() {
     const form = e.currentTarget, f = new FormData(form);
     run(async () => {
       await must(supabase.from('tt_task_comments').insert({ org_id: orgId, task_id: id, user_id: uid, body: String(f.get('body')).trim() }));
+      kickEmails();
       form.reset();
     });
   };

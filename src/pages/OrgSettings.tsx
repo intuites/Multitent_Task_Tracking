@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Building2, Check, Clock, CopyPlus, Database, Globe2, Layers, LifeBuoy, Lock, Mail, Palette, Pencil, Plus, ShieldCheck, Sun, Sunset, Trash2, Users, X } from 'lucide-react';
+import { ArrowLeft, Building2, Check, Clock, CopyPlus, Database, Globe2, Layers, LifeBuoy, Lock, Mail, Palette, Pencil, Plus, ShieldCheck, Sun, Sunset, Trash2, Type, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { fmt, label, usePeople, zoneList } from '../lib/ui';
 import { ROLE_TEXT } from '../lib/roles';
-import { applyBrand } from '../lib/theme';
+import { applyBrand, applyFont, loadJakarta, FONT_FAMILIES, FONT_STYLES, type FontFamily, type FontStyle } from '../lib/theme';
 import { brandPalette, contrast } from '../lib/palette';
 import { FAMILIES, QUICK, TRENDING } from '../lib/brandColors';
 import { ask } from '../components/Dialog';
@@ -37,6 +37,11 @@ export default function OrgSettings() {
   const [tz, setTz] = useState(membership!.time_zone ?? 'America/New_York');
   const saved = membership!.brand_color;
   useEffect(() => () => applyBrand(saved, false), [saved]);
+  // font family and style: previewed live like the brand color, undone if you leave without saving
+  const [font, setFont] = useState<Font>(fontOf(membership));
+  useEffect(() => { applyFont(font.family, font.style, false); }, [font]);
+  const savedFont = `${membership!.font_family ?? ''}|${membership!.font_style ?? ''}`;
+  useEffect(() => () => { const [f, s] = savedFont.split('|'); applyFont(f || null, s || null, false); }, [savedFont]);
 
   const load = useCallback(async () => {
     const [o, m] = await Promise.all([
@@ -44,7 +49,7 @@ export default function OrgSettings() {
       supabase.from('tt_org_members').select('role').eq('org_id', orgId).eq('active', true),
     ]);
     setOrg(o.data ?? { name: membership!.org_name, time_zone: membership!.time_zone });
-    setBrand(o.data?.brand_color ?? null);
+    setBrand(o.data?.brand_color ?? null); setFont(fontOf(o.data ?? {}));
     setDg(dgOf(o.data ?? {})); setTz(o.data?.time_zone ?? membership!.time_zone);
     setRoles((m.data ?? []).reduce((acc: Record<string, number>, r: any) => ({ ...acc, [r.role]: (acc[r.role] ?? 0) + 1 }), {}));
   }, [orgId, membership]);
@@ -61,14 +66,16 @@ export default function OrgSettings() {
     // only once migration 0032 has added the columns
     const digest = 'digest_midday' in org ? { digest_midday_on: dg.midOn, digest_midday: dg.mid, digest_eod_on: dg.eodOn, digest_eod: dg.eod,
       digest_days: dg.days, digest_leads: dg.leads, digest_extra_emails: extra } : {};
-    const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz'), brand_color: brand, ...digest }).eq('id', orgId);
+    // only once migration 0034 has added the columns; defaults are stored as null
+    const fonts = 'font_family' in org ? { font_family: font.family === 'fabric' ? null : font.family, font_style: font.style === 'expressive' ? null : font.style } : {};
+    const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz'), brand_color: brand, ...digest, ...fonts }).eq('id', orgId);
     if (!error) { setDirty(false); await supabase.from('tt_activity_logs').insert({ org_id: orgId, entity_type: 'organization', entity_id: orgId, action: 'settings_updated', actor_id: uid, detail: {} }); refresh(); load(); }
     setMsg(error ? { kind: 'error', text: error.message.includes('time zone') ? 'That time zone isn’t recognized.' : error.message.includes('brand_color') ? 'Brand colors need database update 0029. Run it in Supabase, then try again.' : error.message } : { kind: 'ok', text: 'Organization updated.' });
   }
 
   if (!org) return <PageSkeleton />;
   const total = ROLES.reduce((n, r) => n + (roles[r] ?? 0), 0);
-  const dirty = edited || brand !== (org.brand_color ?? null) || JSON.stringify(dg) !== JSON.stringify(dgOf(org));
+  const dirty = edited || brand !== (org.brand_color ?? null) || JSON.stringify(dg) !== JSON.stringify(dgOf(org)) || JSON.stringify(font) !== JSON.stringify(fontOf(org));
   const TILES = [
     { name: 'Manage users', hint: 'Invite people, change roles', icon: Users, to: '/employees' },
     { name: 'Manage organizations', hint: 'The organizations you created', icon: Building2, view: 'orgs' as View },
@@ -184,9 +191,11 @@ export default function OrgSettings() {
               </div>
             </section>
 
+            <FontSettings font={font} set={(p) => setFont((v) => ({ ...v, ...p }))} canEdit={canEdit} ready={'font_family' in org} name={org.name} />
+
             {canEdit && <div className={`os-save${dirty ? ' on' : ''}`}>
               <span className={dirty ? 'os-dirty' : 'muted'}>{dirty ? 'You have unsaved changes.' : 'All changes saved.'}</span>
-              {dirty && <button type="button" className="link" onClick={(e) => { e.currentTarget.form!.reset(); setBrand(org.brand_color ?? null); setDg(dgOf(org)); setTz(org.time_zone); setDirty(false); }}>Discard</button>}
+              {dirty && <button type="button" className="link" onClick={(e) => { e.currentTarget.form!.reset(); setBrand(org.brand_color ?? null); setFont(fontOf(org)); setDg(dgOf(org)); setTz(org.time_zone); setDirty(false); }}>Discard</button>}
               <button type="submit" disabled={!dirty}>Save changes</button>
             </div>}
           </form>
@@ -277,6 +286,59 @@ function DigestSettings({ dg, set, tz, canEdit, ready }: { dg: Dg; set: (p: Part
           {!sameClock && <> That is {live.map((r) => onMyClock(r.time, tz)).join(' and ')} on your clock ({zoneName(mine)}).</>}
         </span>}
       </p>
+    </section>
+  );
+}
+
+type Font = { family: FontFamily; style: FontStyle };
+/** Font choice as saved (null columns, or no columns before migration 0034, mean the defaults). */
+const fontOf = (o: any): Font => ({
+  family: FONT_FAMILIES.includes(o?.font_family) ? o.font_family : 'fabric',
+  style: FONT_STYLES.includes(o?.font_style) ? o.font_style : 'expressive',
+});
+const FAMILY_TEXT: Record<FontFamily, [string, string]> = {
+  fabric: ['Fabric Grotesk', 'Modern and compact. The default.'],
+  jakarta: ['Plus Jakarta Sans', 'Rounded and friendly.'],
+  system: ['Device font', 'SF Pro on Apple, Segoe UI on Windows.'],
+};
+const STYLE_TEXT: Record<FontStyle, [string, string]> = {
+  expressive: ['Expressive', 'Italic page titles and big numbers'],
+  classic: ['Classic', 'Everything upright'],
+};
+
+/** Organization settings → Fonts: the font family and style everyone in the organization sees. */
+function FontSettings({ font, set, canEdit, ready, name }: { font: Font; set: (p: Partial<Font>) => void; canEdit: boolean; ready: boolean; name: string }) {
+  // load Plus Jakarta Sans here so its option card can show it before anyone picks it
+  useEffect(loadJakarta, []);
+  return (
+    <section className="card os-sec" aria-labelledby="font-h">
+      <header><h3 id="font-h"><Type size={16} aria-hidden="true" /> Fonts</h3>
+        <p className="muted">The typeface and style everyone in {name} sees. The whole app previews it as you pick.</p></header>
+      {!ready && <p className="muted tpl-note"><Lock size={14} aria-hidden="true" /> Run database update 0034 in Supabase to change fonts. You can preview them now.</p>}
+      <div className="font-pick">
+        <div role="group" aria-labelledby="fp-fam">
+          <p className="fp-label" id="fp-fam">Font family</p>
+          <div className="fp-fams">
+            {FONT_FAMILIES.map((f) => (
+              <button key={f} type="button" className="fp-opt" data-ff={f} data-fs={font.style} aria-pressed={font.family === f} disabled={!canEdit} onClick={() => set({ family: f })}>
+                <span className="fp-aa" aria-hidden="true">Aa</span><b>{FAMILY_TEXT[f][0]}</b><small>{FAMILY_TEXT[f][1]}</small>
+              </button>))}
+          </div>
+        </div>
+        <div role="group" aria-labelledby="fp-style">
+          <p className="fp-label" id="fp-style">Font style</p>
+          <div className="seg">
+            {FONT_STYLES.map((s) => <button key={s} type="button" aria-pressed={font.style === s} disabled={!canEdit} title={STYLE_TEXT[s][1]} onClick={() => set({ style: s })}>{STYLE_TEXT[s][0]}</button>)}
+          </div>
+          <small className="muted nt-help">{STYLE_TEXT[font.style][1]}.</small>
+        </div>
+        <div className="fp-sample" aria-label="Preview of the font" role="img">
+          <span className="page-title fp-title">Quarterly planning</span>
+          <span className="big-num fp-num">128</span>
+          <p className="page-sub">Tasks due this week, grouped by department.</p>
+          <p>Regular text reads like this, and <b>bold text like this</b>.</p>
+        </div>
+      </div>
     </section>
   );
 }

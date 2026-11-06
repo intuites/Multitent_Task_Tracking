@@ -2182,3 +2182,38 @@ tr.is-new > td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
 /* italic glyphs lean right: a little room so the last letter isn't clipped by overflow */
 .page-title, .kpi b, .gauge-num b, .big-num, .esc-num { padding-right: .06em; }
 h2, h3, h4 { letter-spacing: -0.01em; }
+
+/* ---------- organization font choice (Organization settings > Fonts; html[data-font][data-type]) ---------- */
+:root { --ff-fabric: 'Fabric Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ff-jakarta: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ff-system: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; }
+:root[data-font="jakarta"] { --font-sans: var(--ff-jakarta); }
+:root[data-font="system"] { --font-sans: var(--ff-system); }
+.fp-opt[data-ff="fabric"] .fp-aa { font-family: var(--ff-fabric); }
+.fp-opt[data-ff="jakarta"] .fp-aa { font-family: var(--ff-jakarta); }
+.fp-opt[data-ff="system"] .fp-aa { font-family: var(--ff-system); font-synthesis: weight style; }
+.fp-opt[data-fs="expressive"] .fp-aa { font-style: italic; font-weight: var(--fw-italic-title); }
+/* the device font may lack an italic or a weight: let the browser fill in rather than fall back */
+:root[data-font="system"] body { font-synthesis: weight style; }
+/* Classic: titles and numbers stand upright, notes in the regular weight */
+:root[data-type="classic"] :is(.page-title, .auth-head, .auth .login h1, .boot-name) { font-style: normal; font-weight: var(--fw-bold); letter-spacing: -0.02em; }
+:root[data-type="classic"] :is(.kpi b, .gauge-num b, .esc-num, .big-num, .rp-kpi b, .rp-tile b, .stats b, .pf-stat b) { font-style: normal; font-weight: var(--fw-bold); letter-spacing: -0.03em; }
+:root[data-type="classic"] :is(.page-sub, .auth-sub, .inbox-empty p, .rp-empty p, .cal-empty, .pop-empty, .sel-empty) { font-style: normal; font-weight: var(--fw-regular); letter-spacing: 0; }
+
+.font-pick { display: grid; gap: var(--space-4); margin: 0; padding: 0; border: 0; min-width: 0; }
+.font-pick legend, .font-pick .fp-label { margin-bottom: var(--space-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.fp-fams { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: var(--space-3); }
+.font-pick .seg + small { display: block; margin-top: var(--space-2); }
+.fp-opt { display: grid; gap: 2px; justify-items: start; align-content: start; min-width: 0; padding: 14px 16px; border-radius: var(--r-control); border: 1px solid var(--line);
+  background: var(--surface); color: var(--text); text-align: left; cursor: pointer; transition: border-color .2s var(--ease), background-color .2s var(--ease); }
+.fp-opt:hover { border-color: var(--line-strong); }
+.fp-opt[aria-pressed="true"] { border-color: var(--brand-2); background: var(--brand-tint); box-shadow: inset 0 0 0 1px var(--brand-2); }
+.fp-opt:focus-visible { outline: 2px solid var(--brand-2); outline-offset: 2px; }
+.fp-opt:disabled { cursor: default; opacity: .6; }
+.fp-aa { font-size: var(--fs-4xl); font-weight: var(--fw-bold); line-height: 1.1; }
+.fp-opt b { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+.fp-opt small { color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-regular); }
+.fp-sample { display: grid; gap: 4px; padding: 16px 18px; border-radius: var(--r-control); background: var(--surface-2); border: 1px solid var(--line); min-width: 0; }
+.fp-sample .fp-title { font-size: var(--fs-3xl); line-height: 1.15; overflow-wrap: break-word; }
+.fp-sample .fp-num { font-size: var(--fs-5xl); line-height: 1; }
+.fp-sample p { margin: 0; }

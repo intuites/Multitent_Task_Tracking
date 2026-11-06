@@ -76,7 +76,7 @@ export default function MyLook() {
           </label>
         </div>
         {/* the same full list admins pick the organization color from */}
-        <details className="brand-more" open={MORE.has(draft.color) || undefined}>
+        <details className="brand-more">
           <summary>More colors ({MORE.size})</summary>
           <div className="brand-fams">
             {FAMILIES.map((f) => (

@@ -11,6 +11,7 @@ import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { useLive } from '../lib/live';
 import { Avatar, initials } from '../components/Frame';
+import { emailText, loadEmails, type ExtraEmail } from '../components/MemberEmails';
 
 const CYCLES: [string, string][] = [['daily', 'Daily'], ['weekdays', 'Weekdays'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['semiannual', 'Every 6 months'], ['yearly', 'Yearly']];
 const toDateInput = (d?: string | null) => (d ? new Date(d).toISOString().slice(0, 10) : '');
@@ -30,6 +31,7 @@ export default function TaskDetail() {
   const [subForm, setSubForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [toSel, setToSel] = useState('');
+  const [extras, setExtras] = useState<Map<string, ExtraEmail[]>>(new Map());
 
   const load = useCallback(async () => {
     const tr = await supabase.from('tt_tasks').select('*, departments:tt_departments(name)').eq('id', id!).eq('org_id', orgId).maybeSingle();
@@ -46,6 +48,7 @@ export default function TaskDetail() {
         supabase.from('tt_tasks').select('id, title, status, start_date, due_date, tt_task_assignees(user_id)').eq('parent_task_id', id!).is('archived_at', null).order('start_date', { nullsFirst: false }),
         tr.data.parent_task_id ? supabase.from('tt_tasks').select('id, title').eq('id', tr.data.parent_task_id).maybeSingle() : Promise.resolve({ data: null }),
       ]);
+      setExtras(await loadEmails(orgId, (as.data ?? []).map((a: any) => a.user_id)));
       setD({
         assignees: as.data ?? [], subtasks: sb.data ?? [], parent: pa.data,
         comments: cm.data ?? [], history: hi.data ?? [], activity: ac.data ?? [], recur: rc.data,
@@ -309,12 +312,23 @@ export default function TaskDetail() {
           <section className="card" aria-labelledby="pp-h">
             <h3 id="pp-h">Assignees</h3>
             {d.assignees.length === 0 ? <p className="muted">Nobody is assigned yet.</p> : (
-              <ul className="people">{d.assignees.map((a: any) => (
+              <ul className="people">{d.assignees.map((a: any) => {
+                const ex = extras.get(a.user_id) ?? [], primary = active.find((p) => p.id === a.user_id)?.email ?? '';
+                return (
                 <li key={a.user_id}>
-                  <span className="avatar sm" aria-hidden="true">{initials(name(a.user_id))}</span><span className="grow">{name(a.user_id)}</span>
+                  <span className="avatar sm" aria-hidden="true">{initials(name(a.user_id))}</span>
+                  <span className="grow">{name(a.user_id)}
+                    {(ex.length > 0 || a.email) && (canAssign && ex.length > 0
+                      ? <select className="me-pick" aria-label={`Address that gets ${name(a.user_id)}'s emails for this task`} value={a.email ?? ''}
+                          onChange={(e) => run(() => rpc('tt_assign', { p_task: id, p_user: a.user_id, p_add: true, p_email: e.target.value || null }))}>
+                          <option value="">Emails go to {primary} (primary)</option>
+                          {ex.map((x) => <option key={x.email} value={x.email}>Emails go to {emailText(x)}</option>)}
+                        </select>
+                      : <small className="muted me-to">Emails go to {a.email ?? primary}</small>)}
+                  </span>
                   {canAssign && <button type="button" className="icon-btn sm" aria-label={`Remove ${name(a.user_id)}`} onClick={() => confirmRun('Remove assignee?', `${name(a.user_id)} will no longer be assigned to this task.`, 'Remove',
                     () => rpc('tt_assign', { p_task: id, p_user: a.user_id, p_add: false }))}><X size={14} aria-hidden="true" /></button>}
-                </li>))}</ul>)}
+                </li>); })}</ul>)}
             {canAssign && unassigned.length > 0 && (
               <select aria-label="Add assignee" value="" onChange={(e) => e.target.value && run(() => rpc('tt_assign', { p_task: id, p_user: e.target.value, p_add: true }))}>
                 <option value="">+ Add assignee</option>{unassigned.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}

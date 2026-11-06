@@ -858,6 +858,26 @@ dialog .actions > * { min-width: 104px; }
 .people { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
 .people li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; background: var(--surface-2); font-weight: var(--fw-book); font-size: var(--fs-sm); }
 .people .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* extra email addresses (components/MemberEmails.tsx) and which one a task emails */
+.me-list { display: grid; gap: var(--space-2); }
+.me-list .people { margin: 0; }
+.me-list .people li > svg { color: var(--muted); flex: none; }
+.me-list .people b { overflow-wrap: anywhere; }
+.me-add { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.me-add input { flex: 1 1 200px; min-width: 0; }
+.me-add input[name=label] { flex-basis: 130px; }
+.people .me-to { display: block; overflow-wrap: anywhere; }
+.people .me-pick { display: block; width: 100%; margin-top: 4px; min-height: 32px; padding: 4px 8px; font-size: var(--fs-2xs); }
+.me-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0; }
+.me-chips button { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 0; padding: 8px 12px; border-radius: var(--r-control);
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--line); text-align: left; max-width: 100%; }
+.me-chips button:hover { filter: none; border-color: var(--line-strong); }
+.me-chips button > span:not(.tab-n) { display: grid; min-width: 0; }
+.me-chips button b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me-chips button small { color: var(--muted); }
+.me-chips button[aria-pressed=true] { background: var(--brand-tint); border-color: var(--brand-2); }
+.me-chips button:focus-visible { outline: 2px solid var(--brand-2); outline-offset: 2px; }
+td.me-to { overflow-wrap: anywhere; color: var(--muted); }
 .content .people a.grow { color: var(--text); text-decoration: none; } .content .people a.grow:hover { color: var(--brand); box-shadow: none; background: none; }
 .people li.esc-row { align-items: flex-start; }
 .td-col select { width: 100%; }

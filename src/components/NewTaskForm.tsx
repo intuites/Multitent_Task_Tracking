@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { dateToTs, label, loadPeople, rpc, type Person } from '../lib/ui';
+import { emailText, loadEmails, type ExtraEmail } from './MemberEmails';
 
 interface Sub { title: string; department_id: string; assignee_id: string; due: string }
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -49,6 +50,11 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
   const [rStart, setRStart] = useState(nyToday), [every, setEvery] = useState(2);
   const [future, setFuture] = useState(false), [startOn, setStartOn] = useState('');
   const [error, setError] = useState(''), [busy, setBusy] = useState(false);
+  const [extras, setExtras] = useState<ExtraEmail[]>([]), [sendTo, setSendTo] = useState(''); // '' = primary
+  useEffect(() => {
+    setExtras([]); setSendTo('');
+    if (orgId && assignee) loadEmails(orgId, [assignee]).then((m) => setExtras(m.get(assignee) ?? []));
+  }, [orgId, assignee]);
 
   // everything below depends on the organization chosen at the top
   useEffect(() => {
@@ -112,7 +118,8 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
       };
       const { data, error: err } = await supabase.from('tt_tasks').insert(row).select('id').single();
       if (err) throw new Error(/column|schema cache/i.test(err.message) ? 'This form needs the latest database updates (migrations 0010, 0012, 0013 and 0031). Run them in the Supabase SQL Editor, then try again.' : err.message);
-      if (assignee) await rpc('tt_assign', { p_task: data.id, p_user: assignee, p_add: true });
+      // p_email only when picked, so this still works before migration 0035
+      if (assignee) await rpc('tt_assign', { p_task: data.id, p_user: assignee, p_add: true, ...(sendTo ? { p_email: sendTo } : {}) });
       for (const s of subs) {
         const { data: sd, error: se } = await supabase.from('tt_tasks').insert({
           org_id: orgId, created_by: uid, parent_task_id: data.id, title: s.title.trim(), priority,
@@ -120,7 +127,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
         }).select('id').single();
         if (se) throw new Error(se.message);
         const who = s.assignee_id || assignee;
-        if (who) await rpc('tt_assign', { p_task: sd.id, p_user: who, p_add: true });
+        if (who) await rpc('tt_assign', { p_task: sd.id, p_user: who, p_add: true, ...(sendTo && who === assignee ? { p_email: sendTo } : {}) });
       }
       const rf = String(f.get('freq') ?? '');
       if (rf) await rpc('tt_set_recurrence', { p_task: data.id, p_freq: rf, p_n: Number(f.get('every') || 1), p_until: f.get('until') || null });
@@ -139,6 +146,14 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
         <label>Assign to<select value={assignee} onChange={(e) => setAssignee(e.target.value)} required disabled={!dept || !deptPeople.length}>
           <option value="">{!dept ? 'Select department first' : deptPeople.length ? 'Select member' : 'No members in this department'}</option>{deptPeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       </div>
+      {extras.length > 0 && (
+        <label className="nt-sendto"><span>Send task emails to <small className="muted">(optional)</small></span>
+          <select value={sendTo} onChange={(e) => setSendTo(e.target.value)}>
+            <option value="">{people.find((p) => p.id === assignee)?.email} (primary)</option>
+            {extras.map((x) => <option key={x.email} value={x.email}>{emailText(x)}</option>)}
+          </select>
+          <small className="muted nt-help">{people.find((p) => p.id === assignee)?.name} has {extras.length + 1} addresses. The assigned email, reminders and updates for this task go to the one you pick.</small>
+        </label>)}
       <div className="nt-row">
         <label><span>Lead <small className="muted">(optional)</small></span><select value={lead} onChange={(e) => setLead(e.target.value)} disabled={!orgId}>
           <option value="">{orgId ? 'No lead' : 'Select organization first'}</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>

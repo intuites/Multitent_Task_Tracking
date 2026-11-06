@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowRightLeft, Briefcase, Camera, Building2, CalendarClock, Check, CheckCircle2, Clock, Eye, EyeOff, KeyRound, ListTodo,
+  AlertTriangle, ArrowRightLeft, AtSign, Briefcase, Camera, Building2, CalendarClock, Check, CheckCircle2, Clock, Eye, EyeOff, KeyRound, ListTodo,
   LogOut, Mail, MapPin, Pencil, Phone, ShieldCheck, Trash2, Users,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -12,6 +12,7 @@ import { Avatar } from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
+import { MemberEmails } from '../components/MemberEmails';
 
 type Tab = 'overview' | 'work' | 'details' | 'security';
 const TABS: { id: Tab; name: string }[] = [{ id: 'overview', name: 'Overview' }, { id: 'work', name: 'My work' }, { id: 'details', name: 'Edit details' }, { id: 'security', name: 'Security' }];
@@ -121,6 +122,15 @@ export default function Profile() {
     const { error } = await supabase.auth.updateUser({ password: pw });
     setMsg(error ? { kind: 'error', text: error.message } : { kind: 'ok', text: 'Password changed. Use it next time you sign in.' });
     if (!error) setPw('');
+  }
+  async function saveUsername(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const v = String(new FormData(e.currentTarget).get('username') ?? '').trim().toLowerCase();
+    if (v && !/^[a-z0-9][a-z0-9._-]{2,29}$/.test(v)) return setMsg({ kind: 'error', text: 'Use 3 to 30 letters, numbers, dots, dashes or underscores, starting with a letter or number.' });
+    const { error } = await supabase.from('tt_profiles').update({ username: v || null }).eq('user_id', uid);
+    if (error) return setMsg({ kind: 'error', text: error.code === '23505' ? 'That username is taken. Try another.' : /column|schema cache/i.test(error.message) ? 'Usernames need the database update (migration 0035) first.' : error.message });
+    setMsg({ kind: 'ok', text: v ? `You can now sign in with ${v}.` : 'Username removed. Sign in with your email.' });
+    load();
   }
   async function signOutEverywhere() {
     if (!(await ask({ title: 'Sign out everywhere?', message: 'You will be signed out on every device and browser, including this one.', confirmLabel: 'Sign out everywhere', danger: true })).ok) return;
@@ -256,6 +266,19 @@ export default function Profile() {
                 {pw && <div className={`pw-meter s${strong.score}`} aria-live="polite"><span><i /><i /><i /><i /><i /></span><small>{strong.text}</small></div>}
                 <button type="submit">Update password</button>
               </form>
+            </section>
+            <section className="card" aria-labelledby="un-h">
+              <h3 id="un-h"><AtSign size={16} aria-hidden="true" /> Username</h3>
+              <p className="muted">Sign in with your username or with {session!.user.email}. Leave empty to sign in with email only.</p>
+              <form className="stack" onSubmit={saveUsername} key={p.username ?? ''}>
+                <input name="username" defaultValue={p.username ?? ''} placeholder="e.g. priya.s" aria-label="Username" maxLength={30} autoCapitalize="none" spellCheck={false} autoComplete="username" />
+                <button type="submit">Save username</button>
+              </form>
+            </section>
+            <section className="card" aria-labelledby="em-h">
+              <h3 id="em-h"><Mail size={16} aria-hidden="true" /> Email addresses</h3>
+              <p className="muted">Extra addresses in {membership!.org_name} can receive task emails when an admin picks them. You always sign in with the primary.</p>
+              <MemberEmails orgId={orgId} userId={uid} primary={session!.user.email!} canEdit />
             </section>
             <div className="pf-col">
               <section className="card" aria-labelledby="ses-h">

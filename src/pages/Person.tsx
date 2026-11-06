@@ -12,6 +12,7 @@ import { ask } from '../components/Dialog';
 import { Avatar } from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
 import { PageSkeleton } from '../components/Skeleton';
+import { loadEmails, MemberEmails, type ExtraEmail } from '../components/MemberEmails';
 
 type Tab = 'overview' | 'tasks' | 'details' | 'access' | 'activity';
 const DONE = ['completed', 'completed_cycle'];
@@ -34,13 +35,18 @@ export default function PersonPage() {
   const [tab, setTab] = useState<Tab>('overview');
   const [taskFilter, setTaskFilter] = useState<'open' | 'done' | 'overdue' | 'all'>('open');
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [extras, setExtras] = useState<ExtraEmail[]>([]);
+  const [sentTo, setSentTo] = useState(''); // '' = every address, 'primary', or an extra address
 
   const load = useCallback(async () => {
     const ppl = await loadPeople(orgId, true);
     setPerson(ppl.find((p) => p.id === id) ?? null);
+    // the address column only exists after migration 0035, which is also when anyone can have extra addresses
+    const ex = (await loadEmails(orgId, [id!])).get(id!) ?? [];
+    setExtras(ex);
     const [p, t, m, d, a, o] = await Promise.all([
       supabase.from('tt_profiles').select('*').eq('user_id', id!).maybeSingle(),
-      supabase.from('tt_tasks').select('id, title, status, priority, due_date, completed_at, created_at, departments:tt_departments(name), tt_task_assignees!inner(user_id)')
+      supabase.from('tt_tasks').select(`id, title, status, priority, due_date, completed_at, created_at, departments:tt_departments(name), tt_task_assignees!inner(user_id${ex.length ? ', email' : ''})`)
         .eq('org_id', orgId).eq('tt_task_assignees.user_id', id!).is('archived_at', null).order('due_date', { nullsFirst: false }).limit(2000),
       supabase.from('tt_department_members').select('department_id').eq('org_id', orgId).eq('user_id', id!),
       supabase.from('tt_departments').select('id, name').eq('org_id', orgId).order('name'),
@@ -129,8 +135,11 @@ export default function PersonPage() {
     { id: 'activity', name: 'Activity', icon: Activity },
   ];
   const now = Date.now();
-  const shownTasks = tasks.filter((t) => taskFilter === 'all' ? true : taskFilter === 'done' ? isDone(t.status)
+  const addrOf = (t: any): string => t.tt_task_assignees?.[0]?.email ?? 'primary';
+  const byStatus = tasks.filter((t) => taskFilter === 'all' ? true : taskFilter === 'done' ? isDone(t.status)
     : taskFilter === 'overdue' ? !isDone(t.status) && t.due_date && Date.parse(t.due_date) < now : !isDone(t.status));
+  const addrs = extras.length ? [{ key: 'primary', text: person.email, sub: 'Primary' }, ...extras.map((e) => ({ key: e.email, text: e.email, sub: e.label ?? 'Extra' }))] : [];
+  const shownTasks = sentTo ? byStatus.filter((t) => addrOf(t) === sentTo) : byStatus;
   const maxW = Math.max(1, ...stats.weeks);
   const pct = stats.assigned ? Math.round((stats.done / stats.assigned) * 100) : 0;
 
@@ -212,10 +221,19 @@ export default function PersonPage() {
             <div className="seg ps-seg" role="group" aria-label="Filter tasks">
               {(['open', 'overdue', 'done', 'all'] as const).map((f) => <button key={f} type="button" aria-pressed={taskFilter === f} onClick={() => setTaskFilter(f)}>{f === 'done' ? 'Completed' : label(f)}</button>)}
             </div>
+            {addrs.length > 0 && (
+              <div className="me-chips" role="group" aria-label="Filter by the address tasks are sent to">
+                <button type="button" aria-pressed={sentTo === ''} onClick={() => setSentTo('')}><span><b>Every address</b></span><span className="tab-n">{byStatus.length}</span></button>
+                {addrs.map((a) => (
+                  <button key={a.key} type="button" aria-pressed={sentTo === a.key} onClick={() => setSentTo(a.key)}>
+                    <Mail size={14} aria-hidden="true" /><span><b>{a.text}</b><small>{a.sub}</small></span><span className="tab-n">{byStatus.filter((t) => addrOf(t) === a.key).length}</span>
+                  </button>))}
+              </div>)}
             {shownTasks.length === 0 ? <p className="muted">No tasks here.</p> : (
-              <table className="emp-table"><thead><tr><th>Task</th><th>Status</th><th>Priority</th><th>Department</th><th>Due</th></tr></thead>
+              <table className="emp-table"><thead><tr><th>Task</th><th>Status</th><th>Priority</th><th>Department</th>{addrs.length > 0 && <th>Sent to</th>}<th>Due</th></tr></thead>
                 <tbody>{shownTasks.map((t) => (
-                  <tr key={t.id}><td><Link to={`/tasks/${t.id}`}>{t.title}</Link></td><td><Badge v={t.status} /></td><td>{label(t.priority)}</td><td>{t.departments?.name ?? '—'}</td><td><Due t={t} /></td></tr>))}</tbody></table>)}
+                  <tr key={t.id}><td><Link to={`/tasks/${t.id}`}>{t.title}</Link></td><td><Badge v={t.status} /></td><td>{label(t.priority)}</td><td>{t.departments?.name ?? '—'}</td>
+                    {addrs.length > 0 && <td className="me-to">{addrOf(t) === 'primary' ? person.email : addrOf(t)}</td>}<td><Due t={t} /></td></tr>))}</tbody></table>)}
           </section>
         )}
 
@@ -234,6 +252,9 @@ export default function PersonPage() {
               {canEdit ? <span className="gf-actions"><button type="submit"><CheckCircle2 size={15} aria-hidden="true" />Save details</button></span>
                 : <p className="muted">Only admins can change these details.</p>}
             </form>
+            <h4 className="ps-sub" id="dt-em">Email addresses</h4>
+            <p className="muted">When you create a task for {isMe ? 'yourself' : person.name}, you can pick which address gets its emails.</p>
+            <MemberEmails orgId={orgId} userId={person.id} primary={person.email} canEdit={admin || isMe} onChange={load} />
           </section>
         )}
 

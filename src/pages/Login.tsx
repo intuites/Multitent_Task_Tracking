@@ -16,6 +16,15 @@ const friendly = (m: string) =>
   : /50[234]|timeout|sending .*email/i.test(m) ? "We couldn't send the email right now. Try again in a minute, or contact your admin."
   : m;
 
+async function usernameSignIn(username: string, password: string): Promise<{ error: { message: string } | null }> {
+  try {
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return { error: { message: j.error || 'Sign-in failed. Try again.' } };
+    return await supabase.auth.setSession({ access_token: j.access_token, refresh_token: j.refresh_token });
+  } catch { return { error: { message: "Couldn't reach Taskify. Check your connection and try again." } }; }
+}
+
 export default function Login() {
   const [mode, setMode] = useState<'in' | 'up'>('in');
   const [email, setEmail] = useState('');
@@ -32,7 +41,8 @@ export default function Login() {
     setBusy(true);
     try {
       if (mode === 'in') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        // no @ = a username: the server finds the account, so its email is never shown here
+        const { error } = email.includes('@') ? await supabase.auth.signInWithPassword({ email, password }) : await usernameSignIn(email, password);
         if (error) setMsg('error', friendly(error.message)); else setMsgState(null);
         return;
       }
@@ -42,7 +52,7 @@ export default function Login() {
     } finally { setBusy(false); }
   }
   async function reset() {
-    if (!email) return setMsg('error', 'Enter your email above first, then choose Forgot password.');
+    if (!email.includes('@')) return setMsg('error', 'Enter your email above (not your username), then choose Forgot password.');
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
     if (error) setMsg('error', friendly(error.message)); else setMsg('ok', `Reset link sent to ${email}.`);
   }
@@ -57,7 +67,9 @@ export default function Login() {
         <p className="muted auth-sub">{mode === 'in' ? 'Sign in to your workspace.' : 'Set up your account, then create or join an organization.'}</p>
         {mode === 'up' && <label>Full name<input value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" /></label>}
       </div>
-      <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" aria-invalid={bad || undefined} /></label>
+      {mode === 'in'
+        ? <label>Email or username<input value={email} onChange={(e) => setEmail(e.target.value.trim())} required autoComplete="username" autoCapitalize="none" spellCheck={false} aria-invalid={bad || undefined} /></label>
+        : <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" aria-invalid={bad || undefined} /></label>}
       <div className="field">
         <div className="field-head">
           <label htmlFor="auth-pw">Password</label>

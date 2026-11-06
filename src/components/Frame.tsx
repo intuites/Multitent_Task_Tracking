@@ -165,6 +165,7 @@ function OrgSwitcher({ brand, orgs, current, onSwitch, onCreate }: { brand: stri
       {open && (
         <div className="pop org-pop" role="menu" aria-label="Switch organization">
           <p className="org-pop-title">Your organizations</p>
+          <div className="org-list">
           {orgs.map((o) => (
             <button key={o.id} role="menuitemradio" aria-checked={o.id === current} type="button" className="menu-item org-item" onClick={() => { close(); if (o.id !== current) onSwitch(o.id); }}>
               <span className="mark sm" aria-hidden="true">{initials(o.name).charAt(0)}</span>
@@ -172,6 +173,7 @@ function OrgSwitcher({ brand, orgs, current, onSwitch, onCreate }: { brand: stri
               {o.id === current && <Check size={16} className="org-check" aria-hidden="true" />}
             </button>
           ))}
+          </div>
           {onCreate && <button role="menuitem" type="button" className="menu-item org-new" onClick={() => { close(); onCreate(); }}><Plus size={16} aria-hidden="true" />Create organization</button>}
         </div>
       )}

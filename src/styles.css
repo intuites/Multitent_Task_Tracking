@@ -1245,6 +1245,8 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
 .org-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .org-chev { color: var(--muted); flex: none; }
 .org-pop { left: 0; right: 0; top: calc(100% + 6px); width: auto; padding: 6px; transform-origin: top left; }
+/* long lists scroll inside the menu, not the whole sidebar/page; title and Create stay put */
+.org-list { max-height: min(340px, calc(100vh - 220px)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 .org-pop-title { margin: 6px 10px 6px; font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--muted); }
 .org-item { display: flex; align-items: center; gap: 10px; text-align: left; }
 .mark.sm { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 9px; background: var(--brand-tint); color: var(--brand); font-weight: var(--fw-black); font-size: var(--fs-sm); }

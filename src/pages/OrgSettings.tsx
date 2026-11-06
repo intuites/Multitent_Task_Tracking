@@ -184,7 +184,7 @@ export default function OrgSettings() {
 
             <div hidden={tab !== 'look'} className="os-pane">
             <section className="card os-sec" aria-labelledby="look-h">
-              <header><h3 id="look-h"><Palette size={16} aria-hidden="true" /> Appearance</h3><p className="muted">The color and font everyone in {org.name} sees. The whole app previews your picks before you save.</p></header>
+              <header><h3 id="look-h"><Palette size={16} aria-hidden="true" /> Appearance</h3><p className="muted">The color, font and text size for people in {org.name} who haven't set their own look. Anyone who saved their own appearance keeps it. The whole app previews your picks before you save.</p></header>
               <div className="os-brand">
               <div className="os-controls">
               <fieldset className="brand-pick" disabled={!canEdit}>
@@ -217,7 +217,7 @@ export default function OrgSettings() {
                 <div className="seg ml-seg" role="group" aria-labelledby="os-size">
                   {TEXT_SIZES.map((s) => <button key={s} type="button" aria-pressed={(size ?? 'normal') === s} disabled={!canEdit || !('text_size' in org)} onClick={() => setSize(s)}>{SIZE_TEXT[s]}</button>)}
                 </div>
-                <small className="muted">{'text_size' in org ? 'The starting size for everyone.' : 'Run database update 0036 in Supabase to save a text size.'} Each person can still pick their own color, font and size in Profile → Appearance.</small></div>
+                <small className="muted">{'text_size' in org ? 'The starting size for people who haven\'t picked their own.' : 'Run database update 0036 in Supabase to save a text size.'} Everyone can set their own look in Profile → Appearance; your changes here don't override it.</small></div>
               </div>
                 <div className="brand-preview os-preview" aria-label="Preview of the color and font" role="img">
                   {(['light', 'dark'] as const).map((m) => {

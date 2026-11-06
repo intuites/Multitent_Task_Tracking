@@ -43,7 +43,10 @@ import './styles.css';
 import { Boot, PageSkeleton } from './components/Skeleton';
 
 function Shell() {
-  const { membership, memberships, switchOrg, session, platformAdmin, signOut, refresh: reloadOrg } = useAuth();
+  const { membership, memberships, switchOrg, session, platformAdmin, signOut, refresh: reloadOrg, prefs, savePrefs } = useAuth();
+  // the tour starts by itself only on a new account's first sign-in (accounts older than a week count as seen);
+  // after that it's remembered on the account, and only Take the tour opens it
+  const tourAuto = prefs.tour !== 'done' && Date.now() - Date.parse(session!.user.created_at) < 7 * 864e5;
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const uid = session!.user.id;
@@ -133,7 +136,8 @@ function Shell() {
       <ShortcutListener />
     </Frame>
     {/* outside Frame: its page area remounts on every route change, and the tour must keep going across pages */}
-    <Tour uid={uid} name={name || session!.user.email!} org={membership?.org_name || 'your organization'} admin={can(membership!.role, 'task:write')} />
+    <Tour uid={uid} name={name || session!.user.email!} org={membership?.org_name || 'your organization'} admin={can(membership!.role, 'task:write')}
+      auto={tourAuto} onSeen={() => { savePrefs({ ...prefs, tour: 'done' }).catch(() => { /* before 0036: this device still remembers */ }); }} />
     </>
   );
 }

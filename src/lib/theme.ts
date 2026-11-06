@@ -15,11 +15,13 @@ const apply = (p: ThemePref) => { document.documentElement.dataset.theme = resol
 
 const BRAND_KEY = 'tt-brand-css';
 const HEX = /^#[0-9a-f]{6}$/i;
-/** The organization's brand color (null = default green): generates its light and dark palettes (lib/palette.ts)
+/** Taskify's look when neither the organization nor the person picked one: Cyan, Fabric Grotesk, italic off, compact text, dark. */
+export const DEFAULT_COLOR = '#0891b2';
+/** The brand color (null = the default, Cyan): generates its light and dark palettes (lib/palette.ts)
  *  into one <style>, which index.html also restores from storage before first paint. */
 export function applyBrand(color: string | null | undefined, remember = true) {
   const root = document.documentElement;
-  const css = color && HEX.test(color) ? brandCss(color.toLowerCase()) : '';
+  const css = brandCss((color && HEX.test(color) ? color : DEFAULT_COLOR).toLowerCase());
   let el = document.getElementById('tt-brand');
   if (css) {
     if (!el) { el = document.createElement('style'); el.id = 'tt-brand'; document.head.appendChild(el); }
@@ -53,20 +55,20 @@ export type TextSize = typeof TEXT_SIZES[number];
 const SIZE_KEY = 'tt-size';
 /** Text size on <html data-size>; styles.css scales every --fs-* token, spacing stays the same. */
 export function applyTextSize(size: string | null | undefined, remember = true) {
-  const s: TextSize = TEXT_SIZES.includes(size as TextSize) ? size as TextSize : 'normal';
+  const s: TextSize = TEXT_SIZES.includes(size as TextSize) ? size as TextSize : 'compact';
   document.documentElement.dataset.size = s;
   if (!remember) return;
   try { localStorage.setItem(SIZE_KEY, s); } catch { /* storage blocked: still applies now */ }
 }
 
-/** A person's own look (Profile → Appearance); any field left out follows the organization. color 'default' = Green classic. */
-export interface Prefs { theme?: ThemePref; color?: string; font?: FontFamily; style?: FontStyle; size?: TextSize }
+/** A person's own look (Profile → Appearance); any field left out follows the organization. tour: the first-sign-in tour was shown. */
+export interface Prefs { theme?: ThemePref; color?: string; font?: FontFamily; style?: FontStyle; size?: TextSize; tour?: 'done' }
 export interface OrgLook { brand_color?: string | null; font_family?: string | null; font_style?: string | null; text_size?: string | null }
 let last: { org: OrgLook | null; prefs: Prefs } = { org: null, prefs: {} };
-/** What everyone sees: the person's own choices over the organization's, over the defaults (green, Fabric Grotesk, upright, normal). */
+/** What everyone sees: the person's own choices over the organization's, over the defaults (Cyan, Fabric Grotesk, upright, compact). */
 export function applyLook(org: OrgLook | null, prefs: Prefs = {}) {
   last = { org, prefs };
-  applyBrand(prefs.color ? (prefs.color === 'default' ? null : prefs.color) : org?.brand_color);
+  applyBrand(prefs.color && prefs.color !== 'default' ? prefs.color : org?.brand_color);
   applyFont(prefs.font ?? org?.font_family, prefs.style ?? org?.font_style);
   applyTextSize(prefs.size ?? org?.text_size);
 }

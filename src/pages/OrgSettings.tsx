@@ -6,7 +6,7 @@ import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { fmt, label, usePeople, zoneList } from '../lib/ui';
 import { ROLE_TEXT } from '../lib/roles';
-import { applyBrand, applyFont, applyTextSize, loadJakarta, restoreLook, FONT_FAMILIES, FONT_STYLES, TEXT_SIZES, type FontFamily, type FontStyle, type TextSize } from '../lib/theme';
+import { applyBrand, applyFont, applyTextSize, loadJakarta, restoreLook, DEFAULT_COLOR, FONT_FAMILIES, FONT_STYLES, TEXT_SIZES, type FontFamily, type FontStyle, type TextSize } from '../lib/theme';
 import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { TwoFactorForm } from './TwoFactor';
 import { brandPalette, contrast } from '../lib/palette';
@@ -91,7 +91,7 @@ export default function OrgSettings() {
     // only once migration 0034 has added the columns; defaults are stored as null
     const fonts = 'font_family' in org ? { font_family: font.family === 'fabric' ? null : font.family, font_style: font.style === 'classic' ? null : font.style } : {};
     // only once migration 0036 has added the columns
-    const more = 'text_size' in org ? { text_size: size === 'normal' ? null : size, require_admin_mfa: mfa } : {};
+    const more = 'text_size' in org ? { text_size: size === 'compact' ? null : size, require_admin_mfa: mfa } : {};
     const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz'), brand_color: brand, ...digest, ...fonts, ...more }).eq('id', orgId);
     if (!error) { setDirty(false); await supabase.from('tt_activity_logs').insert({ org_id: orgId, entity_type: 'organization', entity_id: orgId, action: 'settings_updated', actor_id: uid, detail: {} }); refresh(); load(); }
     setMsg(error ? { kind: 'error', text: error.message.includes('time zone') ? 'That time zone isn’t recognized.' : error.message.includes('brand_color') ? 'Brand colors need database update 0029. Run it in Supabase, then try again.' : error.message } : { kind: 'ok', text: 'Organization updated.' });
@@ -101,7 +101,7 @@ export default function OrgSettings() {
   if (!org) return <PageSkeleton />;
   const total = ROLES.reduce((n, r) => n + (roles[r] ?? 0), 0);
   const dirty = edited || brand !== (org.brand_color ?? null) || JSON.stringify(dg) !== JSON.stringify(dgOf(org)) || JSON.stringify(font) !== JSON.stringify(fontOf(org))
-    || (size ?? 'normal') !== (org.text_size ?? 'normal') || mfa !== (org.require_admin_mfa === true);
+    || (size ?? 'compact') !== (org.text_size ?? 'compact') || mfa !== (org.require_admin_mfa === true);
   const TILES = [
     { name: 'Manage users', hint: 'Invite people, change roles', icon: Users, to: '/employees' },
     { name: 'Manage organizations', hint: 'The organizations you created', icon: Building2, view: 'orgs' as View },
@@ -189,11 +189,11 @@ export default function OrgSettings() {
               <div className="os-controls">
               <fieldset className="brand-pick" disabled={!canEdit}>
                 <legend>Brand color</legend>
-                <p className="os-current"><span style={{ '--sw': brand ?? '#2e7d4f' } as React.CSSProperties} aria-hidden="true" /><b>{colorName(brand)}</b><small className="muted">{(brand ?? '#2e7d4f').toUpperCase()}</small></p>
+                <p className="os-current"><span style={{ '--sw': brand ?? DEFAULT_COLOR } as React.CSSProperties} aria-hidden="true" /><b>{colorName(brand)}</b><small className="muted">{(brand ?? DEFAULT_COLOR).toUpperCase()}</small></p>
                 <div className="brand-swatches">
                   {QUICK.map(([name, hex]) => <Swatch key={name} name={name} hex={hex} brand={brand} pick={setBrand} />)}
                   <label className="brand-custom" title="Pick any color">
-                    <input type="color" value={brand ?? '#2e7d4f'} onChange={(e) => setBrand(e.target.value)} aria-label="Custom brand color" />
+                    <input type="color" value={brand ?? DEFAULT_COLOR} onChange={(e) => setBrand(e.target.value)} aria-label="Custom brand color" />
                     Custom
                   </label>
                 </div>
@@ -215,13 +215,13 @@ export default function OrgSettings() {
               <FontSettings font={font} set={(p) => setFont((v) => ({ ...v, ...p }))} canEdit={canEdit} ready={'font_family' in org} />
               <div className="ml-row"><span className="fp-label" id="os-size">Text size</span>
                 <div className="seg ml-seg" role="group" aria-labelledby="os-size">
-                  {TEXT_SIZES.map((s) => <button key={s} type="button" aria-pressed={(size ?? 'normal') === s} disabled={!canEdit || !('text_size' in org)} onClick={() => setSize(s)}>{SIZE_TEXT[s]}</button>)}
+                  {TEXT_SIZES.map((s) => <button key={s} type="button" aria-pressed={(size ?? 'compact') === s} disabled={!canEdit || !('text_size' in org)} onClick={() => setSize(s)}>{SIZE_TEXT[s]}</button>)}
                 </div>
                 <small className="muted">{'text_size' in org ? 'The starting size for people who haven\'t picked their own.' : 'Run database update 0036 in Supabase to save a text size.'} Everyone can set their own look in Profile → Appearance; your changes here don't override it.</small></div>
               </div>
                 <div className="brand-preview os-preview" aria-label="Preview of the color and font" role="img">
                   {(['light', 'dark'] as const).map((m) => {
-                    const p = brandPalette(brand ?? '#2e7d4f', m);
+                    const p = brandPalette(brand ?? DEFAULT_COLOR, m);
                     const vars = { '--b': p['--brand'], '--tint': p['--brand-tint'], '--grad': p['--brand-grad'], '--ink': p['--brand-ink'],
                       '--bp-bg': p['--panel'], '--bp-fg': p['--text'], '--bp-muted': p['--muted'], '--bp-line': p['--line'] } as React.CSSProperties;
                     return (
@@ -465,7 +465,7 @@ const colorName = (hex: string | null) => NAMES.get(hex) ?? 'Custom color';
 
 /** One brand color choice; the check mark takes whichever of white/dark reads on it. */
 function Swatch({ name, hex, brand, pick, small }: { name: string; hex: string | null; brand: string | null; pick: (h: string | null) => void; small?: boolean }) {
-  const fill = hex ?? '#2e7d4f';
+  const fill = hex ?? DEFAULT_COLOR;
   const on = (brand ?? null) === hex;
   const ink = contrast(fill, '#ffffff') >= contrast(fill, '#111214') ? '#ffffff' : '#111214';
   return <button type="button" className={`brand-swatch${small ? ' sm' : ''}`} style={{ '--sw': fill, color: ink } as React.CSSProperties}

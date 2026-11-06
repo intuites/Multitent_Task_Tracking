@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Check, Monitor, Moon, Palette, RotateCcw, Sun, Type } from 'lucide-react';
 import { useAuth, type Membership } from '../lib/auth';
-import { applyLook, loadJakarta, restoreLook, useTheme, FONT_FAMILIES, FONT_STYLES, TEXT_SIZES, type FontFamily, type FontStyle, type Prefs, type TextSize, type ThemePref } from '../lib/theme';
+import { applyLook, loadJakarta, restoreLook, useTheme, DEFAULT_COLOR, FONT_FAMILIES, FONT_STYLES, TEXT_SIZES, type FontFamily, type FontStyle, type Prefs, type TextSize, type ThemePref } from '../lib/theme';
 import { contrast } from '../lib/palette';
 import { QUICK } from '../lib/brandColors';
 
-const GREEN = '#2e7d4f';
+// colors are saved as their hex, so a later change of Taskify's default never changes someone's own look
 const THEMES: [ThemePref, string, typeof Sun][] = [['dark', 'Dark', Moon], ['light', 'Light', Sun], ['system', 'Match device', Monitor]];
 const FONTS: [FontFamily, string, string][] = [['fabric', 'Fabric Grotesk', 'Modern and compact'], ['jakarta', 'Plus Jakarta Sans', 'Rounded and friendly'], ['lora', 'Lora', 'A classic serif']];
 const SIZES: [TextSize, string][] = [['compact', 'Compact'], ['normal', 'Normal'], ['large', 'Large']];
 type Look = { color: string; font: FontFamily; style: FontStyle; size: TextSize };
 const LOOK_KEYS = ['color', 'font', 'style', 'size'] as const;
 
-/** The look someone sees now: their own choices, or the organization's where they have none (color 'default' = Green classic). */
+/** The look someone sees now: their own choices, or the organization's where they have none, or Taskify's defaults. */
 const lookOf = (p: Prefs, m: Membership | null): Look => ({
-  color: p.color ?? (m?.brand_color && /^#[0-9a-f]{6}$/i.test(m.brand_color) ? m.brand_color.toLowerCase() : 'default'),
+  color: p.color && p.color !== 'default' ? p.color : m?.brand_color && /^#[0-9a-f]{6}$/i.test(m.brand_color) ? m.brand_color.toLowerCase() : DEFAULT_COLOR,
   font: p.font ?? (FONT_FAMILIES.includes(m?.font_family as FontFamily) ? m!.font_family as FontFamily : 'fabric'),
   style: p.style ?? (FONT_STYLES.includes(m?.font_style as FontStyle) ? m!.font_style as FontStyle : 'classic'),
-  size: p.size ?? (TEXT_SIZES.includes(m?.text_size as TextSize) ? m!.text_size as TextSize : 'normal'),
+  size: p.size ?? (TEXT_SIZES.includes(m?.text_size as TextSize) ? m!.text_size as TextSize : 'compact'),
 });
 const sameLook = (a: Look, b: Look) => LOOK_KEYS.every((k) => a[k] === b[k]);
 
@@ -40,16 +40,17 @@ export default function MyLook() {
   const dirty = !sameLook(draft, saved);
 
   async function save() {
-    try { await savePrefs({ ...(prefs.theme ? { theme: prefs.theme } : {}), ...draft }); setMsg({ ok: true, text: 'Saved as your own look, on every device.' }); }
+    try { await savePrefs({ ...prefs, ...draft }); setMsg({ ok: true, text: 'Saved as your own look, on every device.' }); }
     catch (x) { setMsg({ ok: false, text: (x as Error).message }); }
   }
   async function followOrg() {
     try {
-      await savePrefs(prefs.theme ? { theme: prefs.theme } : {});
+      const rest = { ...prefs }; for (const k of LOOK_KEYS) delete rest[k];
+      await savePrefs(rest);
       setDraft(lookOf({}, membership)); setMsg({ ok: true, text: `You now follow ${membership?.org_name}'s look.` });
     } catch (x) { setMsg({ ok: false, text: (x as Error).message }); }
   }
-  const colorName = draft.color === 'default' ? 'Green classic' : QUICK.find(([, h]) => h === draft.color)?.[0] ?? 'Custom color';
+  const colorName = QUICK.find(([, h]) => (h ?? DEFAULT_COLOR) === draft.color)?.[0] ?? 'Custom color';
 
   return (
     <section className="card os-sec ml" aria-labelledby="ml-h">
@@ -66,12 +67,12 @@ export default function MyLook() {
 
       <div className="ml-row"><span className="fp-label" id="ml-color">Color</span>
         <div className="brand-swatches" role="group" aria-labelledby="ml-color">
-          {QUICK.map(([name, hex]) => <Swatch key={name} name={name} fill={hex ?? GREEN} on={draft.color === (hex ?? 'default')} pick={() => set({ color: hex ?? 'default' })} />)}
+          {QUICK.map(([name, hex]) => <Swatch key={name} name={hex ? name : `${name} (default)`} fill={hex ?? DEFAULT_COLOR} on={draft.color === (hex ?? DEFAULT_COLOR)} pick={() => set({ color: hex ?? DEFAULT_COLOR })} />)}
           <label className="brand-custom" title="Pick any color">
-            <input type="color" value={draft.color === 'default' ? GREEN : draft.color} onChange={(e) => set({ color: e.target.value })} aria-label="Custom color" />Custom
+            <input type="color" value={draft.color} onChange={(e) => set({ color: e.target.value })} aria-label="Custom color" />Custom
           </label>
         </div>
-        <small className="muted">{colorName}{draft.color === 'default' ? '' : `, ${draft.color.toUpperCase()}`}.</small></div>
+        <small className="muted">{colorName}, {draft.color.toUpperCase()}.</small></div>
 
       <div className="ml-row"><span className="fp-label" id="ml-font"><Type size={14} aria-hidden="true" /> Font</span>
         <div className="fp-fams" role="group" aria-labelledby="ml-font">

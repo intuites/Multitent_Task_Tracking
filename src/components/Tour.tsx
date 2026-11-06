@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft, ArrowRight, BarChart3, Bell, Building2, CalendarDays, Check, CheckCircle2, LayoutDashboard, ListChecks, ListTodo,
-  Eye, Keyboard, MessageSquare, Moon, MousePointerClick, PanelLeftClose, Plus, Rocket, Search, Settings, Sparkles, UserCircle, Users, type LucideIcon,
+  Eye, Keyboard, Mail, MessageSquare, Moon, Palette, MousePointerClick, PanelLeftClose, Plus, Rocket, Search, Settings, Sparkles, UserCircle, Users, type LucideIcon,
 } from 'lucide-react';
 import { LiquidBg } from './Liquid';
 
@@ -55,12 +55,16 @@ function steps(o: { first: string; org: string; admin: boolean; phone: boolean }
     { sel: '.search', icon: Search, group: 'Stay informed', title: 'Search', body: 'Find any task or person from anywhere.', tips: ['Shortcut: Ctrl+K'], try: 'Click the search box.', wait: 1200 },
     { sel: '[data-tour="bell"]', icon: Bell, group: 'Stay informed', title: 'Notifications', body: 'New assignments, status changes and comments arrive here the moment they happen, and by email if you want them.',
       try: 'Click the bell to see your latest notifications.', pop: true },
-    { sel: '.theme-btn', icon: Moon, group: 'Make it yours', title: 'Light or dark', body: `Switch themes any time. ${org}’s brand color is used in both.`, try: 'Click it to switch the theme. Click again to switch back.', wait: 1200 },
+    { sel: '.theme-btn', icon: Moon, group: 'Make it yours', title: 'Light or dark', body: 'Switch between light and dark any time. Dark is the default.', try: 'Click it to switch the theme. Click again to switch back.', wait: 1200 },
     { sel: 'a.side-link[href="/shortcuts"]', icon: Keyboard, group: 'Work faster', title: 'Keyboard shortcuts', body: 'Move around Taskify without the mouse. Press one key, then the next.',
       tips: admin ? ['C then T: create a task', 'G then M: My Tasks, G then T: all tasks', '/ or Ctrl+K: search, Shift+D: light or dark', '?: see every shortcut']
         : ['G then M: My Tasks, G then C: Calendar', 'G then N: notifications', '/ or Ctrl+K: search, Shift+D: light or dark', '?: see every shortcut'],
       try: 'Click Shortcuts to see the full list.', wait: 1400 },
-    { sel: '.me', icon: UserCircle, group: 'Make it yours', title: 'Your profile', body: 'Your name and photo, which notifications you get, the guide, and log out.', try: 'Click your name to open the menu.', pop: true },
+    { sel: '.me', icon: UserCircle, group: 'Make it yours', title: 'Your profile', body: 'Your name and photo, your appearance, which notifications you get, the guide, and log out.', try: 'Click your name to open the menu.', pop: true },
+    { sel: '.me', icon: Palette, group: 'Make it yours', title: 'Customize your theme', body: 'Make Taskify look the way you like: open your name, then Appearance. Only you see it, and it stays yours even when an admin changes the organization look.',
+      tips: ['Dark, light or match your device', 'Your own color and font', 'Italic on or off, and compact, normal or large text'], try: 'Click your name; Appearance is in the menu.', pop: true },
+    !admin && { sel: '.me', icon: Mail, group: 'Make it yours', title: 'Your other email addresses', body: 'Use more than one email for work? Add them in My profile → Security → Email addresses. Admins can then send a task’s emails to the address you use for that work.',
+      tips: ['You still sign in with your main email or your username', 'Remove an address any time'], try: 'Click your name, then My profile.', pop: true },
     admin && { sel: 'a.side-link[href="/settings"]', icon: Settings, group: 'Make it yours', title: 'Organization settings', body: 'The brand color everyone sees, the time zone reminders run on, and the daily digest emails.',
       try: 'Click Organization settings.', wait: 1100 },
     { icon: Rocket, group: 'Done', title: 'You’re all set', body: admin ? 'A good first step: create a task and assign it to someone.' : 'A good first step: open My Tasks and update the status of one task.',
@@ -78,7 +82,8 @@ const visible = (sel?: string) => {
   return null;
 };
 
-export default function Tour({ uid, name, org, admin }: { uid: string; name: string; org: string; admin: boolean }) {
+/** auto: start by itself (a first sign-in); onSeen: remember on the account that it was shown, so no device shows it again. */
+export default function Tour({ uid, name, org, admin, auto, onSeen }: { uid: string; name: string; org: string; admin: boolean; auto: boolean; onSeen: () => void }) {
   const key = `tt-tour-done:${uid}`;
   const [list, setList] = useState<Step[] | null>(null);
   const [i, setI] = useState(0);
@@ -101,14 +106,18 @@ export default function Tour({ uid, name, org, admin }: { uid: string; name: str
   const done = useCallback(() => { closeMenu(); setList(null); try { localStorage.setItem(key, '1'); } catch { /* private window: shows again next time */ } }, [key]);
   const go = useCallback((n: number) => { closeMenu(); setTried(false); setI(n); }, []);
 
-  // first visit on this device: start once the page has settled
+  // first sign-in only: start once the page has settled; afterwards only from Take the tour
+  const seenRef = useRef(onSeen); seenRef.current = onSeen;
   useEffect(() => {
-    let seen = false;
-    try { seen = localStorage.getItem(key) === '1'; } catch { seen = true; }
-    const t = seen ? 0 : window.setTimeout(open, 900);
+    let seen = !auto;
+    try { seen ||= localStorage.getItem(key) === '1'; } catch { seen = true; }
+    const t = seen ? 0 : window.setTimeout(() => { open(); seenRef.current(); try { localStorage.setItem(key, '1'); } catch { /* ignore */ } }, 900);
+    return () => clearTimeout(t);
+  }, [key, open, auto]);
+  useEffect(() => {
     window.addEventListener(EVT, open);
-    return () => { clearTimeout(t); window.removeEventListener(EVT, open); };
-  }, [key, open]);
+    return () => window.removeEventListener(EVT, open);
+  }, [open]);
 
   const step = list?.[i];
   // follow the target as the page scrolls, resizes, or moves under it (the sidebar collapsing, a new page loading)

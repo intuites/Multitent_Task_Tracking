@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Building2, Check, Clock, CopyPlus, Database, Globe2, Layers, LifeBuoy, Lock, Mail, Palette, Pencil, Plus, ShieldCheck, Sun, Sunset, Trash2, Type, Users, X } from 'lucide-react';
+import { ArrowLeft, Building2, Check, Clock, CopyPlus, Database, Globe2, Layers, LifeBuoy, Lock, Mail, Palette, Pencil, Plus, ShieldCheck, Sun, Sunset, Trash2, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
@@ -14,6 +14,13 @@ import { PageSkeleton } from '../components/Skeleton';
 import { Departments, type Msg } from './Employees';
 
 const ROLES = ['admin', 'employee'] as const;
+type Tab = 'general' | 'digest' | 'look' | 'access';
+const SECTIONS: { id: Tab; name: string; hint: string; icon: typeof Building2 }[] = [
+  { id: 'general', name: 'General', hint: 'Name and time zone', icon: Building2 },
+  { id: 'digest', name: 'Digest emails', hint: 'Daily summaries', icon: Mail },
+  { id: 'look', name: 'Appearance', hint: 'Brand color and font', icon: Palette },
+  { id: 'access', name: 'Access & help', hint: 'Your role, who to ask', icon: ShieldCheck },
+];
 const MORE_COUNT = FAMILIES.reduce((n, f) => n + f.colors.length, 0) + TRENDING.length;
 type View = 'hub' | 'orgs' | 'depts';
 
@@ -24,6 +31,8 @@ export default function OrgSettings() {
   const [params, setParams] = useSearchParams();
   const view = (canEdit ? params.get('manage') : null) as View | null;
   const open = (v: View | null) => setParams(v ? { manage: v } : {});
+  const tab: Tab = SECTIONS.some((s) => s.id === params.get('tab')) ? params.get('tab') as Tab : 'general';
+  const setTab = (t: Tab) => setParams(t === 'general' ? {} : { tab: t }, { replace: true });
   const [org, setOrg] = useState<any>(null);
   const [roles, setRoles] = useState<Record<string, number>>({});
   const { active: people } = usePeople(orgId);
@@ -60,9 +69,10 @@ export default function OrgSettings() {
     const f = new FormData(e.currentTarget);
     const extra = dg.extra.split(/[\s,;]+/).filter(Boolean);
     const bad = extra.find((x) => !EMAIL.test(x));
-    if (bad) return setMsg({ kind: 'error', text: `“${bad}” isn’t a valid email address.` });
-    if (extra.length > 20) return setMsg({ kind: 'error', text: 'Add at most 20 extra digest addresses.' });
-    if (dg.midOn && dg.eodOn && dg.mid >= dg.eod) return setMsg({ kind: 'error', text: 'The midday digest has to go out before the end-of-day digest.' });
+    // a digest problem: open that section so the field is in view
+    if (bad) { setTab('digest'); return setMsg({ kind: 'error', text: `“${bad}” isn’t a valid email address.` }); }
+    if (extra.length > 20) { setTab('digest'); return setMsg({ kind: 'error', text: 'Add at most 20 extra digest addresses.' }); }
+    if (dg.midOn && dg.eodOn && dg.mid >= dg.eod) { setTab('digest'); return setMsg({ kind: 'error', text: 'The midday digest has to go out before the end-of-day digest.' }); }
     // only once migration 0032 has added the columns
     const digest = 'digest_midday' in org ? { digest_midday_on: dg.midOn, digest_midday: dg.mid, digest_eod_on: dg.eodOn, digest_eod: dg.eod,
       digest_days: dg.days, digest_leads: dg.leads, digest_extra_emails: extra } : {};
@@ -130,7 +140,16 @@ export default function OrgSettings() {
             {can(role, 'members:manage') && <Link to="/employees" className="pill-btn ghost os-people"><Users size={15} aria-hidden="true" />Manage people</Link>}
           </section>
 
+          <nav className="os-nav" aria-label="Settings sections">
+            {SECTIONS.map((s) => (
+              <button key={s.id} type="button" className="os-tab" aria-current={tab === s.id ? 'page' : undefined} onClick={() => setTab(s.id)}>
+                <s.icon size={18} aria-hidden="true" /><span><b>{s.name}</b><small>{s.hint}</small></span>
+              </button>))}
+          </nav>
+
           <form className="os-main" onSubmit={saveOrg} onChange={() => setDirty(true)}>
+            {/* every section stays mounted (hidden when not shown) so one Save covers all of them */}
+            <div hidden={tab !== 'general'} className="os-pane">
             <section className="card os-sec" aria-labelledby="det-h">
               <header><h3 id="det-h"><Building2 size={16} aria-hidden="true" /> Details</h3><p className="muted">The name everyone sees, and the clock reminders run on.</p></header>
               <div className="os-fields">
@@ -141,15 +160,19 @@ export default function OrgSettings() {
               </div>
               <p className="muted tpl-note"><Globe2 size={14} aria-hidden="true" /> Reminders, recurring tasks, digests and “due today” use this time zone.</p>
             </section>
+            </div>
 
-            <DigestSettings dg={dg} set={(p) => setDg((d) => ({ ...d, ...p }))} tz={tz} canEdit={canEdit} ready={'digest_midday' in org} />
+            <div hidden={tab !== 'digest'} className="os-pane">
+              <DigestSettings dg={dg} set={(p) => setDg((d) => ({ ...d, ...p }))} tz={tz} canEdit={canEdit} ready={'digest_midday' in org} />
+            </div>
 
-
-            <section className="card os-sec" aria-labelledby="brand-h">
-              <header><h3 id="brand-h"><Palette size={16} aria-hidden="true" /> Brand color</h3><p className="muted">Everyone in {org.name} sees this color, in light and dark mode. The whole app previews it as you pick.</p></header>
+            <div hidden={tab !== 'look'} className="os-pane">
+            <section className="card os-sec" aria-labelledby="look-h">
+              <header><h3 id="look-h"><Palette size={16} aria-hidden="true" /> Appearance</h3><p className="muted">The color and font everyone in {org.name} sees. The whole app previews your picks before you save.</p></header>
               <div className="os-brand">
+              <div className="os-controls">
               <fieldset className="brand-pick" disabled={!canEdit}>
-                <legend className="sr-only">Brand color</legend>
+                <legend>Brand color</legend>
                 <p className="os-current"><span style={{ '--sw': brand ?? '#2e7d4f' } as React.CSSProperties} aria-hidden="true" /><b>{colorName(brand)}</b><small className="muted">{(brand ?? '#2e7d4f').toUpperCase()}</small></p>
                 <div className="brand-swatches">
                   {QUICK.map(([name, hex]) => <Swatch key={name} name={name} hex={hex} brand={brand} pick={setBrand} />)}
@@ -173,7 +196,9 @@ export default function OrgSettings() {
                   </div>
                 </details>
               </fieldset>
-                <div className="brand-preview os-preview" aria-label="Preview of the brand color" role="img">
+              <FontSettings font={font} set={(p) => setFont((v) => ({ ...v, ...p }))} canEdit={canEdit} ready={'font_family' in org} />
+              </div>
+                <div className="brand-preview os-preview" aria-label="Preview of the color and font" role="img">
                   {(['light', 'dark'] as const).map((m) => {
                     const p = brandPalette(brand ?? '#2e7d4f', m);
                     const vars = { '--b': p['--brand'], '--tint': p['--brand-tint'], '--grad': p['--brand-grad'], '--ink': p['--brand-ink'],
@@ -181,6 +206,7 @@ export default function OrgSettings() {
                     return (
                     <div key={m} className="bp" style={vars} aria-hidden="true">
                       <small className="bp-mode">{m === 'light' ? 'Light mode' : 'Dark mode'}</small>
+                      <b className="bp-title">Quarterly planning</b>
                       <span className="bp-nav">Dashboard</span>
                       <span className="bp-kpi"><small>My open tasks</small><b>4</b></span>
                       <span className="bp-row"><span className="bp-btn">Update status</span><span className="bp-link">View all</span></span>
@@ -190,8 +216,21 @@ export default function OrgSettings() {
                 </div>
               </div>
             </section>
+            </div>
 
-            <FontSettings font={font} set={(p) => setFont((v) => ({ ...v, ...p }))} canEdit={canEdit} ready={'font_family' in org} name={org.name} />
+            <div hidden={tab !== 'access'} className="os-pane os-access">
+              <section className="card" aria-labelledby="you-h">
+                <h3 id="you-h"><ShieldCheck size={16} aria-hidden="true" /> Your access</h3>
+                <p><span className="prio prio-low">{membership!.platform ? 'Platform admin' : label(role)}</span></p>
+                <p className="muted">{membership!.platform ? 'You look after every organization on Taskify.' : ROLE_TEXT[role as keyof typeof ROLE_TEXT]?.blurb}</p>
+              </section>
+              {admins.length > 0 && <section className="card" aria-labelledby="help-h">
+                <h3 id="help-h"><LifeBuoy size={16} aria-hidden="true" /> Need help?</h3>
+                <p className="muted">For access, data or organization problems, contact an admin.</p>
+                <ul className="help-list">{admins.map((p) => <li key={p.id}><span className="grow"><b>{p.name}</b><small className="muted">{label(p.role)}</small></span>
+                  {p.email && <a className="mini-link" href={`mailto:${p.email}?subject=${encodeURIComponent(`Taskify help: ${membership!.org_name}`)}`}><Mail size={14} aria-hidden="true" />Email</a>}</li>)}</ul>
+              </section>}
+            </div>
 
             {canEdit && <div className={`os-save${dirty ? ' on' : ''}`}>
               <span className={dirty ? 'os-dirty' : 'muted'}>{dirty ? 'You have unsaved changes.' : 'All changes saved.'}</span>
@@ -199,20 +238,6 @@ export default function OrgSettings() {
               <button type="submit" disabled={!dirty}>Save changes</button>
             </div>}
           </form>
-
-          <aside className="os-side">
-            <section className="card" aria-labelledby="you-h">
-              <h3 id="you-h"><ShieldCheck size={16} aria-hidden="true" /> Your access</h3>
-              <p><span className="prio prio-low">{membership!.platform ? 'Platform admin' : label(role)}</span></p>
-              <p className="muted">{membership!.platform ? 'You look after every organization on Taskify.' : ROLE_TEXT[role as keyof typeof ROLE_TEXT]?.blurb}</p>
-            </section>
-            {admins.length > 0 && <section className="card" aria-labelledby="help-h">
-              <h3 id="help-h"><LifeBuoy size={16} aria-hidden="true" /> Need help?</h3>
-              <p className="muted">For access, data or organization problems, contact an admin.</p>
-              <ul className="help-list">{admins.map((p) => <li key={p.id}><span className="grow"><b>{p.name}</b><small className="muted">{label(p.role)}</small></span>
-                {p.email && <a className="mini-link" href={`mailto:${p.email}?subject=${encodeURIComponent(`Taskify help: ${membership!.org_name}`)}`}><Mail size={14} aria-hidden="true" />Email</a>}</li>)}</ul>
-            </section>}
-          </aside>
         </div>
       )}
     </div>
@@ -301,48 +326,31 @@ const FAMILY_TEXT: Record<FontFamily, [string, string]> = {
   jakarta: ['Plus Jakarta Sans', 'Rounded and friendly.'],
   system: ['Device font', 'SF Pro on Apple, Segoe UI on Windows.'],
 };
-const STYLE_TEXT: Record<FontStyle, [string, string]> = {
-  expressive: ['Expressive', 'Italic page titles and big numbers'],
-  classic: ['Classic', 'Everything upright'],
-};
-
-/** Organization settings → Fonts: the font family and style everyone in the organization sees. */
-function FontSettings({ font, set, canEdit, ready, name }: { font: Font; set: (p: Partial<Font>) => void; canEdit: boolean; ready: boolean; name: string }) {
-  // load Plus Jakarta Sans here so its option card can show it before anyone picks it
+/** Appearance → Font: the family and the italic switch everyone in the organization sees (stored as font_style expressive/classic). */
+function FontSettings({ font, set, canEdit, ready }: { font: Font; set: (p: Partial<Font>) => void; canEdit: boolean; ready: boolean }) {
+  // load Plus Jakarta Sans here so its card can show it before anyone picks it
   useEffect(loadJakarta, []);
+  const italic = font.style === 'expressive';
   return (
-    <section className="card os-sec" aria-labelledby="font-h">
-      <header><h3 id="font-h"><Type size={16} aria-hidden="true" /> Fonts</h3>
-        <p className="muted">The typeface and style everyone in {name} sees. The whole app previews it as you pick.</p></header>
-      {!ready && <p className="muted tpl-note"><Lock size={14} aria-hidden="true" /> Run database update 0034 in Supabase to change fonts. You can preview them now.</p>}
-      <div className="font-pick">
-        <div role="group" aria-labelledby="fp-fam">
-          <p className="fp-label" id="fp-fam">Font family</p>
-          <div className="fp-fams">
-            {FONT_FAMILIES.map((f) => (
-              <button key={f} type="button" className="fp-opt" data-ff={f} data-fs={font.style} aria-pressed={font.family === f} disabled={!canEdit} onClick={() => set({ family: f })}>
-                <span className="fp-aa" aria-hidden="true">Aa</span><b>{FAMILY_TEXT[f][0]}</b><small>{FAMILY_TEXT[f][1]}</small>
-              </button>))}
-          </div>
-        </div>
-        <div role="group" aria-labelledby="fp-style">
-          <p className="fp-label" id="fp-style">Font style</p>
-          <div className="seg">
-            {FONT_STYLES.map((s) => <button key={s} type="button" aria-pressed={font.style === s} disabled={!canEdit} title={STYLE_TEXT[s][1]} onClick={() => set({ style: s })}>{STYLE_TEXT[s][0]}</button>)}
-          </div>
-          <small className="muted nt-help">{STYLE_TEXT[font.style][1]}.</small>
-        </div>
-        <div className="fp-sample" aria-label="Preview of the font" role="img">
-          <span className="page-title fp-title">Quarterly planning</span>
-          <span className="big-num fp-num">128</span>
-          <p className="page-sub">Tasks due this week, grouped by department.</p>
-          <p>Regular text reads like this, and <b>bold text like this</b>.</p>
+    <div className="font-pick">
+      {!ready && <p className="muted tpl-note"><Lock size={14} aria-hidden="true" /> Run database update 0034 in Supabase to save fonts. You can preview them now.</p>}
+      <div role="group" aria-labelledby="fp-fam">
+        <p className="fp-label" id="fp-fam">Font</p>
+        <div className="fp-fams">
+          {FONT_FAMILIES.map((f) => (
+            <button key={f} type="button" className="fp-opt" data-ff={f} data-fs={font.style} aria-pressed={font.family === f} disabled={!canEdit} onClick={() => set({ family: f })}>
+              <span className="fp-aa" aria-hidden="true">Aa</span><b>{FAMILY_TEXT[f][0]}</b><small>{FAMILY_TEXT[f][1]}</small>
+            </button>))}
         </div>
       </div>
-    </section>
+      <div className="fp-switch">
+        <span className="grow"><b id="fp-it">Italic</b><small className="muted">Page titles and big numbers lean, like the preview. Off keeps everything upright.</small></span>
+        <button type="button" role="switch" aria-checked={italic} aria-labelledby="fp-it" disabled={!canEdit}
+          className={italic ? 'switch on' : 'switch'} onClick={() => set({ style: italic ? 'classic' : 'expressive' })}><span /></button>
+      </div>
+    </div>
   );
 }
-
 const NAMES = new Map<string | null, string>([...FAMILIES.flatMap((f) => f.colors.map((c) => [c.hex, c.name] as const)), ...TRENDING.map((t) => [t.hex, t.name] as const), ...QUICK.map(([n, h]) => [h, n] as const)]);
 const colorName = (hex: string | null) => NAMES.get(hex) ?? 'Custom color';
 

@@ -22,6 +22,9 @@
 @font-face { font-family: 'Fabric Grotesk'; src: url('../fonts/fabric-grotesk-extrabolditalic.woff2') format('woff2'); font-weight: 800; font-style: italic; font-display: swap; }
 @font-face { font-family: 'Fabric Grotesk'; src: url('../fonts/fabric-grotesk-black.woff2') format('woff2'); font-weight: 900; font-style: normal; font-display: swap; }
 @font-face { font-family: 'Fabric Grotesk'; src: url('../fonts/fabric-grotesk-blackitalic.woff2') format('woff2'); font-weight: 900; font-style: italic; font-display: swap; }
+/* Lora (SIL Open Font License, fonts/lora-OFL.txt): variable 400-700, Latin subset; only downloads when someone picks it */
+@font-face { font-family: 'Lora'; src: url('../fonts/lora-variable.woff2') format('woff2'); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Lora'; src: url('../fonts/lora-italic-variable.woff2') format('woff2'); font-weight: 400 700; font-style: italic; font-display: swap; }
 :root {
   /* type */
   --font-sans: 'Fabric Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -2208,8 +2211,11 @@ h2, h3, h4 { letter-spacing: -0.01em; }
 
 /* ---------- organization font choice (Organization settings > Fonts; html[data-font][data-type]) ---------- */
 :root { --ff-fabric: 'Fabric Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --ff-jakarta: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  --ff-jakarta: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ff-lora: 'Lora', Georgia, 'Times New Roman', serif; }
 :root[data-font="jakarta"] { --font-sans: var(--ff-jakarta); }
+:root[data-font="lora"] { --font-sans: var(--ff-lora); }
+.fp-opt[data-ff="lora"] .fp-aa { font-family: var(--ff-lora); }
 :root[data-size="compact"] { --ts: .92; font-size: 92%; }
 :root[data-size="large"] { --ts: 1.12; font-size: 112%; }
 .fp-opt[data-ff="fabric"] .fp-aa { font-family: var(--ff-fabric); }

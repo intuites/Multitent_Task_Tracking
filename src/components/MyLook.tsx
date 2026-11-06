@@ -7,7 +7,7 @@ import { QUICK } from '../lib/brandColors';
 
 const GREEN = '#2e7d4f';
 const THEMES: [ThemePref, string, typeof Sun][] = [['dark', 'Dark', Moon], ['light', 'Light', Sun], ['system', 'Match device', Monitor]];
-const FONTS: [FontFamily, string, string][] = [['fabric', 'Fabric Grotesk', 'Modern and compact'], ['jakarta', 'Plus Jakarta Sans', 'Rounded and friendly']];
+const FONTS: [FontFamily, string, string][] = [['fabric', 'Fabric Grotesk', 'Modern and compact'], ['jakarta', 'Plus Jakarta Sans', 'Rounded and friendly'], ['lora', 'Lora', 'A classic serif']];
 const SIZES: [TextSize, string][] = [['compact', 'Compact'], ['normal', 'Normal'], ['large', 'Large']];
 type Look = { color: string; font: FontFamily; style: FontStyle; size: TextSize };
 const LOOK_KEYS = ['color', 'font', 'style', 'size'] as const;

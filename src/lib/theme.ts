@@ -29,7 +29,7 @@ export function applyBrand(color: string | null | undefined, remember = true) {
   try { if (css) localStorage.setItem(BRAND_KEY, css); else localStorage.removeItem(BRAND_KEY); } catch { /* storage blocked: still applies now */ }
 }
 
-export const FONT_FAMILIES = ['fabric', 'jakarta'] as const;
+export const FONT_FAMILIES = ['fabric', 'jakarta', 'lora'] as const;
 export const FONT_STYLES = ['expressive', 'classic'] as const;
 export type FontFamily = typeof FONT_FAMILIES[number];
 export type FontStyle = typeof FONT_STYLES[number];

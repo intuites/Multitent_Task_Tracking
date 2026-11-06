@@ -349,6 +349,7 @@ const fontOf = (o: any): Font => ({
 const FAMILY_TEXT: Record<FontFamily, [string, string]> = {
   fabric: ['Fabric Grotesk', 'Modern and compact. The default.'],
   jakarta: ['Plus Jakarta Sans', 'Rounded and friendly.'],
+  lora: ['Lora', 'A classic serif, calm and readable.'],
 };
 /** Appearance → Font: the family and the italic switch everyone in the organization sees (stored as font_style expressive/classic). */
 function FontSettings({ font, set, canEdit, ready }: { font: Font; set: (p: Partial<Font>) => void; canEdit: boolean; ready: boolean }) {

@@ -38,7 +38,6 @@ const misc = (k: 'ActivityLogs' | 'Platform') => lazy(() => import('./pages/Misc
 const ActivityLogs = misc('ActivityLogs'), Platform = misc('Platform');
 const Settings = lazy(() => import('./pages/OrgSettings'));
 const ShortcutsPage = lazy(() => import('./components/Shortcuts'));
-import '@fontsource-variable/plus-jakarta-sans';
 import './styles.css';
 import { Boot, PageSkeleton } from './components/Skeleton';
 

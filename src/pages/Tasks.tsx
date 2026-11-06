@@ -21,6 +21,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
   const { membership, session } = useAuth();
   const orgId = membership!.org_id, uid = session!.user.id;
   const canWrite = can(membership!.role, 'task:write');
+  const canReport = can(membership!.role, 'report:read'); // exports are reports: admins only
   const { active, name } = usePeople(orgId);
   const [params, setParams] = useSearchParams();
   const [rows, setRows] = useState<any[]>([]);
@@ -137,7 +138,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
       <div className="row">
         <h2>{title}</h2>
         <span className="row-actions">
-          <ExportMenu onExport={exportAs} disabled={!total} />
+          {canReport && <ExportMenu onExport={exportAs} disabled={!total} />}
           {canWrite && <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'New task'}</button>}
         </span>
       </div>

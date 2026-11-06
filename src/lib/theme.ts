@@ -5,9 +5,11 @@ export type ThemePref = 'light' | 'dark' | 'system';
 const KEY = 'tt-theme';
 const media = () => window.matchMedia('(prefers-color-scheme: dark)');
 
+// nothing chosen = dark (index.html applies the same default before first paint)
 const read = (): ThemePref => {
-  try { const v = localStorage.getItem(KEY); return v === 'light' || v === 'dark' ? v : 'system'; } catch { return 'system'; }
+  try { const v = localStorage.getItem(KEY); return v === 'light' || v === 'system' ? v : 'dark'; } catch { return 'dark'; }
 };
+export const themePref = read;
 const resolve = (p: ThemePref) => (p === 'system' ? (media().matches ? 'dark' : 'light') : p);
 const apply = (p: ThemePref) => { document.documentElement.dataset.theme = resolve(p); };
 
@@ -46,6 +48,37 @@ export function applyFont(family: string | null | undefined, style: string | nul
   try { localStorage.setItem(FONT_KEY, `${f}|${s}`); } catch { /* storage blocked: still applies now */ }
 }
 
+export const TEXT_SIZES = ['compact', 'normal', 'large'] as const;
+export type TextSize = typeof TEXT_SIZES[number];
+const SIZE_KEY = 'tt-size';
+/** Text size on <html data-size>; styles.css scales every --fs-* token, spacing stays the same. */
+export function applyTextSize(size: string | null | undefined, remember = true) {
+  const s: TextSize = TEXT_SIZES.includes(size as TextSize) ? size as TextSize : 'normal';
+  document.documentElement.dataset.size = s;
+  if (!remember) return;
+  try { localStorage.setItem(SIZE_KEY, s); } catch { /* storage blocked: still applies now */ }
+}
+
+/** A person's own look (Profile → Appearance); any field left out follows the organization. color 'default' = Green classic. */
+export interface Prefs { theme?: ThemePref; color?: string; font?: FontFamily; style?: FontStyle; size?: TextSize }
+export interface OrgLook { brand_color?: string | null; font_family?: string | null; font_style?: string | null; text_size?: string | null }
+let last: { org: OrgLook | null; prefs: Prefs } = { org: null, prefs: {} };
+/** What everyone sees: the person's own choices over the organization's, over the defaults (green, Fabric Grotesk, upright, normal). */
+export function applyLook(org: OrgLook | null, prefs: Prefs = {}) {
+  last = { org, prefs };
+  applyBrand(prefs.color ? (prefs.color === 'default' ? null : prefs.color) : org?.brand_color);
+  applyFont(prefs.font ?? org?.font_family, prefs.style ?? org?.font_style);
+  applyTextSize(prefs.size ?? org?.text_size);
+}
+/** Back to the saved look after a settings page previewed something else. */
+export const restoreLook = () => applyLook(last.org, last.prefs);
+/** The theme part of a person's saved prefs, without broadcasting a change if it's already on. */
+export function applyThemePref(p: ThemePref | undefined) {
+  if (!p || p === read()) return;
+  try { localStorage.setItem(KEY, p); } catch { /* ignore */ }
+  apply(p); window.dispatchEvent(new Event('tt-theme'));
+}
+
 /** Theme preference shared by every toggle on the page; index.html applies it before first paint. */
 export function useTheme() {
   const [pref, setPref] = useState<ThemePref>(read);
@@ -58,7 +91,7 @@ export function useTheme() {
     return () => { media().removeEventListener('change', onSystem); window.removeEventListener('tt-theme', onSync); };
   }, [pref]);
   const set = (p: ThemePref) => {
-    try { if (p === 'system') localStorage.removeItem(KEY); else localStorage.setItem(KEY, p); } catch { /* private mode: still applies for this page */ }
+    try { localStorage.setItem(KEY, p); } catch { /* private mode: still applies for this page */ }
     apply(p); setPref(p); // instant switch, no animation
     window.dispatchEvent(new Event('tt-theme'));
   };

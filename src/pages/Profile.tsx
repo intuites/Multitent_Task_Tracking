@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   AlertTriangle, ArrowRightLeft, AtSign, Briefcase, Camera, Building2, CalendarClock, Check, CheckCircle2, Clock, Eye, EyeOff, KeyRound, ListTodo,
   LogOut, Mail, MapPin, Pencil, Phone, ShieldCheck, Trash2, Users,
@@ -13,9 +13,10 @@ import { CountUp, LiquidBg } from '../components/Liquid';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { MemberEmails } from '../components/MemberEmails';
+import MyLook from '../components/MyLook';
 
-type Tab = 'overview' | 'work' | 'details' | 'security';
-const TABS: { id: Tab; name: string }[] = [{ id: 'overview', name: 'Overview' }, { id: 'work', name: 'My work' }, { id: 'details', name: 'Edit details' }, { id: 'security', name: 'Security' }];
+type Tab = 'overview' | 'work' | 'details' | 'look' | 'security';
+const TABS: { id: Tab; name: string }[] = [{ id: 'overview', name: 'Overview' }, { id: 'work', name: 'My work' }, { id: 'details', name: 'Edit details' }, { id: 'look', name: 'Appearance' }, { id: 'security', name: 'Security' }];
 const FIELDS = ['full_name', 'job_title', 'department', 'phone', 'location', 'bio'] as const;
 
 // rough strength guide for the new-password field: length plus character variety
@@ -27,7 +28,11 @@ const strength = (p: string) => {
 export default function Profile() {
   const { session, membership, memberships, switchOrg, signOut, refresh } = useAuth();
   const uid = session!.user.id, orgId = membership!.org_id, role = membership!.role;
-  const [tab, setTab] = useState<Tab>('overview');
+  // ?tab=look opens Appearance straight away (the user menu links there)
+  const { search } = useLocation();
+  const urlTab = TABS.find((t) => t.id === new URLSearchParams(search).get('tab'))?.id;
+  const [tab, setTab] = useState<Tab>(urlTab ?? 'overview');
+  useEffect(() => { if (urlTab) setTab(urlTab); }, [urlTab]);
   const [p, setP] = useState<any>(null);
   const [joined, setJoined] = useState<string | null>(null);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -252,6 +257,8 @@ export default function Profile() {
             </form>
           </section>
         )}
+
+        {tab === 'look' && <MyLook />}
 
         {tab === 'security' && (
           <div className="pf-grid">

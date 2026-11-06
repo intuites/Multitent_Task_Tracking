@@ -3,7 +3,7 @@
 
 /** The quick row (null = Taskify's default green). */
 export const QUICK: [string, string | null][] = [
-  ['Taskify green', null], ['Ocean blue', '#2563eb'], ['Indigo', '#4f46e5'], ['Violet', '#7c3aed'], ['Teal', '#0d9488'],
+  ['Green classic', null], ['Ocean blue', '#2563eb'], ['Indigo', '#4f46e5'], ['Violet', '#7c3aed'], ['Teal', '#0d9488'],
   ['Crimson', '#dc2626'], ['Orange', '#ea580c'], ['Rose', '#db2777'], ['Slate', '#475569'],
   ['Sky', '#0284c7'], ['Gold', '#eab308'], ['Brown', '#92400e'], ['Black', '#111111'],
   ['Navy', '#1e3a8a'], ['Cyan', '#0891b2'], ['Emerald', '#059669'], ['Lime', '#65a30d'], ['Olive', '#4d7c0f'],

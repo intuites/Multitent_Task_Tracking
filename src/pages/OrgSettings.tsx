@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Building2, Check, Clock, CopyPlus, Database, Globe2, Layers, LifeBuoy, Lock, Mail, Palette, Pencil, Plus, ShieldCheck, Sun, Sunset, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Building2, Check, Clock, CopyPlus, Database, Download, Globe2, KeyRound, Layers, LifeBuoy, Lock, Mail, Palette, Pencil, Plus, ShieldCheck, Sun, Sunset, Trash2, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { fmt, label, usePeople, zoneList } from '../lib/ui';
 import { ROLE_TEXT } from '../lib/roles';
-import { applyBrand, applyFont, loadJakarta, FONT_FAMILIES, FONT_STYLES, type FontFamily, type FontStyle } from '../lib/theme';
+import { applyBrand, applyFont, applyTextSize, loadJakarta, restoreLook, FONT_FAMILIES, FONT_STYLES, TEXT_SIZES, type FontFamily, type FontStyle, type TextSize } from '../lib/theme';
+import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
+import { TwoFactorForm } from './TwoFactor';
 import { brandPalette, contrast } from '../lib/palette';
 import { FAMILIES, QUICK, TRENDING } from '../lib/brandColors';
 import { ask } from '../components/Dialog';
@@ -14,13 +16,16 @@ import { PageSkeleton } from '../components/Skeleton';
 import { Departments, type Msg } from './Employees';
 
 const ROLES = ['admin', 'employee'] as const;
-type Tab = 'general' | 'digest' | 'look' | 'access';
+type Tab = 'general' | 'digest' | 'look' | 'access' | 'data' | 'danger';
 const SECTIONS: { id: Tab; name: string; hint: string; icon: typeof Building2 }[] = [
   { id: 'general', name: 'General', hint: 'Name and time zone', icon: Building2 },
   { id: 'digest', name: 'Digest emails', hint: 'Daily summaries', icon: Mail },
-  { id: 'look', name: 'Appearance', hint: 'Brand color and font', icon: Palette },
-  { id: 'access', name: 'Access & help', hint: 'Your role, who to ask', icon: ShieldCheck },
+  { id: 'look', name: 'Appearance', hint: 'Default color, font, text size', icon: Palette },
+  { id: 'access', name: 'Access & security', hint: 'Roles, two-factor, help', icon: ShieldCheck },
+  { id: 'data', name: 'Data & export', hint: 'Everything as Excel or PDF', icon: Download },
+  { id: 'danger', name: 'Danger zone', hint: 'Delete this organization', icon: AlertTriangle },
 ];
+const SIZE_TEXT: Record<TextSize, string> = { compact: 'Compact', normal: 'Normal', large: 'Large' };
 const MORE_COUNT = FAMILIES.reduce((n, f) => n + f.colors.length, 0) + TRENDING.length;
 type View = 'hub' | 'orgs' | 'depts';
 
@@ -31,26 +36,32 @@ export default function OrgSettings() {
   const [params, setParams] = useSearchParams();
   const view = (canEdit ? params.get('manage') : null) as View | null;
   const open = (v: View | null) => setParams(v ? { manage: v } : {});
-  const tab: Tab = SECTIONS.some((s) => s.id === params.get('tab')) ? params.get('tab') as Tab : 'general';
-  const setTab = (t: Tab) => setParams(t === 'general' ? {} : { tab: t }, { replace: true });
   const [org, setOrg] = useState<any>(null);
+  // Data is for admins; Danger zone for whoever created the organization (and platform admins), as the database allows
+  const mayDelete = !!org && (org.created_by === uid || !!membership!.platform);
+  const sections = SECTIONS.filter((s) => (s.id === 'data' ? canEdit : s.id === 'danger' ? mayDelete : true));
+  const tab: Tab = sections.some((s) => s.id === params.get('tab')) ? params.get('tab') as Tab : 'general';
+  const setTab = (t: Tab) => setParams(t === 'general' ? {} : { tab: t }, { replace: true });
   const [roles, setRoles] = useState<Record<string, number>>({});
   const { active: people } = usePeople(orgId);
   const admins = people.filter((p) => p.role === 'admin');
   const [msg, setMsg] = useState<Msg>(null);
   // brand color being picked: previewed live across the app, saved with the form, undone if you leave without saving
   const [brand, setBrand] = useState<string | null>(membership!.brand_color ?? null);
-  useEffect(() => { applyBrand(brand, false); }, [brand]);
+  // previews skip the first render, so opening this page doesn't cover your own look with the organization's
+  const touched = useRef({ brand: false, font: false, size: false });
+  useEffect(() => { if (touched.current.brand) applyBrand(brand, false); touched.current.brand = true; }, [brand]);
   const [edited, setDirty] = useState(false); // name or time zone typed in
   const [dg, setDg] = useState<Dg>(dgOf({}));
   const [tz, setTz] = useState(membership!.time_zone ?? 'America/New_York');
-  const saved = membership!.brand_color;
-  useEffect(() => () => applyBrand(saved, false), [saved]);
-  // font family and style: previewed live like the brand color, undone if you leave without saving
+  // font family and style, and text size: previewed live like the brand color
   const [font, setFont] = useState<Font>(fontOf(membership));
-  useEffect(() => { applyFont(font.family, font.style, false); }, [font]);
-  const savedFont = `${membership!.font_family ?? ''}|${membership!.font_style ?? ''}`;
-  useEffect(() => () => { const [f, s] = savedFont.split('|'); applyFont(f || null, s || null, false); }, [savedFont]);
+  useEffect(() => { if (touched.current.font) applyFont(font.family, font.style, false); touched.current.font = true; }, [font]);
+  const [size, setSize] = useState<TextSize | null>((membership!.text_size as TextSize) ?? null);
+  useEffect(() => { if (touched.current.size) applyTextSize(size, false); touched.current.size = true; }, [size]);
+  const [mfa, setMfa] = useState(!!membership!.require_admin_mfa);
+  // leaving: back to the saved look (each person's own choices over the organization's)
+  useEffect(() => () => restoreLook(), []);
 
   const load = useCallback(async () => {
     const [o, m] = await Promise.all([
@@ -60,6 +71,7 @@ export default function OrgSettings() {
     setOrg(o.data ?? { name: membership!.org_name, time_zone: membership!.time_zone });
     setBrand(o.data?.brand_color ?? null); setFont(fontOf(o.data ?? {}));
     setDg(dgOf(o.data ?? {})); setTz(o.data?.time_zone ?? membership!.time_zone);
+    setSize(o.data?.text_size ?? null); setMfa(o.data?.require_admin_mfa === true);
     setRoles((m.data ?? []).reduce((acc: Record<string, number>, r: any) => ({ ...acc, [r.role]: (acc[r.role] ?? 0) + 1 }), {}));
   }, [orgId, membership]);
   useEffect(() => { load(); }, [load]);
@@ -78,14 +90,18 @@ export default function OrgSettings() {
       digest_days: dg.days, digest_leads: dg.leads, digest_extra_emails: extra } : {};
     // only once migration 0034 has added the columns; defaults are stored as null
     const fonts = 'font_family' in org ? { font_family: font.family === 'fabric' ? null : font.family, font_style: font.style === 'classic' ? null : font.style } : {};
-    const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz'), brand_color: brand, ...digest, ...fonts }).eq('id', orgId);
+    // only once migration 0036 has added the columns
+    const more = 'text_size' in org ? { text_size: size === 'normal' ? null : size, require_admin_mfa: mfa } : {};
+    const { error } = await supabase.from('tt_organizations').update({ name: String(f.get('name')).trim(), time_zone: f.get('tz'), brand_color: brand, ...digest, ...fonts, ...more }).eq('id', orgId);
     if (!error) { setDirty(false); await supabase.from('tt_activity_logs').insert({ org_id: orgId, entity_type: 'organization', entity_id: orgId, action: 'settings_updated', actor_id: uid, detail: {} }); refresh(); load(); }
     setMsg(error ? { kind: 'error', text: error.message.includes('time zone') ? 'That time zone isn’t recognized.' : error.message.includes('brand_color') ? 'Brand colors need database update 0029. Run it in Supabase, then try again.' : error.message } : { kind: 'ok', text: 'Organization updated.' });
+    if (error && /two-factor/i.test(error.message)) setTab('access');
   }
 
   if (!org) return <PageSkeleton />;
   const total = ROLES.reduce((n, r) => n + (roles[r] ?? 0), 0);
-  const dirty = edited || brand !== (org.brand_color ?? null) || JSON.stringify(dg) !== JSON.stringify(dgOf(org)) || JSON.stringify(font) !== JSON.stringify(fontOf(org));
+  const dirty = edited || brand !== (org.brand_color ?? null) || JSON.stringify(dg) !== JSON.stringify(dgOf(org)) || JSON.stringify(font) !== JSON.stringify(fontOf(org))
+    || (size ?? 'normal') !== (org.text_size ?? 'normal') || mfa !== (org.require_admin_mfa === true);
   const TILES = [
     { name: 'Manage users', hint: 'Invite people, change roles', icon: Users, to: '/employees' },
     { name: 'Manage organizations', hint: 'The organizations you created', icon: Building2, view: 'orgs' as View },
@@ -141,7 +157,7 @@ export default function OrgSettings() {
           </section>
 
           <nav className="os-nav" aria-label="Settings sections">
-            {SECTIONS.map((s) => (
+            {sections.map((s) => (
               <button key={s.id} type="button" className="os-tab" aria-current={tab === s.id ? 'page' : undefined} onClick={() => setTab(s.id)}>
                 <s.icon size={18} aria-hidden="true" /><span><b>{s.name}</b><small>{s.hint}</small></span>
               </button>))}
@@ -197,6 +213,11 @@ export default function OrgSettings() {
                 </details>
               </fieldset>
               <FontSettings font={font} set={(p) => setFont((v) => ({ ...v, ...p }))} canEdit={canEdit} ready={'font_family' in org} />
+              <div className="ml-row"><span className="fp-label" id="os-size">Text size</span>
+                <div className="seg ml-seg" role="group" aria-labelledby="os-size">
+                  {TEXT_SIZES.map((s) => <button key={s} type="button" aria-pressed={(size ?? 'normal') === s} disabled={!canEdit || !('text_size' in org)} onClick={() => setSize(s)}>{SIZE_TEXT[s]}</button>)}
+                </div>
+                <small className="muted">{'text_size' in org ? 'The starting size for everyone.' : 'Run database update 0036 in Supabase to save a text size.'} Each person can still pick their own color, font and size in Profile → Appearance.</small></div>
               </div>
                 <div className="brand-preview os-preview" aria-label="Preview of the color and font" role="img">
                   {(['light', 'dark'] as const).map((m) => {
@@ -224,6 +245,7 @@ export default function OrgSettings() {
                 <p><span className="prio prio-low">{membership!.platform ? 'Platform admin' : label(role)}</span></p>
                 <p className="muted">{membership!.platform ? 'You look after every organization on Taskify.' : ROLE_TEXT[role as keyof typeof ROLE_TEXT]?.blurb}</p>
               </section>
+              {canEdit && <TwoFactorSetting on={mfa} set={(v) => setMfa(v)} ready={'require_admin_mfa' in org} orgName={org.name} />}
               {admins.length > 0 && <section className="card" aria-labelledby="help-h">
                 <h3 id="help-h"><LifeBuoy size={16} aria-hidden="true" /> Need help?</h3>
                 <p className="muted">For access, data or organization problems, contact an admin.</p>
@@ -232,9 +254,12 @@ export default function OrgSettings() {
               </section>}
             </div>
 
-            {canEdit && <div className={`os-save${dirty ? ' on' : ''}`}>
+            {canEdit && <div hidden={tab !== 'data'} className="os-pane"><ExportData orgId={orgId} orgName={org.name} say={setMsg} /></div>}
+            {mayDelete && <div hidden={tab !== 'danger'} className="os-pane"><DangerZone org={org} say={setMsg} /></div>}
+
+            {canEdit && <div className={`os-save${dirty ? ' on' : ''}`} hidden={(tab === 'data' || tab === 'danger') && !dirty}>
               <span className={dirty ? 'os-dirty' : 'muted'}>{dirty ? 'You have unsaved changes.' : 'All changes saved.'}</span>
-              {dirty && <button type="button" className="link" onClick={(e) => { e.currentTarget.form!.reset(); setBrand(org.brand_color ?? null); setFont(fontOf(org)); setDg(dgOf(org)); setTz(org.time_zone); setDirty(false); }}>Discard</button>}
+              {dirty && <button type="button" className="link" onClick={(e) => { e.currentTarget.form!.reset(); setBrand(org.brand_color ?? null); setFont(fontOf(org)); setSize(org.text_size ?? null); setMfa(org.require_admin_mfa === true); setDg(dgOf(org)); setTz(org.time_zone); setDirty(false); }}>Discard</button>}
               <button type="submit" disabled={!dirty}>Save changes</button>
             </div>}
           </form>
@@ -350,6 +375,90 @@ function FontSettings({ font, set, canEdit, ready }: { font: Font; set: (p: Part
     </div>
   );
 }
+/** Access & security → require two-factor sign-in for admins (off by default). Turning it on needs your own two-factor first. */
+function TwoFactorSetting({ on, set, ready, orgName }: { on: boolean; set: (v: boolean) => void; ready: boolean; orgName: string }) {
+  const { mfaDone } = useAuth();
+  const [setup, setSetup] = useState(false), [checking, setChecking] = useState(false);
+  async function toggle() {
+    if (on) return set(false);
+    setChecking(true);
+    const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    setChecking(false);
+    if (data?.currentLevel === 'aal2') set(true); else setSetup(true);
+  }
+  return (
+    <section className="card" aria-labelledby="mfa-h">
+      <h3 id="mfa-h"><KeyRound size={16} aria-hidden="true" /> Two-factor sign-in for admins</h3>
+      <div className="fp-switch">
+        <span className="grow"><b id="mfa-l">Require it</b><small className="muted">Admins of {orgName} enter a code from an authenticator app after their password. Employees aren't affected. Off by default.</small></span>
+        <button type="button" role="switch" aria-checked={on} aria-labelledby="mfa-l" disabled={!ready || checking || setup}
+          className={on ? 'switch on' : 'switch'} onClick={toggle}><span /></button>
+      </div>
+      {!ready && <p className="muted tpl-note"><Lock size={14} aria-hidden="true" /> Run database update 0036 in Supabase to use this.</p>}
+      {setup && (<>
+        <p className="muted">First set it up for yourself, so you can't be locked out. Then save to turn it on for every admin.</p>
+        <TwoFactorForm compact onDone={() => { setSetup(false); mfaDone(); set(true); }} onCancel={() => setSetup(false)} />
+      </>)}
+      {on && !setup && <p className="muted tpl-note"><ShieldCheck size={14} aria-hidden="true" /> After saving, any admin without two-factor is asked to set it up the next time they open {orgName}.</p>}
+    </section>
+  );
+}
+
+/** Data & export: every task (archived too), status history, activity, people and departments in one file. */
+function ExportData({ orgId, orgName, say }: { orgId: string; orgName: string; say: (m: Msg) => void }) {
+  async function run(f: ExportFormat) {
+    try { await (await import('../lib/exportAll')).exportEverything(orgId, orgName, f); }
+    catch (x) { say({ kind: 'error', text: `Export failed: ${(x as Error).message}` }); }
+  }
+  return (
+    <section className="card os-sec" aria-labelledby="ex-h">
+      <header><h3 id="ex-h"><Download size={16} aria-hidden="true" /> Export everything</h3>
+        <p className="muted">One file with all of {orgName}'s data. Only admins can export; employees have no access to reports.</p></header>
+      <ul className="ex-list">
+        <li><b>Tasks</b><small className="muted">Every task, archived ones too, with status, people and dates</small></li>
+        <li><b>Status history</b><small className="muted">Every status change, who made it and their comment</small></li>
+        <li><b>Activity</b><small className="muted">Everything recorded in the activity log</small></li>
+        <li><b>People and departments</b><small className="muted">Members, roles and departments</small></li>
+      </ul>
+      <div className="ex-go"><ExportMenu onExport={run} label="Export everything" />
+        <small className="muted">Excel has one sheet for each. The PDF shows the newest 500 history and activity entries.</small></div>
+    </section>
+  );
+}
+
+/** Danger zone: delete the organization for good, only after typing its exact name. */
+function DangerZone({ org, say }: { org: any; say: (m: Msg) => void }) {
+  const { memberships, switchOrg } = useAuth();
+  const [typed, setTyped] = useState(''), [busy, setBusy] = useState(false);
+  const match = typed.trim() === org.name.trim();
+  async function remove() {
+    if (!match) return;
+    setBusy(true);
+    const { data, error } = await supabase.from('tt_organizations').delete().eq('id', org.id).select('id');
+    setBusy(false);
+    if (error || !data?.length) return say({ kind: 'error', text: error?.message ?? 'Only the person who created this organization can delete it.' });
+    const next = memberships.find((m) => m.org_id !== org.id);
+    try { localStorage.removeItem('tt-org'); } catch { /* ignore */ }
+    if (next) switchOrg(next.org_id); else window.location.assign('/');
+  }
+  return (
+    <section className="card os-sec os-danger" aria-labelledby="dz-h">
+      <header><h3 id="dz-h"><AlertTriangle size={16} aria-hidden="true" /> Delete this organization</h3>
+        <p className="muted">This permanently deletes {org.name} and everything in it. It can't be undone. Export everything first if you may need the data.</p></header>
+      <ul className="dz-list">
+        <li>Every task, sub-task, comment, file and status history</li>
+        <li>Departments, templates, digest settings and the activity log</li>
+        <li>Everyone's access to {org.name}; their accounts and other organizations stay</li>
+      </ul>
+      <label className="dz-confirm"><span>Type <b>{org.name}</b> to confirm</span>
+        <input value={typed} autoComplete="off" spellCheck={false} aria-describedby="dz-h"
+          onChange={(e) => { e.stopPropagation(); setTyped(e.target.value); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); remove(); } }} /></label>
+      <button type="button" className="danger" disabled={!match || busy} onClick={remove}><Trash2 size={15} aria-hidden="true" />{busy ? 'Deleting…' : `Delete ${org.name}`}</button>
+    </section>
+  );
+}
+
 const NAMES = new Map<string | null, string>([...FAMILIES.flatMap((f) => f.colors.map((c) => [c.hex, c.name] as const)), ...TRENDING.map((t) => [t.hex, t.name] as const), ...QUICK.map(([n, h]) => [h, n] as const)]);
 const colorName = (hex: string | null) => NAMES.get(hex) ?? 'Custom color';
 

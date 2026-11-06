@@ -28,10 +28,13 @@
   --font-display: var(--font-sans);
   /* italic roles: quiet = Light Italic, title = ExtraBold Italic, figure = Black Italic */
   --fw-quiet: 300; --fw-italic-title: 800; --fw-figure: 900;
-  --fs-3xs: 10px; --fs-2xs: 11.5px; --fs-xs: 12.5px; --fs-sm: 13px; --fs-md: 14px; --fs-base: 15px; --fs-lg: 17px; --fs-xl: 19px;
-  --fs-2xl: 22px; --fs-3xl: 26px; --fs-4xl: 29px; --fs-5xl: 33px; --fs-6xl: 2.6rem; --fs-7xl: 3rem;
+  /* text size (Profile → Appearance): --ts scales the px sizes, the root font-size scales the rem ones */
+  --ts: 1;
+  --fs-3xs: calc(10px * var(--ts)); --fs-2xs: calc(11.5px * var(--ts)); --fs-xs: calc(12.5px * var(--ts)); --fs-sm: calc(13px * var(--ts));
+  --fs-md: calc(14px * var(--ts)); --fs-base: calc(15px * var(--ts)); --fs-lg: calc(17px * var(--ts)); --fs-xl: calc(19px * var(--ts));
+  --fs-2xl: calc(22px * var(--ts)); --fs-3xl: calc(26px * var(--ts)); --fs-4xl: calc(29px * var(--ts)); --fs-5xl: calc(33px * var(--ts)); --fs-6xl: 2.6rem; --fs-7xl: 3rem;
   --fs-h3: clamp(1.4rem, 2.2vw, 1.9rem); --fs-h2: clamp(1.5rem, 2.7vw, 2.2rem); --fs-h1: clamp(1.7rem, 3vw, 2.6rem); --fs-display: clamp(2rem, 3.8vw, 3.2rem);
-  --fs-body: 14.5px; --lh-body: 1.5;
+  --fs-body: calc(14.5px * var(--ts)); --lh-body: 1.5;
   --fw-regular: 400; --fw-medium: 500; --fw-book: 550; --fw-semibold: 600; --fw-title: 650; --fw-bold: 700; --fw-heavy: 750; --fw-black: 800;
   /* color primitives */
   --white: #fff; --black: #000;
@@ -2207,6 +2210,8 @@ h2, h3, h4 { letter-spacing: -0.01em; }
 :root { --ff-fabric: 'Fabric Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --ff-jakarta: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', sans-serif; }
 :root[data-font="jakarta"] { --font-sans: var(--ff-jakarta); }
+:root[data-size="compact"] { --ts: .92; font-size: 92%; }
+:root[data-size="large"] { --ts: 1.12; font-size: 112%; }
 .fp-opt[data-ff="fabric"] .fp-aa { font-family: var(--ff-fabric); }
 .fp-opt[data-ff="jakarta"] .fp-aa { font-family: var(--ff-jakarta); }
 .fp-opt[data-fs="expressive"] .fp-aa { font-style: italic; font-weight: var(--fw-italic-title); }
@@ -2228,6 +2233,43 @@ h2, h3, h4 { letter-spacing: -0.01em; }
 .fp-aa { font-size: var(--fs-4xl); font-weight: var(--fw-bold); line-height: 1.1; }
 .fp-opt b { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
 .fp-opt small { color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-regular); }
+
+/* Profile → Appearance (components/MyLook.tsx) and the organization's text size */
+.ml { display: grid; gap: var(--space-5); }
+.ml > header { margin-bottom: 0; }
+.ml-row { display: grid; gap: var(--space-2); min-width: 0; }
+.ml-row .fp-label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.ml-row > small { font-size: var(--fs-xs); }
+.ml-seg { justify-self: start; flex-wrap: wrap; max-width: 100%; background: var(--surface-2); border-radius: var(--r-control); }
+.ml-seg button { border-radius: calc(var(--r-control) - 3px); }
+.brand-swatch.ml-org { outline: 2px dashed var(--line-strong); outline-offset: 3px; }
+.ml-save { margin-top: 0; }
+.ml-save .link { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Data & export, Danger zone */
+.ex-list, .dz-list { display: grid; gap: var(--space-2); margin: 0 0 var(--space-4); padding: 0; list-style: none; }
+.ex-list li { display: grid; gap: 2px; padding: 10px 14px; border-radius: var(--r-control); background: var(--surface-2); }
+.ex-list small { font-size: var(--fs-xs); }
+.ex-go { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.ex-go small { font-size: var(--fs-xs); flex: 1 1 220px; }
+.os-danger { border-color: var(--bad-line); }
+.os-danger > header h3 { color: var(--bad-fg); }
+.dz-list li { position: relative; padding-left: 18px; font-size: var(--fs-sm); }
+.dz-list li::before { content: ''; position: absolute; left: 4px; top: .55em; width: 6px; height: 6px; border-radius: 50%; background: var(--bad-fg); }
+.dz-confirm { display: grid; gap: 6px; max-width: 420px; margin-bottom: var(--space-4); }
+.dz-confirm span { font-size: var(--fs-sm); }
+.os-danger button.danger, .tf-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.os-save[hidden] { display: none; }
+
+/* two-factor setup (pages/TwoFactor.tsx), on its own screen and inside Access & security */
+.tf { display: grid; gap: var(--space-3); }
+.tf-setup { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+.tf-setup img { flex: none; padding: 8px; border-radius: var(--r-control); background: #fff; }
+.tf-setup p { flex: 1 1 200px; margin: 0; font-size: var(--fs-sm); }
+.tf-key { display: block; margin-top: 6px; overflow-wrap: anywhere; font-size: var(--fs-xs); }
+.tf-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.tf-actions .auth-submit { flex: 1; }
+.tf-compact label { max-width: 240px; }
 
 
 /* ---------- Organization settings: section menu + one section at a time ---------- */

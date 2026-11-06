@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, BookOpen, Compass, Plus, Settings as SettingsIcon, Shield, UserCircle } from 'lucide-react';
+import { Bell, BookOpen, Compass, Palette, Plus, Settings as SettingsIcon, Shield, UserCircle } from 'lucide-react';
 import Tour, { startTour } from './components/Tour';
 import { AuthProvider, useAuth } from './lib/auth';
 import { configured, supabase } from './lib/supabase';
@@ -38,6 +38,7 @@ const misc = (k: 'ActivityLogs' | 'Platform') => lazy(() => import('./pages/Misc
 const ActivityLogs = misc('ActivityLogs'), Platform = misc('Platform');
 const Settings = lazy(() => import('./pages/OrgSettings'));
 const ShortcutsPage = lazy(() => import('./components/Shortcuts'));
+const TwoFactor = lazy(() => import('./pages/TwoFactor'));
 import './styles.css';
 import { Boot, PageSkeleton } from './components/Skeleton';
 
@@ -114,6 +115,7 @@ function Shell() {
       onSwitchOrg={switchOrg} onCreateOrg={memberships.some((m) => m.role === 'owner' || m.role === 'admin') ? () => navigate('/organizations/new') : undefined}
       menu={[
         { label: 'My profile', icon: UserCircle, to: '/profile' },
+        { label: 'Appearance', icon: Palette, to: '/profile?tab=look' },
         { label: 'Notification settings', icon: Bell, to: '/notifications' },
         { label: 'Help & guide', icon: BookOpen, to: '/guide' },
         { label: 'Take the tour', icon: Compass, onClick: startTour },
@@ -143,13 +145,14 @@ const Guard = ({ need, to = '/', children }: { need: Parameters<typeof can>[1]; 
 };
 
 function Gate() {
-  const { session, membership, platformAdmin, loading, passwordSetup } = useAuth();
+  const { session, membership, platformAdmin, loading, passwordSetup, mfaNeeded } = useAuth();
   if (!configured) return <div className="card">Set the Supabase variables in <code>.env.local</code>, then restart <code>npm run dev</code>.</div>;
   if (loading) return <Boot />;
   // the product guide is public so people can read it before signing in
   if (!session) return window.location.pathname === '/guide' ? <Suspense fallback={<Boot />}><Guide standalone /></Suspense> : <Login />;
   if (passwordSetup) return <SetPassword />;
   if (!membership) return <Onboarding />;
+  if (mfaNeeded) return <Suspense fallback={<Boot />}><TwoFactor /></Suspense>;
   return (
     <Suspense fallback={<Boot />}>
     <Routes>

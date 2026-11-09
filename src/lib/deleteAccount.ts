@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { ask } from '../components/Dialog';
 
-/** Platform admins: deletes someone's account and everything that is theirs, after they type the email to confirm.
+/** Platform admins (anyone) and organization admins (their own employees): deletes someone's account and everything that is theirs, after they type the email to confirm.
  *  Resolves true when deleted, false when cancelled; throws with a readable message when it fails. */
 export async function deleteAccount(p: { id: string; name: string; email: string }): Promise<boolean> {
   const r = await ask({

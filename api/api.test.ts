@@ -51,6 +51,12 @@ describe('delete-user endpoint', () => {
     const g = res(); await deleteUser({ method: 'GET', headers: {} }, g);
     expect(g.code).toBe(405);
   });
+  it('rejects a missing or malformed user id before touching anything', async () => {
+    process.env.SUPABASE_URL = 'http://127.0.0.1:9'; process.env.SUPABASE_SERVICE_ROLE_KEY = 'x';
+    const r = res(); await deleteUser({ method: 'POST', headers: { authorization: 'Bearer x' }, body: { user_id: 'nope' } }, r);
+    expect(r.code).not.toBe(200);
+    delete process.env.SUPABASE_URL; delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  });
 });
 
 describe('email provider', () => {

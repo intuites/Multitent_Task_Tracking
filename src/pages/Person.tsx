@@ -293,10 +293,11 @@ export default function PersonPage() {
                 <p className="muted">They lose access right away. Their tasks, comments and history stay.</p>
                 <button type="button" className="pill-btn ghost danger-text" onClick={removeFromOrg}><UserMinus size={15} aria-hidden="true" />Remove {person.name}</button>
               </section>)}
-            {membership!.platform && !isMe && (
+            {!isMe && (membership!.platform || (admin && person.role === 'employee')) && (
               <section className="card ps-danger" aria-labelledby="del-h">
                 <h3 id="del-h">Delete account</h3>
-                <p className="muted">Platform admins only. Deletes {person.name}'s login everywhere, with their comments, assignments and history. Tasks and files they created stay.</p>
+                <p className="muted">Deletes {person.name}'s login, with their comments, assignments and history. Tasks and files they created stay.
+                  {!membership!.platform && ' Admins can delete employees who belong only to this organization; for anyone else, use Remove from organization.'}</p>
                 <button type="button" className="pill-btn ghost danger-text" onClick={async () => {
                   try { if (await deleteAccount({ id: person.id, name: person.name, email: person.email })) navigate('/employees', { replace: true }); }
                   catch (x) { fail((x as Error).message); }

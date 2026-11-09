@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { canTransition, TASK_STATUSES, type TaskStatus } from '../../api/_lib/taskStatus';
-import { Badge, dateToTs, fmt, fmtTime, isOverdue, kickEmails, label, NO_ESC, rpc, usePeople } from '../lib/ui';
+import { Badge, dateToTs, fmt, fmtTime, isOpen, isOverdue, kickEmails, label, NO_ESC, rpc, usePeople } from '../lib/ui';
 import FilePanel from '../components/FilePanel';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
@@ -32,9 +32,15 @@ export default function TaskDetail() {
   const [editing, setEditing] = useState<string | null>(null);
   const [toSel, setToSel] = useState('');
   const [extras, setExtras] = useState<Map<string, ExtraEmail[]>>(new Map());
+  const idRef = useRef(id); idRef.current = id;
 
+  // moving to another task (e.g. a sub-task): show loading, not the previous task, until it arrives
+  useEffect(() => { setLoading(true); setT(null); }, [id]);
   const load = useCallback(async () => {
+    // not a task id at all (a mistyped link): "not found" without asking the database
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id ?? '')) { setT(null); setLoading(false); return; }
     const tr = await supabase.from('tt_tasks').select('*, departments:tt_departments(name)').eq('id', id!).eq('org_id', orgId).maybeSingle();
+    if (tr.data && tr.data.id !== idRef.current) return; // the page moved on to another task meanwhile
     setSubForm(false);
     setT(tr.data);
     if (tr.data) {
@@ -88,6 +94,8 @@ export default function TaskDetail() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     run(async () => {
+      // reopening finished work is rarely meant: confirm it
+      if (!isOpen(t.status) && isOpen(to) && !(await ask({ title: 'Reopen this task?', message: `It's ${label(t.status).toLowerCase()}. It will move back to ${label(to)}.`, confirmLabel: 'Reopen' })).ok) return;
       if (askCycle) await rpc('tt_set_cycle_frequency', { p_task: id, p_freq: f.get('cycle') });
       await rpc('tt_set_task_status', { p_task: id, p_to: to, p_reason: String(f.get('reason')) || null });
       setToSel('');

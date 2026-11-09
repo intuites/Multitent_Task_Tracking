@@ -20,12 +20,22 @@ const STALE_JS = `let l=0;try{l=+sessionStorage.getItem('tt-chunk-reload')||0}ca
 if(Date.now()-l>30000){try{sessionStorage.setItem('tt-chunk-reload',String(Date.now()))}catch{}location.reload()}
 throw new Error('Failed to fetch dynamically imported module: Taskify was updated');`;
 
-const server = createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', 'http://localhost');
+const server = createServer((req, res) => {
   const send = (code: number, body: string | Buffer, type = 'application/json', cache = 'no-store') => {
     res.writeHead(code, { 'content-type': type, 'cache-control': cache, 'x-content-type-options': 'nosniff' });
     res.end(body);
   };
+  // any error in one request (a malformed URL, a missing file) answers that request; it must never stop the process
+  serve(req, res, send).catch((e) => {
+    console.error(e);
+    if (!res.headersSent) send(e instanceof TypeError && /URL/.test(e.message) ? 400 : 500, JSON.stringify({ error: 'Bad request' }));
+    else res.end();
+  });
+});
+
+type Send = (code: number, body: string | Buffer, type?: string, cache?: string) => void;
+async function serve(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, send: Send) {
+  const url = new URL(req.url ?? '/', 'http://localhost');
 
   if (url.pathname === '/healthz') return send(200, 'ok', 'text/plain');
 
@@ -60,7 +70,7 @@ const server = createServer(async (req, res) => {
   if (url.pathname.startsWith('/assets/') && url.pathname.endsWith('.css')) return send(200, '', TYPES['.css']);
   if (extname(url.pathname)) return send(404, 'Not found', 'text/plain');
   send(200, await readFile(join(DIST, 'index.html')), TYPES['.html'], 'no-cache');
-});
+}
 
 const port = Number(process.env.PORT) || 3000;
 server.listen(port, '0.0.0.0', () => console.log(`Taskify listening on ${port}`));

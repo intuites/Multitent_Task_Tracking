@@ -42,7 +42,7 @@ export default function Search() {
   return (
     <div className="search">
       <SearchIcon size={17} className="search-ico" aria-hidden="true" />
-      <input ref={box} type="search" placeholder="Search tasks and people" aria-label="Global search" aria-keyshortcuts="Control+K Meta+K" value={q}
+      <input ref={box} type="search" placeholder="Search" aria-label="Global search" aria-keyshortcuts="Control+K Meta+K" value={q}
         onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQ('')} />
       <kbd aria-hidden="true">{mac ? '⌘' : 'Ctrl'} K</kbd>
       {q.trim().length >= 2 && (

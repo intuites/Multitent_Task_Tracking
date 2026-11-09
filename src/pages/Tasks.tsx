@@ -34,7 +34,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
   const [subs, setSubs] = useState<Record<string, any[]>>({});
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (id: string) => setOpen((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const [showForm, setShowForm] = useState(params.get('new') === '1');
+  const [showForm, setShowForm] = useState(canWrite && params.get('new') === '1');
   // the form opens as a side panel over the list (native modal <dialog>: focus stays inside, Esc closes)
   const sheet = useRef<HTMLDialogElement>(null);
   useEffect(() => { if (showForm && sheet.current && !sheet.current.open) sheet.current.showModal(); }, [showForm]);
@@ -43,7 +43,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
     const v = params.get('view');
     if (v) setView(v);
     if (params.get('new') === '1') {
-      setShowForm(true);
+      if (canWrite) setShowForm(true); // employees can't create tasks: the link just opens the list
       const next = new URLSearchParams(params); next.delete('new');
       setParams(next, { replace: true }); // drop it so the next click opens the form again
     }
@@ -53,11 +53,11 @@ export default function Tasks({ mode }: { mode: Mode }) {
 
   // the list's query (filters + order, no paging), shared by the page and by exports
   const query = useCallback((count = false) => {
-    const inner = mode === 'mine';
+    // My Tasks filters on a second copy ("mine"), so the Assignees column still lists everyone on the task
     let qy = supabase.from('tt_tasks')
-      .select(`*, departments:tt_departments(name), tt_task_assignees${inner ? '!inner' : ''}(user_id)`, count ? { count: 'exact' } : undefined)
+      .select(`*, departments:tt_departments(name), tt_task_assignees(user_id)${mode === 'mine' ? ', mine:tt_task_assignees!inner(user_id)' : ''}`, count ? { count: 'exact' } : undefined)
       .eq('org_id', orgId);
-    if (mode === 'mine') qy = qy.eq('tt_task_assignees.user_id', uid);
+    if (mode === 'mine') qy = qy.eq('mine.user_id', uid);
     if (q.trim()) qy = qy.ilike('title', `%${q.trim().replace(/[%,()*]/g, ' ')}%`);
     if (priority) qy = qy.eq('priority', priority);
     // on the main list subtasks sit under their parent; My Tasks still list them so people see their own work
@@ -79,15 +79,19 @@ export default function Tasks({ mode }: { mode: Mode }) {
   }, [orgId, uid, mode, view, q, priority]);
 
   // quiet = a live refresh: no skeleton flash, and ticked rows stay ticked
+  const latest = useRef(0);
   const load = useCallback(async (quiet = false) => {
+    const mine = ++latest.current; // a slower, older search must not overwrite a newer one
     if (!quiet) setLoading(true);
     setError('');
     const { data, count, error } = await query(true).range(page * PAGE, page * PAGE + PAGE - 1);
+    if (mine !== latest.current) return;
     if (error) setError(error.message);
     const ids = (data ?? []).map((t: any) => t.id);
     const { data: kids } = ids.length
       ? await supabase.from('tt_tasks').select('id, title, status, priority, due_date, start_date, parent_task_id, tt_task_assignees(user_id)').in('parent_task_id', ids).is('archived_at', null).order('start_date', { nullsFirst: false })
       : { data: [] as any[] };
+    if (mine !== latest.current) return;
     const bySub: Record<string, any[]> = {};
     for (const k of kids ?? []) (bySub[k.parent_task_id] ??= []).push(k);
     setSubs(bySub);
@@ -171,7 +175,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
       {error && <p role="alert">{error}</p>}
       {loading ? <ListSkeleton /> : rows.length === 0 ? <p>No tasks match.{canWrite && ' Use “New task” to create one.'}</p> : (
         <table>
-          <thead><tr>{canWrite && <th />}<th>Title</th><th>Status</th><th>Priority</th><th>Assignees</th><th>Department</th><th>Due</th></tr></thead>
+          <thead><tr>{canWrite && <th />}<th>Title</th><th>Status</th><th className="col-opt">Priority</th><th>Assignees</th><th className="col-opt">Department</th><th>Due</th></tr></thead>
           <tbody>{rows.map((t) => {
             const kids = subs[t.id] ?? [], isOpen = open.has(t.id), done = kids.filter((k) => !isOpenStatus(k.status)).length;
             return (
@@ -188,16 +192,16 @@ export default function Tasks({ mode }: { mode: Mode }) {
                       {kids.length > 0 && <button type="button" className="sub-count" onClick={() => toggle(t.id)} title="Subtasks done"><ListTree size={13} aria-hidden="true" />{done}/{kids.length}</button>}
                     </span>
                   </td>
-                  <td><Badge v={t.status} /></td><td>{label(t.priority)}</td>
-                  <td>{names(t)}</td><td>{t.departments?.name ?? '—'}</td>
+                  <td><Badge v={t.status} /></td><td className="col-opt">{label(t.priority)}</td>
+                  <td>{names(t)}</td><td className="col-opt">{t.departments?.name ?? '—'}</td>
                   <td><Due t={t} /></td>
                 </tr>
                 {isOpen && kids.map((k, i) => (
                   <tr key={k.id} id={i === 0 ? `subs-${t.id}` : undefined} className="sub-row" style={{ '--i': i } as React.CSSProperties}>
                     {canWrite && <td />}
                     <td><span className="task-title sub"><span className="sub-line" aria-hidden="true" /><span className={`sub-dot ${k.status}`} aria-hidden="true" /><Link to={`/tasks/${k.id}`}>{k.title}</Link></span></td>
-                    <td><Badge v={k.status} /></td><td>{label(k.priority)}</td>
-                    <td>{names(k)}</td><td className="muted">Subtask {i + 1} of {kids.length}</td>
+                    <td><Badge v={k.status} /></td><td className="col-opt">{label(k.priority)}</td>
+                    <td>{names(k)}</td><td className="muted col-opt">Subtask {i + 1} of {kids.length}</td>
                     <td>{k.start_date && new Date(k.start_date) > new Date() ? <small className="muted">Starts {new Date(k.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</small> : <Due t={k} />}</td>
                   </tr>
                 ))}

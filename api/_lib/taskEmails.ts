@@ -111,7 +111,9 @@ export async function queueDigests(db: Db, now = new Date()) {
       lead_id: t.lead_id, manager_id: t.manager_id,
     }));
     const admins = new Set((members.data ?? []).filter((m: any) => m.active !== false && ['owner', 'admin'].includes(m.role)).map((m: any) => m.user_id as string));
-    const leads = new Set(cfg.leads ? rows.flatMap((r) => [r.lead_id, r.manager_id]).filter((u): u is string => !!u && !admins.has(u)) : []);
+    // only people still active here: someone removed stays on old tasks as lead or manager but gets nothing more
+    const active = new Set((members.data ?? []).filter((m: any) => m.active !== false).map((m: any) => m.user_id as string));
+    const leads = new Set(cfg.leads ? rows.flatMap((r) => [r.lead_id, r.manager_id]).filter((u): u is string => !!u && active.has(u) && !admins.has(u)) : []);
     const emails = new Map((await db.from('tt_profiles').select('user_id, email').in('user_id', [...admins, ...leads])).data?.map((p: any) => [p.user_id, p.email]) ?? []);
     const ctx: Ctx = { org: o.name, tz, appUrl: appUrl() };
 

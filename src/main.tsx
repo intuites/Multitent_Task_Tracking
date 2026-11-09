@@ -142,7 +142,10 @@ function Shell() {
   );
 }
 
-const Pending = ({ name }: { name: string }) => <div className="card"><h2>{name}</h2><p>Not available yet.</p></div>;
+function NotFound() {
+  useEffect(() => { document.title = 'Page not found · Taskify'; }, []);
+  return <div className="card"><h2>Page not found</h2><p className="muted">This link doesn't lead to a page in Taskify. It may be mistyped or out of date.</p><p><Link to="/">Go to the dashboard</Link></p></div>;
+}
 const Guard = ({ need, to = '/', children }: { need: Parameters<typeof can>[1]; to?: string; children: JSX.Element }) => {
   const { membership } = useAuth();
   return can(membership!.role, need) ? children : <Navigate to={to} replace />;
@@ -179,7 +182,7 @@ function Gate() {
         <Route path="/templates" element={<Guard need="task:write"><Templates /></Guard>} />
         <Route path="/admin-site" element={platformAdmin ? <Platform /> : <Navigate to="/" replace />} />
         <Route path="/platform" element={<Navigate to="/admin-site" replace />} />
-        <Route path="*" element={<Pending name="Not found" />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
     </Suspense>

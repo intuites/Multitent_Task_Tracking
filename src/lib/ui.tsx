@@ -13,10 +13,13 @@ export const dateToTs = (v: FormDataEntryValue | null) => (v ? new Date(`${v}T12
 export const isOpen = (status: string) => !['completed', 'completed_cycle'].includes(status);
 export const isOverdue = (t: { due_date?: string | null; status: string }) => !!t.due_date && new Date(t.due_date) < new Date() && isOpen(t.status);
 
+// the database functions that queue emails; after them the app asks the server to send right away
+const QUEUES_EMAIL = new Set(['tt_assign', 'tt_set_task_status', 'tt_create_from_template', 'tt_create_organization', 'tt_platform_review_org']);
+
 export async function rpc<T = any>(name: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.rpc(name, args);
   if (error) throw new Error(error.message);
-  kickEmails(); // assigning, status changes and the like queue emails: send them now
+  if (QUEUES_EMAIL.has(name)) kickEmails();
   return data as T;
 }
 

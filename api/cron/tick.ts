@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 // .js extensions: Vercel runs each api file as plain Node ESM, which needs them
 import { admin, handler, HttpError } from '../_lib/http.js';
 import { queueDigests } from '../_lib/taskEmails.js';
-import { sendQueued } from '../_lib/sendQueue.js';
+import { queuedRows, sendQueued } from '../_lib/sendQueue.js';
 
 const MAX_ATTEMPTS = 5;
 const EMAIL_BATCH = 50;
@@ -13,8 +13,9 @@ export default handler('GET', async (req) => {
   const secret = process.env.CRON_SECRET;
   const h = req.headers.authorization;
   const given = typeof h === 'string' ? h : '';
-  const want = `Bearer ${secret}`;
-  if (!secret || given.length !== want.length || !timingSafeEqual(Buffer.from(given), Buffer.from(want))) throw new HttpError(401, 'Unauthorized');
+  const a = Buffer.from(given), b = Buffer.from(`Bearer ${secret}`);
+  // byte lengths: timingSafeEqual throws (a 500) on different lengths, which non-ASCII characters can cause
+  if (!secret || a.length !== b.length || !timingSafeEqual(a, b)) throw new HttpError(401, 'Unauthorized');
 
   const started = Date.now();
   const db = admin();
@@ -26,8 +27,7 @@ export default handler('GET', async (req) => {
   const digests = await queueDigests(db).catch((e: Error) => `error: ${e.message}`);
 
   // select('*'): kind, link and html arrive with migration 0031; before it, rows still send in the plain layout
-  const { data: queue } = await db.from('tt_email_delivery_logs').select('*')
-    .in('status', ['pending', 'failed']).lt('attempts', MAX_ATTEMPTS).order('created_at').limit(EMAIL_BATCH);
+  const queue = await queuedRows(db, MAX_ATTEMPTS, EMAIL_BATCH);
   // no new email starts after 45 s in all, so the run ends inside Vercel's 60 s limit and the rest go next run
   const emails = await sendQueued(db, queue ?? [], 45_000 - (Date.now() - started));
   return {

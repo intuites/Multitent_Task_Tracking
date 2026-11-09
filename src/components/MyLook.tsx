@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Monitor, Moon, Palette, RotateCcw, Sun, Type } from 'lucide-react';
 import { useAuth } from '../lib/auth';
-import { applyLook, loadJakarta, lookOf, restoreLook, useTheme, DEFAULT_COLOR, LOOK_KEYS, type FontFamily, type Look, type Prefs, type TextSize, type ThemePref } from '../lib/theme';
+import { loadJakarta, lookOf, previewLook, restoreLook, useTheme, DEFAULT_COLOR, LOOK_KEYS, type FontFamily, type Look, type Prefs, type TextSize, type ThemePref } from '../lib/theme';
 import { rpc } from '../lib/ui';
 import { contrast } from '../lib/palette';
 import { FAMILIES, QUICK, TRENDING } from '../lib/brandColors';
@@ -32,7 +32,7 @@ export default function MyLook({ person, onSaved }: { person?: { id: string; nam
   // saved look changed underneath (saved here, or the organization's look while you follow it): show that
   const savedKey = LOOK_KEYS.map((k) => saved[k]).join('|');
   useEffect(() => { setDraft(lookOf(prefs, membership)); }, [savedKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!person) applyLook(membership, draft); }, [draft, membership, person]);
+  useEffect(() => { if (!person) previewLook(draft); }, [draft, membership, person]);
   useEffect(() => () => { if (!person) restoreLook(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- leaving without saving: back to the saved look
   useEffect(loadJakarta, []); // so its card shows the real font
   const dirty = !sameLook(draft, saved) || (!!person && pTheme !== (person.prefs.theme ?? 'dark'));

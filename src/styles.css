@@ -317,6 +317,7 @@ ul.plain li { padding: var(--space-1) 0; }
 .search-ico { position: absolute; left: 14px; color: var(--muted); pointer-events: none; }
 .search input { width: 100%; min-height: 42px; padding: 8px 64px 8px 40px; border-radius: var(--r-pill); border-color: var(--line); background: var(--surface); }
 .search kbd { position: absolute; right: 10px; padding: 2px 7px; border-radius: 6px; background: var(--surface-2); color: var(--muted); font-family: inherit; font-weight: var(--fw-semibold); font-size: var(--fs-2xs); line-height: 1.6; border: 1px solid var(--line); pointer-events: none; }
+@media (pointer: coarse) { .search kbd { display: none; } } /* no keyboard shortcut on touch screens */
 .results { position: absolute; top: 48px; left: 0; right: 0; border-radius: 14px; z-index: 10; display: flex; flex-direction: column; max-height: 360px; overflow: auto; padding: 6px; }
 .results a { padding: 8px 10px; color: var(--text); text-decoration: none; border-radius: 8px; font-weight: var(--fw-medium); }
 .results a small { color: var(--muted); margin-right: 6px; }
@@ -785,6 +786,8 @@ dialog .actions > * { min-width: 104px; }
 .agenda-item.ev-due .agenda-ico { background: var(--warn-bg); color: var(--warn-fg); } .agenda-item.ev-start .agenda-ico { background: var(--neutral-bg); color: var(--neutral-fg); }
 .agenda-item.ev-ms .agenda-ico { background: var(--ok-bg); color: var(--ok-fg); } .agenda-item.ev-esc .agenda-ico { background: var(--bad-bg); color: var(--bad-fg); }
 .agenda-text, .up-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+/* the title shortens before the status badge is cut off */
+.agenda-item { min-width: 0; } .agenda-item > .badge { flex-shrink: 0; } .cal-side, .cal-side > .card, .agenda-list, .agenda-list li { min-width: 0; }
 .agenda-text b, .up-text b { font-size: var(--fs-sm); font-weight: var(--fw-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-text small, .up-text small { color: var(--muted); font-size: var(--fs-xs); }
 .up-list li { display: flex; align-items: center; gap: 12px; }
@@ -1289,7 +1292,8 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
 .org-switch { position: relative; }
 .org-btn { width: 100%; min-height: 0; padding: 8px 10px; border-radius: 14px; background: transparent; color: var(--text); text-align: left; transition: background-color .2s var(--ease); }
 .org-btn:hover, .org-btn[aria-expanded=true] { filter: none; background: var(--surface-2); }
-.org-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* long names take a second line instead of being cut off */
+.org-name { flex: 1; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow-wrap: anywhere; line-height: 1.2; }
 .org-chev { color: var(--muted); flex: none; }
 .org-pop { left: 0; right: 0; top: calc(100% + 6px); width: auto; padding: 6px; transform-origin: top left; }
 /* long lists scroll inside the menu, not the whole sidebar/page; title and Create stay put */
@@ -2321,3 +2325,6 @@ h2, h3, h4 { letter-spacing: -0.01em; }
   .os-tab small { display: none; }
   .os-tab[aria-current="page"] { box-shadow: inset 0 0 0 1px var(--brand-2); }
 }
+
+/* phones: the tasks list drops Priority and Department so Title, Status, Assignees and Due fit without sideways scrolling */
+@media (max-width: 640px) { .col-opt { display: none; } }

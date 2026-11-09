@@ -104,6 +104,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
     if (!priority) return setError('Choose a priority.');
     if (subs.some((s) => !s.title.trim())) return setError('Give every sub-task a title, or remove the empty ones.');
     setBusy(true); setError('');
+    const made: string[] = []; // if a later step fails, these are removed so trying again doesn't make a second copy
     try {
       // newer columns are only sent when used, so a plain task still saves before migrations 0010/0012 are run
       const row: Record<string, unknown> = {
@@ -118,6 +119,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
       };
       const { data, error: err } = await supabase.from('tt_tasks').insert(row).select('id').single();
       if (err) throw new Error(/column|schema cache/i.test(err.message) ? 'This form needs the latest database updates (migrations 0010, 0012, 0013 and 0031). Run them in the Supabase SQL Editor, then try again.' : err.message);
+      made.push(data.id);
       // p_email only when picked, so this still works before migration 0035
       if (assignee) await rpc('tt_assign', { p_task: data.id, p_user: assignee, p_add: true, ...(sendTo ? { p_email: sendTo } : {}) });
       for (const s of subs) {
@@ -126,6 +128,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
           due_date: dateToTs(s.due || null), ...(s.department_id ? { department_id: s.department_id } : {}), lead_id: lead || null, manager_id: manager || null,
         }).select('id').single();
         if (se) throw new Error(se.message);
+        made.unshift(sd.id); // sub-tasks first when removing
         const who = s.assignee_id || assignee;
         if (who) await rpc('tt_assign', { p_task: sd.id, p_user: who, p_add: true, ...(sendTo && who === assignee ? { p_email: sendTo } : {}) });
       }
@@ -133,7 +136,10 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
       if (rf) await rpc('tt_set_recurrence', { p_task: data.id, p_freq: rf, p_n: Number(f.get('every') || 1), p_until: f.get('until') || null });
       await supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'task', entity_id: data.id, action: 'created', detail: { subtasks: subs.length } });
       onDone(orgId);
-    } catch (x) { setError((x as Error).message); setBusy(false); }
+    } catch (x) {
+      for (const id of made) await supabase.from('tt_tasks').delete().eq('id', id);
+      setError(`${(x as Error).message}${made.length ? ' Nothing was saved; you can try again.' : ''}`); setBusy(false);
+    }
   }
 
   const deptPeople = inDept(dept);

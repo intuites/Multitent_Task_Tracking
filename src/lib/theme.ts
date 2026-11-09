@@ -79,15 +79,19 @@ export const lookToKeep = (p: Prefs, o: OrgLook | null): Prefs | null =>
   LOOK_KEYS.every((k) => p[k] !== undefined) ? null : { ...p, ...lookOf(p, o) };
 
 let last: { org: OrgLook | null; prefs: Prefs } = { org: null, prefs: {} };
+let preview: Prefs | null = null; // an unsaved look Profile → Appearance is showing; wins until restoreLook()
 /** What everyone sees: the person's own choices over the organization's, over the defaults (Cyan, Fabric Grotesk, upright, compact). */
 export function applyLook(org: OrgLook | null, prefs: Prefs = {}) {
   last = { org, prefs };
-  applyBrand(prefs.color && prefs.color !== 'default' ? prefs.color : org?.brand_color);
-  applyFont(prefs.font ?? org?.font_family, prefs.style ?? org?.font_style);
-  applyTextSize(prefs.size ?? org?.text_size);
+  const p = preview ? { ...prefs, ...preview } : prefs; // a theme switch or an organization update mid-preview keeps the preview
+  applyBrand(p.color && p.color !== 'default' ? p.color : org?.brand_color);
+  applyFont(p.font ?? org?.font_family, p.style ?? org?.font_style);
+  applyTextSize(p.size ?? org?.text_size);
 }
+/** Shows an unsaved look over the saved one. */
+export function previewLook(look: Prefs) { preview = look; applyLook(last.org, last.prefs); }
 /** Back to the saved look after a settings page previewed something else. */
-export const restoreLook = () => applyLook(last.org, last.prefs);
+export const restoreLook = () => { preview = null; applyLook(last.org, last.prefs); };
 /** The theme part of a person's saved prefs, without broadcasting a change if it's already on. */
 export function applyThemePref(p: ThemePref | undefined) {
   if (!p || p === read()) return;

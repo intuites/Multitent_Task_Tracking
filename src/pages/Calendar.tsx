@@ -6,6 +6,7 @@ import { can } from '../../api/_lib/permissions';
 import { useAuth } from '../lib/auth';
 import { Badge, label, usePeople } from '../lib/ui';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
+import { todayIn } from '../lib/greeting';
 
 type Kind = 'due' | 'start';
 interface Ev { date: string; title: string; link: string; kind: Kind; status?: string }
@@ -19,13 +20,14 @@ const key = (d: Date | string) => {
 };
 const longDay = (k: string) => new Date(`${k}T00:00`).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
 
-// Month view; dates are shown in the browser's time zone.
+// Month view. "Today" is the organization's day, like the top bar; task dates are calendar days.
 export default function Calendar() {
   const { membership } = useAuth();
   const orgId = membership!.org_id;
   const { active } = usePeople(orgId);
-  const today = key(new Date());
-  const [month, setMonth] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1); });
+  const today = todayIn(membership!.time_zone);
+  const thisMonth = () => new Date(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, 1);
+  const [month, setMonth] = useState(thisMonth);
   const [dir, setDir] = useState<1 | -1>(1);
   const [picked, setPicked] = useState(today);
   const [events, setEvents] = useState<Ev[] | null>(null);
@@ -63,8 +65,7 @@ export default function Calendar() {
   }, [events]);
 
   const go = (step: 1 | -1 | 0) => {
-    const n = new Date();
-    const next = step ? new Date(month.getFullYear(), month.getMonth() + step, 1) : new Date(n.getFullYear(), n.getMonth(), 1);
+    const next = step ? new Date(month.getFullYear(), month.getMonth() + step, 1) : thisMonth();
     setDir(step === -1 || (step === 0 && next < month) ? -1 : 1);
     setMonth(next);
     setPicked(step ? key(next) : today);

@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase, configured, authLinkType } from './supabase';
 import type { Role } from '../../api/_lib/permissions';
 import { applyLook, applyThemePref, lookToKeep, themePref, type Prefs } from './theme';
+import { setOrgZone } from './greeting';
 
 /** platform: a platform admin working in an org they aren't a member of (acts as owner there; the database agrees, see migration 0018) */
 export interface Membership {
@@ -112,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
     applyLook(session ? membership : null, session ? prefs : {});
+    setOrgZone(membership?.time_zone);
   }, [loading, session, membership, prefs]);
   useEffect(() => { if (!loading && session) applyThemePref(prefs.theme); }, [loading, session, prefs.theme]);
   // the top-bar theme toggle: remember the switch with the account too, so every device follows

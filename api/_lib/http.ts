@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 export interface Req { method?: string; headers: Record<string, string | string[] | undefined>; body?: any; query?: Record<string, string> }
 export interface Res { status(c: number): Res; json(o: unknown): void }
@@ -6,10 +6,13 @@ export interface Res { status(c: number): Res; json(o: unknown): void }
 export class HttpError extends Error { constructor(public code: number, msg: string) { super(msg); } }
 
 // Service-role client: server only, bypasses RLS. Every caller must authorize explicitly first.
+// One client per server process: a new one per request kept its memory and the server slowly ran out.
+let db: { key: string; client: SupabaseClient } | null = null;
 export const admin = () => {
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new HttpError(500, 'Server is not configured');
-  return createClient(url, key, { auth: { persistSession: false } });
+  if (db?.key !== url + key) db = { key: url + key, client: createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }) };
+  return db.client;
 };
 
 export async function authUser(req: Req) {

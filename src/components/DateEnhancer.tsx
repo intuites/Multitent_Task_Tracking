@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { orgToday } from '../lib/greeting';
 
 // Replaces the browser's date picker for every <input type="date"> with a styled calendar, the way SelectEnhancer
 // does for dropdowns. The real input stays the source of truth (forms, FormData, React onChange keep working);
@@ -27,7 +28,7 @@ export default function DateEnhancer() {
   elRef.current = el;
 
   const open = (input: HTMLInputElement) => {
-    const start = parse(input.value) ?? new Date();
+    const start = parse(input.value) ?? parse(orgToday())!;
     const d = parse(input.min) && start < parse(input.min)! ? parse(input.min)! : start;
     setMonth(new Date(d.getFullYear(), d.getMonth(), 1, 12)); setActive(iso(d)); setDir(0); setEl(input);
   };
@@ -73,8 +74,10 @@ export default function DateEnhancer() {
     const place = () => {
       const r = el.getBoundingClientRect(), h = popRef.current?.offsetHeight ?? 380, w = 336;
       if (r.bottom < 0 || r.top > window.innerHeight) return close(false);
-      const up = window.innerHeight - r.bottom < h + 16 && r.top > h + 16;
-      setPos({ top: up ? r.top - 8 : r.bottom + 8, left: Math.max(12, Math.min(r.left, window.innerWidth - w - 12)), up });
+      const fitsBelow = window.innerHeight - r.bottom >= h + 16, up = !fitsBelow && r.top > h + 16;
+      // fits neither below nor above (short windows): keep it whole on screen, over the field if need be
+      const top = up ? r.top - 8 : fitsBelow ? r.bottom + 8 : Math.max(8, window.innerHeight - h - 8);
+      setPos({ top, left: Math.max(12, Math.min(r.left, window.innerWidth - w - 12)), up });
     };
     place();
     window.addEventListener('scroll', place, true);
@@ -87,7 +90,7 @@ export default function DateEnhancer() {
   useEffect(() => { if (el) gridRef.current?.focus({ preventScroll: true }); }, [el]);
 
   if (!el) return null;
-  const today = iso(new Date());
+  const today = orgToday(); // the organization's day, like the top bar
   const shift = (n: number) => { setDir(n); setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1, 12)); };
   const moveActive = (n: number) => {
     const d = addDays(parse(active) ?? new Date(), n), s = iso(d);
@@ -106,7 +109,7 @@ export default function DateEnhancer() {
   const days = Array.from({ length: 42 }, (_, i) => addDays(first, i - first.getDay()));
   const rows = days[35].getMonth() === month.getMonth() ? days : days.slice(0, 35);
   const title = month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const quick: [string, string][] = [['Today', today], ['Tomorrow', iso(addDays(new Date(), 1))], ['Next week', iso(addDays(new Date(), 7))]];
+  const quick: [string, string][] = [['Today', today], ['Tomorrow', iso(addDays(parse(today)!, 1))], ['Next week', iso(addDays(parse(today)!, 7))]];
   const label = el.getAttribute('aria-label') ?? el.labels?.[0]?.textContent?.trim() ?? 'Choose a date';
 
   return createPortal(

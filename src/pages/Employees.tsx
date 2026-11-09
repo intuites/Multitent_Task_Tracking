@@ -44,7 +44,7 @@ export default function Employees() {
     for (const r of sum.workload as any[]) w[r.user_id] = { open: r.open, overdue: r.overdue };
     setLoad(w);
   }, [orgId, admin]);
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { refresh().catch((x: Error) => fail(`Couldn't load workload: ${x.message}`)); }, [refresh]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fail = (text: string) => setMsg({ kind: 'error', text });
   const log = (action: string, detail: object) => supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'organization', entity_id: orgId, action, detail });

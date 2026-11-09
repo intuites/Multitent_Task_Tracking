@@ -19,12 +19,17 @@ export default handler('POST', async (req) => {
     if ((count ?? 0) <= 1) throw new HttpError(400, 'There must be at least one platform admin');
   }
 
+  // organizations they created stop naming them as creator first: the members guard keeps an organization's creator
+  // as an active admin, which otherwise blocks removing their memberships along with the account
+  const { error: orgErr } = await db.from('tt_organizations').update({ created_by: null }).eq('created_by', id);
+  if (orgErr) throw new HttpError(500, `Couldn't release the organizations they created: ${orgErr.message}`.slice(0, 200));
+
   const { error } = await db.auth.admin.deleteUser(id);
   if (error) {
-    // before migration 0041 a foreign key without a delete rule blocks it
-    if (/foreign key|violates|Database error/i.test(error.message)) throw new HttpError(409, 'Run database update 0041 in Supabase first, then delete again.');
     if (/not found/i.test(error.message)) throw new HttpError(404, 'That account no longer exists');
-    throw new HttpError(500, `Couldn't delete the account: ${error.message}`.slice(0, 200));
+    // Supabase only says "Database error deleting user"; the exact reason is in Supabase > Logs > Auth
+    console.error('deleteUser failed', id, error.status, error.message);
+    throw new HttpError(500, `Couldn't delete the account (${error.message}). Check that database updates 0041 and 0042 have run; the exact reason is in Supabase > Logs > Auth.`.slice(0, 300));
   }
   console.log('account deleted', { by: me.id, user: id });
   return { deleted: true };

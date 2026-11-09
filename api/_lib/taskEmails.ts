@@ -18,8 +18,13 @@ type Db = SupabaseClient;
 async function names(db: Db, ids: (string | null | undefined)[]) {
   const list = [...new Set(ids.filter((x): x is string => !!x))];
   if (!list.length) return new Map<string, string>();
-  const { data } = await db.from('tt_profiles').select('user_id, full_name, email').in('user_id', list);
-  return new Map((data ?? []).map((p: any) => [p.user_id as string, (p.full_name || p.email) as string]));
+  const [{ data }, { data: pa }] = await Promise.all([
+    db.from('tt_profiles').select('user_id, full_name, email').in('user_id', list),
+    db.from('tt_platform_admins').select('user_id').in('user_id', list),
+  ]);
+  // emails go to organization members, who never see who the platform admins are
+  const hidden = new Set((pa ?? []).map((p: any) => p.user_id as string));
+  return new Map((data ?? []).map((p: any) => [p.user_id as string, hidden.has(p.user_id) ? 'Taskify admin' : (p.full_name || p.email) as string]));
 }
 
 async function ctxFor(db: Db, orgId: string, cache: Map<string, Ctx>): Promise<Ctx> {

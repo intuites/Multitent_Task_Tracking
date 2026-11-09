@@ -116,24 +116,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOrgZone(membership?.time_zone);
   }, [loading, session, membership, prefs]);
   useEffect(() => { if (!loading && session) applyThemePref(prefs.theme); }, [loading, session, prefs.theme]);
-  // the top-bar theme toggle: remember the switch with the account too, so every device follows
+  // Prefs as saved right now. Every save starts from this, not from this tab's copy: a tab opened before you saved a
+  // color elsewhere (another computer or tab, or a platform admin) would otherwise write the old color back.
+  const savedPrefs = useCallback(async (): Promise<Prefs> => {
+    const { data } = await supabase.from('tt_profiles').select('prefs').eq('user_id', session!.user.id).maybeSingle();
+    return data?.prefs && typeof data.prefs === 'object' ? data.prefs : {};
+  }, [session]);
+  // the top-bar theme toggle: remember the switch with the account too, so every device follows (only the theme changes)
   const prefsRef = useRef(prefs); prefsRef.current = prefs;
   useEffect(() => {
     if (!session) return;
-    const on = () => {
-      const t = themePref(), p = prefsRef.current;
-      if (p.theme === t) return;
-      setPrefs({ ...p, theme: t });
-      supabase.from('tt_profiles').update({ prefs: { ...p, theme: t } }).eq('user_id', session.user.id).then(() => {}); // before 0036: stays on this device
+    const on = async () => {
+      const t = themePref();
+      if (prefsRef.current.theme === t) return;
+      setPrefs((p) => ({ ...p, theme: t }));
+      const cur = await savedPrefs();
+      if (cur.theme === t) return;
+      const next = { ...cur, theme: t };
+      setPrefs(next);
+      supabase.from('tt_profiles').update({ prefs: next }).eq('user_id', session.user.id).then(() => {}); // before 0036: stays on this device
+    };
+    // back to this tab: pick up a look saved meanwhile on another computer or tab
+    const back = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const cur = await savedPrefs();
+      if (Object.keys(cur).length && JSON.stringify(cur) !== JSON.stringify(prefsRef.current)) setPrefs(cur);
     };
     window.addEventListener('tt-theme', on);
-    return () => window.removeEventListener('tt-theme', on);
-  }, [session]);
-  const savePrefs = useCallback(async (next: Prefs) => {
+    document.addEventListener('visibilitychange', back);
+    return () => { window.removeEventListener('tt-theme', on); document.removeEventListener('visibilitychange', back); };
+  }, [session, savedPrefs]);
+  const savePrefs = useCallback(async (changes: Prefs) => {
+    const next = { ...(await savedPrefs()), ...changes };
     const { error } = await supabase.from('tt_profiles').update({ prefs: next }).eq('user_id', session!.user.id);
     if (error) throw new Error(/column|schema cache/i.test(error.message) ? 'Saving your look needs the database update (migration 0036) first.' : error.message);
     setPrefs(next);
-  }, [session]);
+  }, [session, savedPrefs]);
   // admins of an organization that requires two-factor must finish it before they get in (the database enforces it too)
   const mfaNeeded = !!membership?.require_admin_mfa && (membership.role === 'owner' || membership.role === 'admin') && !aal2;
 

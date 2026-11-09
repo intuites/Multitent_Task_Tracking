@@ -44,7 +44,7 @@ export default function MyLook({ person, onSaved }: { person?: { id: string; nam
         setMsg({ ok: true, text: `Saved. ${person.name} sees it the next time they open Taskify.` });
         onSaved?.();
       } else {
-        await savePrefs({ ...prefs, ...draft }); setMsg({ ok: true, text: 'Saved as your own look, on every device.' });
+        await savePrefs(draft); // only the look: savePrefs keeps everything else as saved setMsg({ ok: true, text: 'Saved as your own look, on every device.' });
       }
     } catch (x) {
       const m = (x as Error).message;

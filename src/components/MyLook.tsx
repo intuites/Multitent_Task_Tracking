@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Check, Monitor, Moon, Palette, RotateCcw, Sun, Type } from 'lucide-react';
 import { useAuth } from '../lib/auth';
-import { applyLook, loadJakarta, lookOf, restoreLook, useTheme, DEFAULT_COLOR, LOOK_KEYS, type FontFamily, type Look, type TextSize, type ThemePref } from '../lib/theme';
+import { applyLook, loadJakarta, lookOf, restoreLook, useTheme, DEFAULT_COLOR, LOOK_KEYS, type FontFamily, type Look, type Prefs, type TextSize, type ThemePref } from '../lib/theme';
+import { rpc } from '../lib/ui';
 import { contrast } from '../lib/palette';
 import { FAMILIES, QUICK, TRENDING } from '../lib/brandColors';
 import BrandPreview from './BrandPreview';
@@ -16,26 +17,39 @@ const SIZES: [TextSize, string][] = [['compact', 'Compact'], ['normal', 'Normal'
 const sameLook = (a: Look, b: Look) => LOOK_KEYS.every((k) => a[k] === b[k]);
 
 /** Profile → Appearance: anyone's own theme, color, font, italic and text size. Only that person sees it:
- *  the look is saved with their account (lib/auth keeps one for everyone), so an admin's organization changes never reach it. */
-export default function MyLook() {
-  const { membership, prefs, savePrefs } = useAuth();
+ *  the look is saved with their account (lib/auth keeps one for everyone), so an admin's organization changes never reach it.
+ *  With `person`, a platform admin edits that person's look instead (saved by tt_platform_set_look; nothing previews on the admin's own screen). */
+export default function MyLook({ person, onSaved }: { person?: { id: string; name: string; prefs: Prefs }; onSaved?: () => void } = {}) {
+  const { membership, prefs: myPrefs, savePrefs } = useAuth();
   const theme = useTheme();
+  const prefs = person ? person.prefs : myPrefs;
   const saved = lookOf(prefs, membership);
   const orgLook = lookOf({}, membership);
   const [draft, setDraft] = useState<Look>(saved);
+  const [pTheme, setPTheme] = useState<ThemePref>(person?.prefs.theme ?? 'dark'); // their theme; yours switches straight away
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const set = (p: Partial<Look>) => { setDraft((d) => ({ ...d, ...p })); setMsg(null); };
   // saved look changed underneath (saved here, or the organization's look while you follow it): show that
   const savedKey = LOOK_KEYS.map((k) => saved[k]).join('|');
   useEffect(() => { setDraft(lookOf(prefs, membership)); }, [savedKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { applyLook(membership, draft); }, [draft, membership]);
-  useEffect(() => () => restoreLook(), []); // leaving without saving: back to the saved look
+  useEffect(() => { if (!person) applyLook(membership, draft); }, [draft, membership, person]);
+  useEffect(() => () => { if (!person) restoreLook(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- leaving without saving: back to the saved look
   useEffect(loadJakarta, []); // so its card shows the real font
-  const dirty = !sameLook(draft, saved);
+  const dirty = !sameLook(draft, saved) || (!!person && pTheme !== (person.prefs.theme ?? 'dark'));
 
   async function save() {
-    try { await savePrefs({ ...prefs, ...draft }); setMsg({ ok: true, text: 'Saved as your own look, on every device.' }); }
-    catch (x) { setMsg({ ok: false, text: (x as Error).message }); }
+    try {
+      if (person) {
+        await rpc('tt_platform_set_look', { p_user: person.id, p_look: { ...draft, theme: pTheme } });
+        setMsg({ ok: true, text: `Saved. ${person.name} sees it the next time they open Taskify.` });
+        onSaved?.();
+      } else {
+        await savePrefs({ ...prefs, ...draft }); setMsg({ ok: true, text: 'Saved as your own look, on every device.' });
+      }
+    } catch (x) {
+      const m = (x as Error).message;
+      setMsg({ ok: false, text: /tt_platform_set_look|schema cache/i.test(m) ? 'This needs the database update first: run migration 0039 in Supabase.' : m });
+    }
   }
   // copies the organization's current look into the draft; saving keeps it as this person's own
   const useOrgLook = () => { setDraft(orgLook); setMsg(null); };
@@ -43,14 +57,19 @@ export default function MyLook() {
 
   return (
     <section className="card os-sec ml" aria-labelledby="ml-h">
-      <header><h3 id="ml-h"><Palette size={16} aria-hidden="true" /> Your appearance</h3>
-        <p className="muted">Only you see this look, on every device you sign in on. No one else's choices change it, and yours don't change anyone else's.</p></header>
+      <header><h3 id="ml-h"><Palette size={16} aria-hidden="true" /> {person ? `${person.name}'s appearance` : 'Your appearance'}</h3>
+        <p className="muted">{person
+          ? `As platform admin you can change ${person.name}'s look. Only ${person.name} sees it; your own screen doesn't change.`
+          : 'Only you see this look, on every device you sign in on. No one else\'s choices change it, and yours don\'t change anyone else\'s.'}</p></header>
 
       <div className="ml-row"><span className="fp-label" id="ml-theme">Theme</span>
         <div className="seg ml-seg" role="group" aria-labelledby="ml-theme">
-          {THEMES.map(([v, l, Icon]) => <button key={v} type="button" aria-pressed={theme.pref === v} onClick={() => theme.set(v)}><Icon size={15} aria-hidden="true" />{l}</button>)}
+          {THEMES.map(([v, l, Icon]) => {
+            const on = person ? pTheme === v : theme.pref === v;
+            return <button key={v} type="button" aria-pressed={on} onClick={() => { if (person) { setPTheme(v); setMsg(null); } else theme.set(v); }}><Icon size={15} aria-hidden="true" />{l}</button>;
+          })}
         </div>
-        <small className="muted">Always yours, and changes straight away. Dark is the default.</small></div>
+        <small className="muted">{person ? 'Saved with the rest. Dark is the default.' : 'Always yours, and changes straight away. Dark is the default.'}</small></div>
 
       <div className="ml-row"><span className="fp-label" id="ml-color">Color</span>
         <div className="brand-swatches" role="group" aria-labelledby="ml-color">
@@ -99,8 +118,8 @@ export default function MyLook() {
       <div className="os-save on ml-save">
         <span className={dirty ? 'os-dirty' : 'muted'} role="status">{msg ? msg.text : dirty ? 'Previewing. Save to keep it.' : 'Your look is saved.'}</span>
         {!sameLook(draft, orgLook) && <button type="button" className="link" onClick={useOrgLook}><RotateCcw size={14} aria-hidden="true" />Use {membership?.org_name}'s look</button>}
-        {dirty && <button type="button" className="link" onClick={() => { setDraft(saved); setMsg(null); }}>Discard</button>}
-        <button type="button" onClick={save} disabled={!dirty}>Save my appearance</button>
+        {dirty && <button type="button" className="link" onClick={() => { setDraft(saved); setPTheme(person?.prefs.theme ?? 'dark'); setMsg(null); }}>Discard</button>}
+        <button type="button" onClick={save} disabled={!dirty}>{person ? `Save ${person.name}'s appearance` : 'Save my appearance'}</button>
       </div>
       {msg && !msg.ok && <p role="alert" className="form-alert">{msg.text}</p>}
     </section>

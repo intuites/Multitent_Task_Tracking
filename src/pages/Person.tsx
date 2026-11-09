@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  Activity, ArrowLeft, Briefcase, Building, CheckCircle2, Clock, Gauge, ListChecks, Mail, MapPin, Phone, ShieldCheck, UserMinus, X,
+  Activity, ArrowLeft, Briefcase, Building, CheckCircle2, Clock, Gauge, ListChecks, Mail, MapPin, Palette, Phone, ShieldCheck, UserMinus, X,
 } from 'lucide-react';
+import MyLook from '../components/MyLook';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
@@ -14,7 +15,7 @@ import { CountUp, LiquidBg } from '../components/Liquid';
 import { PageSkeleton } from '../components/Skeleton';
 import { loadEmails, MemberEmails, type ExtraEmail } from '../components/MemberEmails';
 
-type Tab = 'overview' | 'tasks' | 'details' | 'access' | 'activity';
+type Tab = 'overview' | 'tasks' | 'details' | 'access' | 'look' | 'activity';
 const DONE = ['completed', 'completed_cycle'];
 const isDone = (s: string) => DONE.includes(s);
 
@@ -132,6 +133,8 @@ export default function PersonPage() {
     { id: 'tasks', name: 'Tasks', icon: ListChecks, n: stats.open },
     { id: 'details', name: 'Details', icon: Briefcase },
     ...(admin ? [{ id: 'access' as Tab, name: 'Access & departments', icon: ShieldCheck }] : []),
+    // platform admins can set anyone's appearance (database: tt_platform_set_look); your own is in Profile
+    ...(membership!.platform && !isMe ? [{ id: 'look' as Tab, name: 'Appearance', icon: Palette }] : []),
     { id: 'activity', name: 'Activity', icon: Activity },
   ];
   const now = Date.now();
@@ -256,6 +259,10 @@ export default function PersonPage() {
             <p className="muted">When you create a task for {isMe ? 'yourself' : person.name}, you can pick which address gets its emails.</p>
             <MemberEmails orgId={orgId} userId={person.id} primary={person.email} canEdit={admin || isMe} onChange={load} />
           </section>
+        )}
+
+        {tab === 'look' && membership!.platform && !isMe && (
+          <MyLook person={{ id: person.id, name: person.name, prefs: pr.prefs ?? {} }} onSaved={load} />
         )}
 
         {tab === 'access' && admin && (

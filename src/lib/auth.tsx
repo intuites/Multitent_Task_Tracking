@@ -75,6 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session) { setMembership(null); setMemberships([]); setRequests([]); return; }
     (async () => {
+      // invitations become memberships once the account has a password (migration 0046; does nothing before it or without one)
+      await supabase.rpc('tt_accept_invites');
       // RLS limits these reads to the caller's own rows; roles are never taken from the browser.
       // `*` so this still works before migration 0029 adds brand_color
       const { data } = await supabase.from('tt_org_members').select('org_id, role, organizations:tt_organizations(*)')

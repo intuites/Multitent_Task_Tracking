@@ -46,17 +46,28 @@ export function loadPeople(orgId: string, fresh = false): Promise<Person[]> {
   if (!cache.has(orgId)) {
     cachedAt.set(orgId, Date.now());
     cache.set(orgId, (async () => {
-      const { data: m } = await supabase.from('tt_org_members').select('user_id, role, active').eq('org_id', orgId);
-      const ids = (m ?? []).map((x) => x.user_id);
+      // '*' so this works before migration 0046; joined_at null = invited, not a member yet (see loadInvites)
+      const { data: all } = await supabase.from('tt_org_members').select('*').eq('org_id', orgId);
+      const m = (all ?? []).filter((x: any) => x.joined_at !== null);
+      const ids = m.map((x) => x.user_id);
       const { data: p } = ids.length ? await supabase.from('tt_profiles').select('user_id, full_name, email').in('user_id', ids) : { data: [] as any[] };
       const pm = new Map((p ?? []).map((x: any) => [x.user_id, x]));
-      return (m ?? []).map((x) => {
+      return m.map((x) => {
         const pr: any = pm.get(x.user_id);
         return { id: x.user_id, name: pr?.full_name || pr?.email || 'Unknown', email: pr?.email ?? '', role: x.role, active: x.active };
       });
     })());
   }
   return cache.get(orgId)!;
+}
+
+/** People invited to the organization who haven't opened the email and set a password yet (migration 0046). */
+export async function loadInvites(orgId: string): Promise<{ id: string; email: string; role: string; invited: string }[]> {
+  const { data } = await supabase.from('tt_org_members').select('*').eq('org_id', orgId).is('joined_at', null);
+  const rows = data ?? [];
+  const { data: p } = rows.length ? await supabase.from('tt_profiles').select('user_id, email').in('user_id', rows.map((r: any) => r.user_id)) : { data: [] as any[] };
+  const em = new Map((p ?? []).map((x: any) => [x.user_id, x.email]));
+  return rows.map((r: any) => ({ id: r.user_id, email: em.get(r.user_id) ?? 'Unknown', role: r.role, invited: r.created_at }));
 }
 
 export function usePeople(orgId: string) {

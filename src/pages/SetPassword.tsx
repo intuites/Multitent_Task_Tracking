@@ -5,7 +5,7 @@ import { AuthLayout } from './Login';
 
 // Shown after opening a password-reset or invite email link: the user is signed in but must choose a password.
 export default function SetPassword() {
-  const { session, passwordSetup, finishPasswordSetup, signOut } = useAuth();
+  const { session, passwordSetup, finishPasswordSetup, signOut, refresh } = useAuth();
   const [pw, setPw] = useState('');
   const [again, setAgain] = useState('');
   const [msg, setMsg] = useState('');
@@ -22,6 +22,7 @@ export default function SetPassword() {
     if (error) return setMsg(error.message);
     window.history.replaceState(null, '', window.location.pathname); // drop the one-time link tokens from the URL
     finishPasswordSetup();
+    refresh(); // with a password set, their invitation becomes a membership: load it
   }
 
   return (

@@ -3,7 +3,7 @@ import { Building2, Check, Layers, Pencil, Plus, Search, Trash2, UserPlus, X } f
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
-import { Badge, fetchAll, fileStamp, label, loadPeople, rpc, saveBlob, type Person } from '../lib/ui';
+import { Badge, fetchAll, fileStamp, label, loadInvites, loadPeople, rpc, saveBlob, type Person } from '../lib/ui';
 import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { Link, useLocation } from 'react-router-dom';
 import { ask } from '../components/Dialog';
@@ -30,8 +30,10 @@ export default function Employees() {
   const [msg, setMsg] = useState<Msg>(null);
   const [tasks, setTasks] = useState<any[]>([]);
 
+  const [invites, setInvites] = useState<Awaited<ReturnType<typeof loadInvites>>>([]);
   const refresh = useCallback(async () => {
     setPeople(await loadPeople(orgId, true));
+    if (admin) loadInvites(orgId).then(setInvites, () => setInvites([]));
     const day = new Date(); day.setHours(0, 0, 0, 0);
     const [sum, tk] = await Promise.all([
       rpc('tt_org_summary', { p_org: orgId, p_day_start: day.toISOString(), p_day_end: new Date(day.getTime() + 864e5).toISOString() }),
@@ -60,7 +62,14 @@ export default function Employees() {
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return fail(j.error ?? 'Invite failed');
-    setMsg({ kind: 'ok', text: `Invitation sent to ${f.get('email')}.` }); form.reset(); setInviting(false); refresh();
+    setMsg({ kind: 'ok', text: `Invitation sent to ${f.get('email')}. They'll appear here once they set their password.` }); form.reset(); setInviting(false); refresh();
+  }
+  async function cancelInvite(i: { id: string; email: string }) {
+    if (!(await ask({ title: `Cancel the invitation to ${i.email}?`, message: 'They won\'t join this organization. You can invite them again later.', confirmLabel: 'Cancel invitation', danger: true })).ok) return;
+    const { error } = await supabase.from('tt_org_members').delete().eq('org_id', orgId).eq('user_id', i.id).is('joined_at', null);
+    if (error) return fail(error.message);
+    await log('invitation_cancelled', { user: i.id });
+    setMsg({ kind: 'ok', text: `The invitation to ${i.email} was cancelled.` }); refresh();
   }
   async function setRole(p: Person, newRole: string) {
     const { error } = await supabase.from('tt_org_members').update({ role: newRole }).eq('org_id', orgId).eq('user_id', p.id);
@@ -130,7 +139,7 @@ export default function Employees() {
             <label>Role<select name="role" defaultValue="employee">{['employee', 'admin'].map((r) => <option key={r} value={r}>{label(r)}</option>)}</select></label>
             <button type="submit">Send invite</button>
           </form>
-          <p className="muted tpl-note">They get an email to set a password, then land straight in this organization.</p>
+          <p className="muted tpl-note">They get an email to set a password. They become a member, and appear in the list, once they've done that.</p>
         </section>
       )}
       {msg && <p key={msg.text} role={msg.kind === 'error' ? 'alert' : 'status'} className={`auth-msg ${msg.kind}`}>{msg.kind === 'error' ? <X size={17} aria-hidden="true" /> : <Check size={17} aria-hidden="true" />}<span>{msg.text}</span></p>}
@@ -162,6 +171,15 @@ export default function Employees() {
                     {admin && <td>{p.id !== uid && <button type="button" className={p.active ? 'link danger-text' : 'link'} onClick={() => setActive(p, !p.active)}>{p.active ? 'Deactivate' : 'Activate'}</button>}</td>}
                   </tr>))}</tbody>
               </table>)}
+          </section>
+        )}
+        {tab === 'people' && admin && invites.length > 0 && (
+          <section className="card" aria-labelledby="wait-h">
+            <h3 id="wait-h">Invited, waiting to join ({invites.length})</h3>
+            <p className="muted">Not members yet: they join once they open the invitation email and set a password. Until then they can't be assigned and get no emails.</p>
+            <ul className="help-list">{invites.map((i) => (
+              <li key={i.id}><span className="grow"><b>{i.email}</b><small className="muted">{label(i.role)}, invited {new Date(i.invited).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small></span>
+                <button type="button" className="link danger-text" onClick={() => cancelInvite(i)}>Cancel invitation</button></li>))}</ul>
           </section>
         )}
 

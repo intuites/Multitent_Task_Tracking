@@ -35,10 +35,13 @@ export default handler('POST', async (req) => {
   if (!uid) throw new HttpError(400, 'Could not invite that email');
 
   // inviting is for new people; roles and deactivation are changed on the person's page
-  const { data: existing } = await db.from('tt_org_members').select('user_id').eq('org_id', org_id).eq('user_id', uid).maybeSingle();
+  const { data: existing } = await db.from('tt_org_members').select('*').eq('org_id', org_id).eq('user_id', uid).maybeSingle();
+  if (existing && 'joined_at' in existing && existing.joined_at === null) throw new HttpError(409, 'Already invited. They join once they open the email and set a password.');
   if (existing) throw new HttpError(409, 'This person is already in this organization. Change their role or reactivate them on their page.');
 
-  const { error } = await db.from('tt_org_members').insert({ org_id, user_id: uid, role, active: true });
+  // a waiting membership (migration 0046): they become a member only after opening the email and setting a password
+  let { error } = await db.from('tt_org_members').insert({ org_id, user_id: uid, role, active: false, joined_at: null });
+  if (error && /joined_at/.test(error.message)) ({ error } = await db.from('tt_org_members').insert({ org_id, user_id: uid, role, active: true })); // before 0046
   if (error) throw new HttpError(400, 'Could not add member');
   await db.from('tt_activity_logs').insert({
     org_id, entity_type: 'organization', entity_id: org_id, action: 'member_invited',

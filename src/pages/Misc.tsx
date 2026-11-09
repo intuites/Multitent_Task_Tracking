@@ -243,7 +243,7 @@ function AllUsers({ me, orgs, admins, say, reload }: { me: string; orgs: any[]; 
     try {
       const [p, m] = await Promise.all([
         fetchAll(() => supabase.from('tt_profiles').select('user_id, full_name, email').order('user_id')),
-        fetchAll(() => supabase.from('tt_org_members').select('user_id, org_id, role, active').order('org_id').order('user_id')),
+        fetchAll(() => supabase.from('tt_org_members').select('*').order('org_id').order('user_id')),
       ]);
       const byUser = new Map<string, any[]>();
       for (const x of m) byUser.set(x.user_id, [...(byUser.get(x.user_id) ?? []), x]);
@@ -272,7 +272,7 @@ function AllUsers({ me, orgs, admins, say, reload }: { me: string; orgs: any[]; 
           <thead><tr><th>Name</th><th>Email</th><th>Organizations</th><th><span className="sr-only">Delete</span></th></tr></thead>
           <tbody>{found.slice(0, SHOW).map((u) => (
             <tr key={u.user_id}><td><b>{u.full_name || '—'}</b>{u.user_id === me && <small className="muted"> (you)</small>}</td><td>{u.email}</td>
-              <td>{isPA.has(u.user_id) ? 'Platform admin' : u.mem.length ? u.mem.map((x: any) => `${orgName.get(x.org_id) ?? 'Unknown'} (${label(x.role)}${x.active ? '' : ', inactive'})`).join(', ') : <span className="muted">None</span>}</td>
+              <td>{isPA.has(u.user_id) ? 'Platform admin' : u.mem.length ? u.mem.map((x: any) => `${orgName.get(x.org_id) ?? 'Unknown'} (${label(x.role)}${x.joined_at === null ? ', invited' : x.active ? '' : ', inactive'})`).join(', ') : <span className="muted">None</span>}</td>
               <td>{u.user_id !== me && <button type="button" className="link danger-text" onClick={() => del(u)}>Delete</button>}</td></tr>))}</tbody>
         </table>)}
       {found.length > SHOW && <p className="muted">Showing {SHOW} of {found.length}. Search to find someone.</p>}

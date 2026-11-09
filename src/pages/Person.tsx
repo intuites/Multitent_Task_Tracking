@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  Activity, ArrowLeft, Briefcase, Building, CheckCircle2, Clock, Gauge, ListChecks, Mail, MapPin, Palette, Phone, ShieldCheck, UserMinus, X,
+  Activity, ArrowLeft, Briefcase, Building, CheckCircle2, Clock, Gauge, ListChecks, Mail, MapPin, Palette, Phone, ShieldCheck, Trash2, UserMinus, X,
 } from 'lucide-react';
+import { deleteAccount } from '../lib/deleteAccount';
 import MyLook from '../components/MyLook';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
@@ -291,6 +292,15 @@ export default function PersonPage() {
                 <h3 id="dz-h">Remove from organization</h3>
                 <p className="muted">They lose access right away. Their tasks, comments and history stay.</p>
                 <button type="button" className="pill-btn ghost danger-text" onClick={removeFromOrg}><UserMinus size={15} aria-hidden="true" />Remove {person.name}</button>
+              </section>)}
+            {membership!.platform && !isMe && (
+              <section className="card ps-danger" aria-labelledby="del-h">
+                <h3 id="del-h">Delete account</h3>
+                <p className="muted">Platform admins only. Deletes {person.name}'s login everywhere, with their comments, assignments and history. Tasks and files they created stay.</p>
+                <button type="button" className="pill-btn ghost danger-text" onClick={async () => {
+                  try { if (await deleteAccount({ id: person.id, name: person.name, email: person.email })) navigate('/employees', { replace: true }); }
+                  catch (x) { fail((x as Error).message); }
+                }}><Trash2 size={15} aria-hidden="true" />Delete {person.name}'s account</button>
               </section>)}
           </div>
         )}

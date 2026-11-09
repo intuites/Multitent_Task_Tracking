@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { deleteAccount } from '../lib/deleteAccount';
 import { Link } from 'react-router-dom';
 import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { supabase } from '../lib/supabase';
@@ -192,6 +193,54 @@ export function Platform() {
         </form>
         <p className="muted">Platform admins don’t belong to any organization. Making someone a platform admin takes them out of every organization they were in; they keep full access to all of them from here.</p>
       </section>
+
+      <AllUsers me={uid} orgs={orgs ?? []} admins={admins} say={setMsg} reload={load} />
     </>
+  );
+}
+
+const SHOW = 50;
+/** Every account on Taskify, with its organizations; platform admins can delete any account but their own. */
+function AllUsers({ me, orgs, admins, say, reload }: { me: string; orgs: any[]; admins: any[]; say: (m: { kind: 'ok' | 'error'; text: string }) => void; reload: () => void }) {
+  const [users, setUsers] = useState<any[] | null>(null);
+  const [q, setQ] = useState('');
+  const load = useCallback(async () => {
+    try {
+      const [p, m] = await Promise.all([
+        fetchAll(() => supabase.from('tt_profiles').select('user_id, full_name, email').order('user_id')),
+        fetchAll(() => supabase.from('tt_org_members').select('user_id, org_id, role, active').order('org_id').order('user_id')),
+      ]);
+      const byUser = new Map<string, any[]>();
+      for (const x of m) byUser.set(x.user_id, [...(byUser.get(x.user_id) ?? []), x]);
+      setUsers(p.map((u) => ({ ...u, mem: byUser.get(u.user_id) ?? [] })).sort((a, b) => (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '')));
+    } catch (e) { say({ kind: 'error', text: (e as Error).message }); setUsers([]); }
+  }, [say]);
+  useEffect(() => { load(); }, [load]);
+  const orgName = new Map(orgs.map((o) => [o.id, o.name]));
+  const isPA = new Set(admins.map((a) => a.user_id));
+  const t = q.trim().toLowerCase();
+  const found = (users ?? []).filter((u) => !t || `${u.full_name ?? ''} ${u.email ?? ''}`.toLowerCase().includes(t));
+  const del = async (u: any) => {
+    try {
+      if (await deleteAccount({ id: u.user_id, name: u.full_name || u.email, email: u.email })) {
+        say({ kind: 'ok', text: `${u.full_name || u.email}'s account was deleted.` }); load(); reload();
+      }
+    } catch (e) { say({ kind: 'error', text: (e as Error).message }); }
+  };
+  return (
+    <section className="card" aria-labelledby="au-h">
+      <div className="panel-head"><h3 id="au-h">All users{users && ` (${users.length})`}</h3>
+        <input className="plat-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or email" aria-label="Search users" /></div>
+      <p className="muted">Every account on Taskify. Deleting one removes that person's login and everything that is theirs (comments, assignments, history); tasks and files they created stay.</p>
+      {users === null ? <p className="muted">Loading…</p> : found.length === 0 ? <p className="muted">No users match.</p> : (
+        <table className="emp-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Organizations</th><th><span className="sr-only">Delete</span></th></tr></thead>
+          <tbody>{found.slice(0, SHOW).map((u) => (
+            <tr key={u.user_id}><td><b>{u.full_name || '—'}</b>{u.user_id === me && <small className="muted"> (you)</small>}</td><td>{u.email}</td>
+              <td>{isPA.has(u.user_id) ? 'Platform admin' : u.mem.length ? u.mem.map((x: any) => `${orgName.get(x.org_id) ?? 'Unknown'} (${label(x.role)}${x.active ? '' : ', inactive'})`).join(', ') : <span className="muted">None</span>}</td>
+              <td>{u.user_id !== me && <button type="button" className="link danger-text" onClick={() => del(u)}>Delete</button>}</td></tr>))}</tbody>
+        </table>)}
+      {found.length > SHOW && <p className="muted">Showing {SHOW} of {found.length}. Search to find someone.</p>}
+    </section>
   );
 }

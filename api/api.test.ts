@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import tick from './cron/tick';
 import invite from './invite';
+import deleteUser from './delete-user';
 import { sendEmail } from './_lib/email';
 
 const res = () => {
@@ -40,6 +41,15 @@ describe('invite endpoint', () => {
   it('rejects GET', async () => {
     const r = res(); await invite({ method: 'GET', headers: {} }, r);
     expect(r.code).toBe(405);
+  });
+});
+
+describe('delete-user endpoint', () => {
+  it('needs a signed-in caller and only accepts POST', async () => {
+    const r = res(); await deleteUser({ method: 'POST', headers: {}, body: { user_id: '00000000-0000-0000-0000-000000000000' } }, r);
+    expect([401, 500]).toContain(r.code); // 500 = server not configured in test env, still never 200
+    const g = res(); await deleteUser({ method: 'GET', headers: {} }, g);
+    expect(g.code).toBe(405);
   });
 });
 

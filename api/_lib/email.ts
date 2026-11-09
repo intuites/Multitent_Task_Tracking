@@ -1,13 +1,36 @@
-// Sends through the Gmail API (Google OAuth refresh token) when GOOGLE_REFRESH_TOKEN is set, otherwise Resend.
+// Sends through SMTP (Nodemailer, e.g. Gmail with an App Password) when SMTP_PASS is set,
+// else the Gmail API (Google OAuth refresh token) when GOOGLE_REFRESH_TOKEN is set, otherwise Resend.
+import nodemailer from 'nodemailer';
+
 type Result = { ok: boolean; id?: string; error?: string };
 
 export async function sendEmail(to: string, subject: string, text: string, html?: string): Promise<Result> {
   // header values come from the database: never let a newline start a new header
   to = to.replace(/[\r\n]/g, ''); subject = subject.replace(/[\r\n]+/g, ' ');
   try {
+    if (process.env.SMTP_PASS) return await smtp(to, subject, text, html);
     return process.env.GOOGLE_REFRESH_TOKEN ? await gmail(to, subject, text, html) : await resend(to, subject, text, html);
   } catch (e) {
     return { ok: false, error: `Network error: ${e instanceof Error ? e.message : 'unknown'}`.slice(0, 300) };
+  }
+}
+
+let mailer: ReturnType<typeof nodemailer.createTransport> | null = null;
+async function smtp(to: string, subject: string, text: string, html?: string): Promise<Result> {
+  const user = process.env.SMTP_USER, from = process.env.EMAIL_FROM || user;
+  if (!user || !from) return { ok: false, error: 'SMTP not configured (SMTP_USER, SMTP_PASS)' };
+  const port = Number(process.env.SMTP_PORT) || 465;
+  mailer ??= nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com', port, secure: port === 465,
+    auth: { user, pass: process.env.SMTP_PASS!.replace(/\s/g, '') }, // Google shows App Passwords with spaces
+  });
+  try {
+    const info = await mailer.sendMail({ from, to, subject, text, ...(html ? { html } : {}) });
+    if (info.accepted.length && !info.rejected.length) return { ok: true, id: info.messageId };
+    return { ok: false, error: `SMTP rejected: ${info.response}`.slice(0, 300) };
+  } catch (e) {
+    // e.g. 535 bad username/password: the message says so, without the password
+    return { ok: false, error: `SMTP: ${e instanceof Error ? e.message : 'failed'}`.slice(0, 300) };
   }
 }
 

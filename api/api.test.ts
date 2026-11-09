@@ -10,6 +10,7 @@ const res = () => {
 
 beforeEach(() => {
   delete process.env.CRON_SECRET; delete process.env.EMAIL_PROVIDER_API_KEY; delete process.env.EMAIL_FROM;
+  delete process.env.SMTP_USER; delete process.env.SMTP_PASS;
 });
 
 describe('cron tick auth', () => {
@@ -47,5 +48,10 @@ describe('email provider', () => {
     const r = await sendEmail('a@b.co', 's', 't');
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/not configured/);
+  });
+  it('uses SMTP first when SMTP_PASS is set', async () => {
+    process.env.SMTP_PASS = 'abcd efgh ijkl mnop';
+    const r = await sendEmail('a@b.co', 's', 't');
+    expect(r).toEqual({ ok: false, error: 'SMTP not configured (SMTP_USER, SMTP_PASS)' });
   });
 });

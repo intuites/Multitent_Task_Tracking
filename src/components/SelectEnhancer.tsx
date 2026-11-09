@@ -124,6 +124,6 @@ export default function SelectEnhancer() {
         ))}
       </ul>
     </div>,
-    document.body,
+    sel.closest('dialog') ?? document.body, // inside a modal dialog, so it stays above it and clickable
   );
 }

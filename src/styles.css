@@ -1387,8 +1387,16 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
 @media (max-width: 900px) { .inv-form { grid-template-columns: 1fr; } .emp-table th:nth-child(3), .emp-table td:nth-child(3), .emp-table th:nth-child(4), .emp-table td:nth-child(4) { display: none; } }
 
 /* ---------- new task form ---------- */
-.nt-card { margin: 0 0 20px; padding: 22px 24px; border-radius: var(--r-card); background: var(--surface-2); border: 1px solid var(--line); animation: fade-in-up .35s var(--ease) both; }
-.nt-card h3 { margin: 0 0 14px; }
+/* side panel over the task list; Create / Cancel stay pinned at its bottom */
+dialog.nt-sheet { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(760px, 100vw); max-width: none; height: 100dvh; max-height: none;
+  padding: 0 28px; border: 0; border-left: 1px solid var(--line); border-radius: var(--r-card) 0 0 var(--r-card); background: var(--surface); overflow-y: auto; overscroll-behavior: contain;
+  backdrop-filter: none; -webkit-backdrop-filter: none; } /* a backdrop-filter would make the fixed dropdowns inside position against the panel */
+dialog.nt-sheet[open] { animation: sheet-in .38s var(--settle); }
+@keyframes sheet-in { from { transform: translateX(40px); opacity: 0; } }
+.nt-sheet-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 -28px 18px; padding: 20px 28px 14px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.nt-sheet-head h3 { margin: 0; font-size: var(--fs-xl); }
+.nt-sheet .nt-actions { position: sticky; bottom: 0; z-index: 2; margin: 4px -28px 0; padding: 14px 28px 20px; background: var(--surface); border-top: 1px solid var(--line); }
+@media (max-width: 640px) { dialog.nt-sheet { padding: 0 16px; border-radius: 0; border-left: 0; } .nt-sheet-head, .nt-sheet .nt-actions { margin-inline: -16px; padding-inline: 16px; } }
 .nt { display: grid; gap: 16px; }
 .nt label { display: grid; gap: 6px; }
 .nt-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
@@ -1412,7 +1420,7 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
 .nt-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .nt-actions > * { min-height: 44px; }
 @media (max-width: 800px) { .nt-sub-list li { grid-template-columns: 28px 1fr auto; } .nt-sub-list li > select, .nt-sub-list li > input[type=date] { grid-column: 2 / -1; } .nt-actions { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { .nt-card, .nt-sub-list li { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { dialog.nt-sheet[open], .nt-sub-list li { animation: none !important; } }
 .nt label.inline { display: flex; align-items: center; gap: 8px; }
 
 /* ---------- custom dropdown list (SelectEnhancer) ---------- */

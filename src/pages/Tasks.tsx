@@ -1,5 +1,5 @@
-import { Fragment, useCallback, useEffect, useState } from 'react';
-import { ChevronRight, ListTree } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronRight, ListTree, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
@@ -35,6 +35,9 @@ export default function Tasks({ mode }: { mode: Mode }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (id: string) => setOpen((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const [showForm, setShowForm] = useState(params.get('new') === '1');
+  // the form opens as a side panel over the list (native modal <dialog>: focus stays inside, Esc closes)
+  const sheet = useRef<HTMLDialogElement>(null);
+  useEffect(() => { if (showForm && sheet.current && !sheet.current.open) sheet.current.showModal(); }, [showForm]);
   // links like the top bar's "New task" (?new=1) or a dashboard card (?view=…) also land here while the page is already open
   useEffect(() => {
     const v = params.get('view');
@@ -139,14 +142,17 @@ export default function Tasks({ mode }: { mode: Mode }) {
         <h2>{title}</h2>
         <span className="row-actions">
           {canReport && <ExportMenu onExport={exportAs} disabled={!total} />}
-          {canWrite && <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'New task'}</button>}
+          {canWrite && <button onClick={() => setShowForm(true)}>New task</button>}
         </span>
       </div>
       {showForm && (
-        <section className="nt-card" aria-label="New task">
-          <h3>New task</h3>
+        <dialog ref={sheet} className="nt-sheet" aria-labelledby="nt-title" onCancel={(e) => { e.preventDefault(); setShowForm(false); }}>
+          <div className="nt-sheet-head">
+            <h3 id="nt-title">New task</h3>
+            <button type="button" className="icon-btn" aria-label="Close" onClick={() => setShowForm(false)}><X size={18} aria-hidden="true" /></button>
+          </div>
           <NewTaskForm onCancel={() => setShowForm(false)} onDone={() => { setShowForm(false); load(); }} />
-        </section>
+        </dialog>
       )}
       <div className="row filters">
         <input aria-label="Search tasks by title" placeholder="Search title" value={q} onChange={(e) => { setPage(0); setQ(e.target.value); }} />

@@ -137,6 +137,6 @@ export default function DateEnhancer() {
         {!el.required && el.value && <button type="button" className="dp-chip clear" onClick={() => choose('')}>Clear</button>}
       </div>
     </div>,
-    document.body,
+    el.closest('dialog') ?? document.body, // inside a modal dialog, so it stays above it and clickable
   );
 }

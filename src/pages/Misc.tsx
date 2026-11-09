@@ -115,9 +115,29 @@ export function Platform() {
     } catch (e) { setMsg({ kind: 'error', text: /function/i.test((e as Error).message) ? 'The Platform page needs database update 0018.' : (e as Error).message }); setOrgs([]); }
   };
   useEffect(() => { load(); }, []);
-  const setAdmin = async (email: string, on: boolean) => {
-    try { await rpc('tt_platform_set_admin', { p_email: email, p_on: on }); setMsg({ kind: 'ok', text: on ? `${email} is now a platform admin.` : `${email} is no longer a platform admin.` }); load(); }
-    catch (e) { setMsg({ kind: 'error', text: (e as Error).message }); }
+  // where each platform admin was a member before (migration 0042); removing the role sends them back there
+  const [origins, setOrigins] = useState<Map<string, { org_id: string; role: string }[]>>(new Map());
+  useEffect(() => {
+    supabase.from('tt_platform_admin_origins').select('user_id, org_id, role').then(({ data }) => {
+      const m = new Map<string, { org_id: string; role: string }[]>();
+      for (const o of data ?? []) m.set(o.user_id, [...(m.get(o.user_id) ?? []), o]);
+      setOrigins(m);
+    });
+  }, [admins]);
+  const [demoting, setDemoting] = useState<string | null>(null); // a platform admin with nowhere remembered: pick an organization
+  const setAdmin = async (email: string, on: boolean, back?: { org: string; role: string }) => {
+    try {
+      await rpc('tt_platform_set_admin', { p_email: email, p_on: on, ...(back?.org ? { p_org: back.org, p_role: back.role } : {}) });
+      setMsg({ kind: 'ok', text: on ? `${email} is now a platform admin. Their organizations are remembered for if you remove it again.`
+        : `${email} is no longer a platform admin${back?.org ? ` and is back in ${orgs?.find((o) => o.id === back.org)?.name ?? 'the organization'}` : ''}.` });
+      setDemoting(null); load();
+    } catch (e) { setMsg({ kind: 'error', text: /function|p_org/i.test((e as Error).message) && back ? 'Sending them back needs database update 0042.' : (e as Error).message }); }
+  };
+  const orgNames = (list: { org_id: string; role: string }[]) => list.map((o) => `${orgs?.find((x) => x.id === o.org_id)?.name ?? 'an organization'} (${label(o.role === 'owner' ? 'admin' : o.role)})`).join(', ');
+  const removeAdmin = async (a: any) => {
+    const back = origins.get(a.user_id);
+    if (!back?.length) { setDemoting(a.user_id); return; } // ask where to send them
+    if ((await ask({ title: `Remove ${a.full_name || a.email} as platform admin?`, message: `They go back to ${orgNames(back)}, as before.`, confirmLabel: 'Remove', danger: true })).ok) setAdmin(a.email, false);
   };
   const review = async (o: any, approve: boolean) => {
     if (!approve && !(await ask({ title: `Reject ${o.name}?`, message: 'Its creator will be told it was not approved and won’t be able to use it.', confirmLabel: 'Reject', danger: true })).ok) return;
@@ -186,12 +206,27 @@ export function Platform() {
         <div className="panel-head"><h3 id="pa-h">Platform admins</h3></div>
         <p className="muted">Platform admins control every organization. Organization admins (set on each organization's Employees page) control only their own organization.</p>
         <ul className="help-list">{admins.map((a) => (
-          <li key={a.user_id}><span className="grow"><b>{a.full_name || a.email}</b><small className="muted">{a.email}</small></span>
-            {admins.length > 1 && <button type="button" className="link danger-text" onClick={() => setAdmin(a.email, false)}>Remove</button>}</li>))}</ul>
+          <li key={a.user_id}><span className="grow"><b>{a.full_name || a.email}</b>
+            <small className="muted">{a.email}{origins.get(a.user_id)?.length ? `. Came from ${orgNames(origins.get(a.user_id)!)}` : ''}</small></span>
+            {admins.length > 1 && demoting !== a.user_id && <button type="button" className="link danger-text" onClick={() => removeAdmin(a)}>Remove</button>}
+            {demoting === a.user_id && (
+              <form className="inline-add" onSubmit={(e: FormEvent<HTMLFormElement>) => {
+                e.preventDefault(); const f = new FormData(e.currentTarget);
+                setAdmin(a.email, false, { org: String(f.get('org') ?? ''), role: String(f.get('role') ?? 'employee') });
+              }}>
+                <select name="org" aria-label="Send them to organization" defaultValue="">
+                  <option value="">No organization</option>
+                  {(orgs ?? []).filter((o) => (o.status ?? 'approved') === 'approved').map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </select>
+                <select name="role" aria-label="Role there" defaultValue="employee"><option value="employee">Employee</option><option value="admin">Admin</option></select>
+                <button type="submit" className="danger">Remove</button>
+                <button type="button" className="link" onClick={() => setDemoting(null)}>Cancel</button>
+              </form>)}</li>))}</ul>
+        {demoting && <p className="muted">Nothing is remembered about where this person was before, so pick the organization and role they go back to.</p>}
         <form className="inline-add" onSubmit={(e: FormEvent<HTMLFormElement>) => { e.preventDefault(); const f = e.currentTarget, em = String(new FormData(f).get('email')).trim(); if (em) { setAdmin(em, true); f.reset(); } }}>
           <input name="email" type="email" required placeholder="Email of an existing account" aria-label="Email of new platform admin" /><button type="submit">Make platform admin</button>
         </form>
-        <p className="muted">Platform admins don’t belong to any organization. Making someone a platform admin takes them out of every organization they were in; they keep full access to all of them from here.</p>
+        <p className="muted">Platform admins don’t belong to any organization. Making someone a platform admin takes them out of every organization they were in, and remembers where they were: removing the role sends them back with the same role and departments. To remove someone from Taskify entirely, delete their account under All users.</p>
       </section>
 
       <AllUsers me={uid} orgs={orgs ?? []} admins={admins} say={setMsg} reload={load} />

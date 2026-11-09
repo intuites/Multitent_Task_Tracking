@@ -64,6 +64,20 @@ export function applyTextSize(size: string | null | undefined, remember = true) 
 /** A person's own look (Profile → Appearance); any field left out follows the organization. tour: the first-sign-in tour was shown. */
 export interface Prefs { theme?: ThemePref; color?: string; font?: FontFamily; style?: FontStyle; size?: TextSize; tour?: 'done' }
 export interface OrgLook { brand_color?: string | null; font_family?: string | null; font_style?: string | null; text_size?: string | null }
+export type Look = { color: string; font: FontFamily; style: FontStyle; size: TextSize };
+export const LOOK_KEYS = ['color', 'font', 'style', 'size'] as const;
+/** The look someone sees: their own choices, or the organization's where they have none, or Taskify's defaults. */
+export const lookOf = (p: Prefs, o: OrgLook | null): Look => ({
+  color: p.color && p.color !== 'default' ? p.color : o?.brand_color && HEX.test(o.brand_color) ? o.brand_color.toLowerCase() : DEFAULT_COLOR,
+  font: p.font ?? (FONT_FAMILIES.includes(o?.font_family as FontFamily) ? o!.font_family as FontFamily : 'fabric'),
+  style: p.style ?? (FONT_STYLES.includes(o?.font_style as FontStyle) ? o!.font_style as FontStyle : 'classic'),
+  size: p.size ?? (TEXT_SIZES.includes(o?.text_size as TextSize) ? o!.text_size as TextSize : 'compact'),
+});
+/** Someone with no saved look gets the one they see now saved as their own, so an admin's later change to the
+ *  organization's appearance never reaches them. null = they already have one. */
+export const lookToKeep = (p: Prefs, o: OrgLook | null): Prefs | null =>
+  LOOK_KEYS.every((k) => p[k] !== undefined) ? null : { ...p, ...lookOf(p, o) };
+
 let last: { org: OrgLook | null; prefs: Prefs } = { org: null, prefs: {} };
 /** What everyone sees: the person's own choices over the organization's, over the defaults (Cyan, Fabric Grotesk, upright, compact). */
 export function applyLook(org: OrgLook | null, prefs: Prefs = {}) {

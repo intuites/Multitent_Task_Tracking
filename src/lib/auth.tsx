@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Session } from '@supabase/supabase-js';
 import { supabase, configured, authLinkType } from './supabase';
 import type { Role } from '../../api/_lib/permissions';
-import { applyLook, applyThemePref, themePref, type Prefs } from './theme';
+import { applyLook, applyThemePref, lookToKeep, themePref, type Prefs } from './theme';
 
 /** platform: a platform admin working in an org they aren't a member of (acts as owner there; the database agrees, see migration 0018) */
 export interface Membership {
@@ -87,12 +87,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       // the person's own look (migration 0036); '*' so this still works before the column exists
       const { data: prof } = await supabase.from('tt_profiles').select('*').eq('user_id', session.user.id).maybeSingle();
-      setPrefs(prof?.prefs && typeof prof.prefs === 'object' ? prof.prefs : {});
+      let p: Prefs = prof?.prefs && typeof prof.prefs === 'object' ? prof.prefs : {};
       const aal = (await supabase.auth.mfa.getAuthenticatorAssuranceLevel()).data?.currentLevel;
       setAal2(aal === 'aal2');
       let saved: string | null = null;
       try { saved = localStorage.getItem(ORG_KEY); } catch { /* storage blocked: fall back to the first org */ }
       const m = all.find((x) => x.org_id === saved) ?? all[0];
+      // everyone's look is their own: keep what they see now, so an admin's organization change doesn't reach them
+      const keep = prof && 'prefs' in prof && m ? lookToKeep(p, m) : null;
+      if (keep) { p = keep; supabase.from('tt_profiles').update({ prefs: keep }).eq('user_id', session.user.id).then(() => {}); }
+      setPrefs(p);
       setMemberships(all);
       setMembership(m ?? null);
       // before migration 0026 there is no status column; the query errors and the list stays empty

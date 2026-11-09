@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Check, Monitor, Moon, Palette, RotateCcw, Sun, Type } from 'lucide-react';
-import { useAuth, type Membership } from '../lib/auth';
-import { applyLook, loadJakarta, restoreLook, useTheme, DEFAULT_COLOR, FONT_FAMILIES, FONT_STYLES, TEXT_SIZES, type FontFamily, type FontStyle, type Prefs, type TextSize, type ThemePref } from '../lib/theme';
+import { useAuth } from '../lib/auth';
+import { applyLook, loadJakarta, lookOf, restoreLook, useTheme, DEFAULT_COLOR, LOOK_KEYS, type FontFamily, type Look, type TextSize, type ThemePref } from '../lib/theme';
 import { contrast } from '../lib/palette';
 import { FAMILIES, QUICK, TRENDING } from '../lib/brandColors';
+import BrandPreview from './BrandPreview';
 
 /** every color under "More colors", hex → name */
 const MORE = new Map<string, string>([...FAMILIES.flatMap((f) => f.colors.map((c) => [c.hex, c.name] as const)), ...TRENDING.map((t) => [t.hex, t.name] as const)]);
@@ -12,25 +13,15 @@ const MORE = new Map<string, string>([...FAMILIES.flatMap((f) => f.colors.map((c
 const THEMES: [ThemePref, string, typeof Sun][] = [['dark', 'Dark', Moon], ['light', 'Light', Sun], ['system', 'Match device', Monitor]];
 const FONTS: [FontFamily, string, string][] = [['fabric', 'Fabric Grotesk', 'Modern and compact'], ['jakarta', 'Plus Jakarta Sans', 'Rounded and friendly'], ['lora', 'Lora', 'A classic serif']];
 const SIZES: [TextSize, string][] = [['compact', 'Compact'], ['normal', 'Normal'], ['large', 'Large']];
-type Look = { color: string; font: FontFamily; style: FontStyle; size: TextSize };
-const LOOK_KEYS = ['color', 'font', 'style', 'size'] as const;
-
-/** The look someone sees now: their own choices, or the organization's where they have none, or Taskify's defaults. */
-const lookOf = (p: Prefs, m: Membership | null): Look => ({
-  color: p.color && p.color !== 'default' ? p.color : m?.brand_color && /^#[0-9a-f]{6}$/i.test(m.brand_color) ? m.brand_color.toLowerCase() : DEFAULT_COLOR,
-  font: p.font ?? (FONT_FAMILIES.includes(m?.font_family as FontFamily) ? m!.font_family as FontFamily : 'fabric'),
-  style: p.style ?? (FONT_STYLES.includes(m?.font_style as FontStyle) ? m!.font_style as FontStyle : 'classic'),
-  size: p.size ?? (TEXT_SIZES.includes(m?.text_size as TextSize) ? m!.text_size as TextSize : 'compact'),
-});
 const sameLook = (a: Look, b: Look) => LOOK_KEYS.every((k) => a[k] === b[k]);
 
-/** Profile → Appearance: anyone's own theme, color, font, italic and text size.
- *  Saving keeps all four as the person's own, so later changes an admin makes to the organization's appearance never reach them. */
+/** Profile → Appearance: anyone's own theme, color, font, italic and text size. Only that person sees it:
+ *  the look is saved with their account (lib/auth keeps one for everyone), so an admin's organization changes never reach it. */
 export default function MyLook() {
   const { membership, prefs, savePrefs } = useAuth();
   const theme = useTheme();
-  const own = LOOK_KEYS.some((k) => prefs[k] !== undefined);
   const saved = lookOf(prefs, membership);
+  const orgLook = lookOf({}, membership);
   const [draft, setDraft] = useState<Look>(saved);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const set = (p: Partial<Look>) => { setDraft((d) => ({ ...d, ...p })); setMsg(null); };
@@ -46,21 +37,14 @@ export default function MyLook() {
     try { await savePrefs({ ...prefs, ...draft }); setMsg({ ok: true, text: 'Saved as your own look, on every device.' }); }
     catch (x) { setMsg({ ok: false, text: (x as Error).message }); }
   }
-  async function followOrg() {
-    try {
-      const rest = { ...prefs }; for (const k of LOOK_KEYS) delete rest[k];
-      await savePrefs(rest);
-      setDraft(lookOf({}, membership)); setMsg({ ok: true, text: `You now follow ${membership?.org_name}'s look.` });
-    } catch (x) { setMsg({ ok: false, text: (x as Error).message }); }
-  }
+  // copies the organization's current look into the draft; saving keeps it as this person's own
+  const useOrgLook = () => { setDraft(orgLook); setMsg(null); };
   const colorName = QUICK.find(([, h]) => (h ?? DEFAULT_COLOR) === draft.color)?.[0] ?? MORE.get(draft.color) ?? 'Custom color';
 
   return (
     <section className="card os-sec ml" aria-labelledby="ml-h">
       <header><h3 id="ml-h"><Palette size={16} aria-hidden="true" /> Your appearance</h3>
-        <p className="muted">{own
-          ? `This is your own look. Changes an admin makes to ${membership?.org_name}'s appearance don't change it.`
-          : `You're using ${membership?.org_name}'s look. Change anything and save to make it your own; after that, admin changes won't affect it.`}</p></header>
+        <p className="muted">Only you see this look, on every device you sign in on. No one else's choices change it, and yours don't change anyone else's.</p></header>
 
       <div className="ml-row"><span className="fp-label" id="ml-theme">Theme</span>
         <div className="seg ml-seg" role="group" aria-labelledby="ml-theme">
@@ -90,7 +74,8 @@ export default function MyLook() {
             </div>
           </div>
         </details>
-        <small className="muted">{colorName}, {draft.color.toUpperCase()}.</small></div>
+        <small className="muted">{colorName}, {draft.color.toUpperCase()}. How it looks in each mode:</small>
+        <BrandPreview color={draft.color} /></div>
 
       <div className="ml-row"><span className="fp-label" id="ml-font"><Type size={14} aria-hidden="true" /> Font</span>
         <div className="fp-fams" role="group" aria-labelledby="ml-font">
@@ -112,8 +97,8 @@ export default function MyLook() {
         </div></div>
 
       <div className="os-save on ml-save">
-        <span className={dirty ? 'os-dirty' : 'muted'} role="status">{msg ? msg.text : dirty ? 'Previewing. Save to keep it.' : own ? 'Your own look is saved.' : `Following ${membership?.org_name}'s look.`}</span>
-        {own && !dirty && <button type="button" className="link" onClick={followOrg}><RotateCcw size={14} aria-hidden="true" />Go back to the organization look</button>}
+        <span className={dirty ? 'os-dirty' : 'muted'} role="status">{msg ? msg.text : dirty ? 'Previewing. Save to keep it.' : 'Your look is saved.'}</span>
+        {!sameLook(draft, orgLook) && <button type="button" className="link" onClick={useOrgLook}><RotateCcw size={14} aria-hidden="true" />Use {membership?.org_name}'s look</button>}
         {dirty && <button type="button" className="link" onClick={() => { setDraft(saved); setMsg(null); }}>Discard</button>}
         <button type="button" onClick={save} disabled={!dirty}>Save my appearance</button>
       </div>

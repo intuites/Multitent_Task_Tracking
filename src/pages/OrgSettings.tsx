@@ -9,7 +9,8 @@ import { ROLE_TEXT } from '../lib/roles';
 import { applyBrand, applyFont, applyTextSize, loadJakarta, restoreLook, DEFAULT_COLOR, FONT_FAMILIES, FONT_STYLES, TEXT_SIZES, type FontFamily, type FontStyle, type TextSize } from '../lib/theme';
 import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { TwoFactorForm } from './TwoFactor';
-import { brandPalette, contrast } from '../lib/palette';
+import { contrast } from '../lib/palette';
+import BrandPreview from '../components/BrandPreview';
 import { FAMILIES, QUICK, TRENDING } from '../lib/brandColors';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
@@ -184,7 +185,7 @@ export default function OrgSettings() {
 
             <div hidden={tab !== 'look'} className="os-pane">
             <section className="card os-sec" aria-labelledby="look-h">
-              <header><h3 id="look-h"><Palette size={16} aria-hidden="true" /> Appearance</h3><p className="muted">The color, font and text size for people in {org.name} who haven't set their own look. Anyone who saved their own appearance keeps it. The whole app previews your picks before you save.</p></header>
+              <header><h3 id="look-h"><Palette size={16} aria-hidden="true" /> Appearance</h3><p className="muted">The starting color, font and text size for people who join {org.name} from now on. It doesn't change anyone's look, yours included: everyone keeps their own and changes it in Profile → Appearance. The app previews your picks until you save or leave.</p></header>
               <div className="os-brand">
               <div className="os-controls">
               <fieldset className="brand-pick" disabled={!canEdit}>
@@ -217,24 +218,9 @@ export default function OrgSettings() {
                 <div className="seg ml-seg" role="group" aria-labelledby="os-size">
                   {TEXT_SIZES.map((s) => <button key={s} type="button" aria-pressed={(size ?? 'compact') === s} disabled={!canEdit || !('text_size' in org)} onClick={() => setSize(s)}>{SIZE_TEXT[s]}</button>)}
                 </div>
-                <small className="muted">{'text_size' in org ? 'The starting size for people who haven\'t picked their own.' : 'Run database update 0036 in Supabase to save a text size.'} Everyone can set their own look in Profile → Appearance; your changes here don't override it.</small></div>
+                <small className="muted">{'text_size' in org ? 'The starting size for new people.' : 'Run database update 0036 in Supabase to save a text size.'}</small></div>
               </div>
-                <div className="brand-preview os-preview" aria-label="Preview of the color and font" role="img">
-                  {(['light', 'dark'] as const).map((m) => {
-                    const p = brandPalette(brand ?? DEFAULT_COLOR, m);
-                    const vars = { '--b': p['--brand'], '--tint': p['--brand-tint'], '--grad': p['--brand-grad'], '--ink': p['--brand-ink'],
-                      '--bp-bg': p['--panel'], '--bp-fg': p['--text'], '--bp-muted': p['--muted'], '--bp-line': p['--line'] } as React.CSSProperties;
-                    return (
-                    <div key={m} className="bp" style={vars} aria-hidden="true">
-                      <small className="bp-mode">{m === 'light' ? 'Light mode' : 'Dark mode'}</small>
-                      <b className="bp-title">Quarterly planning</b>
-                      <span className="bp-nav">Dashboard</span>
-                      <span className="bp-kpi"><small>My open tasks</small><b>4</b></span>
-                      <span className="bp-row"><span className="bp-btn">Update status</span><span className="bp-link">View all</span></span>
-                      <span className="bp-bar"><i /></span>
-                    </div>);
-                  })}
-                </div>
+                <BrandPreview color={brand ?? DEFAULT_COLOR} side />
               </div>
             </section>
             </div>

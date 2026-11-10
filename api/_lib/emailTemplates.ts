@@ -142,6 +142,14 @@ export function generic(subject: string, text: string, href: string | null, ctx:
   return { subject, html: layout(ctx, esc(subject), body, text || subject), text: `${text || subject}\n\n${url}` };
 }
 
+/** Sent after sign-up: the one link that confirms the email address and signs them in. */
+export function confirmSignup(name: string, link: string, appUrl: string): Mail {
+  const subject = 'Confirm your Taskify account';
+  const body = p(`Hi ${esc(name)}, confirm this is your email address to finish creating your account.`) + button(link, 'Confirm my email')
+    + p('If you didn’t sign up for Taskify, ignore this email.', `color:${MUTED};font-size:13px;margin-top:16px;`);
+  return { subject, html: layout({ org: name, tz: 'UTC', appUrl }, subject, body, subject), text: `Hi ${name}, confirm your email to finish creating your Taskify account:\n\n${link}` };
+}
+
 const DIGEST_MAX = 100; // Gmail clips messages over ~100 KB; past this, the rest is a link
 /** Midday or end-of-day digest: open tasks grouped by department, overdue first. */
 export function digest(kind: 'midday' | 'eod', rows: DigestRow[], counts: { open: number; overdue: number; dueToday: number; doneToday: number },

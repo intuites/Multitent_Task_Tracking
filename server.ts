@@ -4,12 +4,14 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import invite from './api/invite';
 import login from './api/login';
+import signup from './api/signup';
+import reset from './api/reset';
 import flush from './api/flush';
 import deleteUser from './api/delete-user';
 import tick from './api/cron/tick';
 import type { Req, Res } from './api/_lib/http';
 
-const ROUTES: Record<string, (req: Req, res: Res) => Promise<void>> = { invite, login, flush, 'delete-user': deleteUser, 'cron/tick': tick };
+const ROUTES: Record<string, (req: Req, res: Res) => Promise<void>> = { invite, login, signup, reset, flush, 'delete-user': deleteUser, 'cron/tick': tick };
 const DIST = resolve('dist');
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png',

@@ -15,6 +15,9 @@ export const admin = () => {
   return db.client;
 };
 
+/** Where email links send people back to. Supabase only accepts addresses on its Redirect URLs list. */
+export const appUrl = (req: Req) => process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || String(req.headers.origin ?? '');
+
 export async function authUser(req: Req) {
   const h = req.headers.authorization;
   const token = typeof h === 'string' && h.startsWith('Bearer ') ? h.slice(7) : '';

@@ -182,6 +182,7 @@ function Gate() {
         <Route path="/templates" element={<Guard need="task:write"><Templates /></Guard>} />
         <Route path="/admin-site" element={platformAdmin ? <Platform /> : <Navigate to="/" replace />} />
         <Route path="/platform" element={<Navigate to="/admin-site" replace />} />
+        <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

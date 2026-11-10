@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Check, Monitor, Moon, Palette, RotateCcw, Sun, Type } from 'lucide-react';
 import { useAuth } from '../lib/auth';
-import { loadJakarta, lookOf, previewLook, restoreLook, useTheme, DEFAULT_COLOR, LOOK_KEYS, type FontFamily, type Look, type Prefs, type TextSize, type ThemePref } from '../lib/theme';
+import { loadJakarta, lookOf, prefsFor, previewLook, restoreLook, useTheme, DEFAULT_COLOR, LOOK_KEYS, type FontFamily, type Look, type Prefs, type TextSize, type ThemePref } from '../lib/theme';
 import { rpc } from '../lib/ui';
 import { contrast } from '../lib/palette';
 import { FAMILIES, QUICK, TRENDING } from '../lib/brandColors';
 import BrandPreview from './BrandPreview';
+import { ask } from './Dialog';
 
 /** every color under "More colors", hex → name */
 const MORE = new Map<string, string>([...FAMILIES.flatMap((f) => f.colors.map((c) => [c.hex, c.name] as const)), ...TRENDING.map((t) => [t.hex, t.name] as const)]);
@@ -20,9 +21,12 @@ const sameLook = (a: Look, b: Look) => LOOK_KEYS.every((k) => a[k] === b[k]);
  *  the look is saved with their account (lib/auth keeps one for everyone), so an admin's organization changes never reach it.
  *  With `person`, a platform admin edits that person's look instead (saved by tt_platform_set_look; nothing previews on the admin's own screen). */
 export default function MyLook({ person, onSaved }: { person?: { id: string; name: string; prefs: Prefs }; onSaved?: () => void } = {}) {
-  const { membership, prefs: myPrefs, savePrefs } = useAuth();
+  const { membership, memberships, prefs: myPrefs, savePrefs } = useAuth();
   const theme = useTheme();
-  const prefs = person ? person.prefs : myPrefs;
+  const orgId = membership?.org_id ?? '', orgName = membership?.org_name || 'this organization';
+  // yours: the look you have in the organization that's open (one saved for it alone wins over your usual one)
+  const prefs = person ? person.prefs : prefsFor(myPrefs, orgId);
+  const ownForOrg = !person && !!myPrefs.orgs?.[orgId];
   const saved = lookOf(prefs, membership);
   const orgLook = lookOf({}, membership);
   const [draft, setDraft] = useState<Look>(saved);
@@ -44,12 +48,28 @@ export default function MyLook({ person, onSaved }: { person?: { id: string; nam
         setMsg({ ok: true, text: `Saved. ${person.name} sees it the next time they open Taskify.` });
         onSaved?.();
       } else {
-        await savePrefs(draft); // only the look: savePrefs keeps everything else as saved setMsg({ ok: true, text: 'Saved as your own look, on every device.' });
+        // in more than one organization: ask whether this look is for this one only or for all of them
+        let only = false;
+        if (memberships.length > 1) {
+          const r = await ask({ title: 'Where should this look apply?', message: `You belong to ${memberships.length} organizations. Use this look only in ${orgName}, or in all of them?`,
+            confirmLabel: `Only ${orgName}`, alt: 'All my organizations' });
+          if (!r.ok) return;
+          only = r.value !== 'alt';
+        }
+        const others = { ...myPrefs.orgs }; delete others[orgId];
+        // savePrefs keeps everything else as saved; "all" also clears looks saved for single organizations
+        await savePrefs(only ? { orgs: { ...myPrefs.orgs, [orgId]: draft } } : { ...draft, orgs: memberships.length > 1 ? {} : others });
+        setMsg({ ok: true, text: only ? `Saved for ${orgName} only, on every device.` : 'Saved as your own look, on every device.' });
       }
     } catch (x) {
       const m = (x as Error).message;
       setMsg({ ok: false, text: /tt_platform_set_look|schema cache/i.test(m) ? 'This needs the database update first: run migration 0039 in Supabase.' : m });
     }
+  }
+  // drops the look saved for this organization alone, so your usual one shows here again
+  async function useUsual() {
+    const others = { ...myPrefs.orgs }; delete others[orgId];
+    try { await savePrefs({ orgs: others }); setMsg({ ok: true, text: `${orgName} now uses your usual look.` }); } catch (x) { setMsg({ ok: false, text: (x as Error).message }); }
   }
   // copies the organization's current look into the draft; saving keeps it as this person's own
   const useOrgLook = () => { setDraft(orgLook); setMsg(null); };
@@ -60,7 +80,8 @@ export default function MyLook({ person, onSaved }: { person?: { id: string; nam
       <header><h3 id="ml-h"><Palette size={16} aria-hidden="true" /> {person ? `${person.name}'s appearance` : 'Your appearance'}</h3>
         <p className="muted">{person
           ? `As platform admin you can change ${person.name}'s look. Only ${person.name} sees it; your own screen doesn't change.`
-          : 'Only you see this look, on every device you sign in on. No one else\'s choices change it, and yours don\'t change anyone else\'s.'}</p></header>
+          : 'Only you see this look, on every device you sign in on. No one else\'s choices change it, and yours don\'t change anyone else\'s.'}</p>
+        {ownForOrg && <p className="ml-scope">You have a look for <b>{orgName}</b> only. <button type="button" className="link" onClick={useUsual}>Use my usual look here</button></p>}</header>
 
       <div className="ml-row"><span className="fp-label" id="ml-theme">Theme</span>
         <div className="seg ml-seg" role="group" aria-labelledby="ml-theme">

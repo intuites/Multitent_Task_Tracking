@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Session } from '@supabase/supabase-js';
 import { supabase, configured, authLinkType } from './supabase';
 import type { Role } from '../../api/_lib/permissions';
-import { applyLook, applyThemePref, lookOf, lookToKeep, themePref, type Prefs } from './theme';
+import { applyLook, applyThemePref, lookOf, lookToKeep, prefsFor, themePref, type Prefs } from './theme';
 import { readLastUser, saveLastUser } from './lastUser';
 import { setOrgZone } from './greeting';
 
@@ -117,8 +117,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
     // signed out: the look of whoever last signed in here (sign-in page greeting), else Taskify's defaults
-    if (session) saveLastUser({ look: lookOf(prefs, membership) });
-    applyLook(session ? membership : null, session ? prefs : readLastUser()?.look ?? {});
+    const mine = prefsFor(prefs, membership?.org_id); // a look saved for this organization only wins
+    if (session) saveLastUser({ look: lookOf(mine, membership) });
+    applyLook(session ? membership : null, session ? mine : readLastUser()?.look ?? {});
     setOrgZone(membership?.time_zone);
   }, [loading, session, membership, prefs]);
   useEffect(() => { if (!loading && session) applyThemePref(prefs.theme); }, [loading, session, prefs.theme]);

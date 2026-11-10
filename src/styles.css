@@ -2398,3 +2398,6 @@ h2, h3, h4 { letter-spacing: -0.01em; }
 
 /* phones: the tasks list drops Priority and Department so Title, Status, Assignees and Due fit without sideways scrolling */
 @media (max-width: 640px) { .col-opt { display: none; } }
+/* Profile > Appearance: this organization has its own look */
+.ml-scope { margin: 8px 0 0; padding: 8px 12px; border-radius: 10px; background: var(--brand-tint); font-size: var(--fs-sm); }
+.ml-scope .link { min-height: 0; padding: 0 2px; font-size: inherit; }

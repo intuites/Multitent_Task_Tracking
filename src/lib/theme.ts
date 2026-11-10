@@ -62,7 +62,10 @@ export function applyTextSize(size: string | null | undefined, remember = true) 
 }
 
 /** A person's own look (Profile → Appearance); any field left out follows the organization. tour: the first-sign-in tour was shown. */
-export interface Prefs { theme?: ThemePref; color?: string; font?: FontFamily; style?: FontStyle; size?: TextSize; tour?: 'done' }
+export interface Prefs { theme?: ThemePref; color?: string; font?: FontFamily; style?: FontStyle; size?: TextSize; tour?: 'done'; orgs?: Record<string, Look> }
+/** The person's look inside one organization: a look saved for that organization only wins over their usual one.
+ *  shortcut: prefs is capped at 2,000 characters (migration 0036), about 14 per-organization looks; raise the cap if people need more. */
+export const prefsFor = (p: Prefs, orgId?: string | null): Prefs => ({ ...p, ...(orgId ? p.orgs?.[orgId] : undefined) });
 export interface OrgLook { brand_color?: string | null; font_family?: string | null; font_style?: string | null; text_size?: string | null }
 export type Look = { color: string; font: FontFamily; style: FontStyle; size: TextSize };
 export const LOOK_KEYS = ['color', 'font', 'style', 'size'] as const;

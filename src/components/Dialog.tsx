@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, HelpCircle } from 'lucide-react';
 
-interface Opts { title?: string; message: string; confirmLabel?: string; input?: string; danger?: boolean }
+/** alt: a second choice besides confirm; picking it resolves { ok: true, value: 'alt' } */
+interface Opts { title?: string; message: string; confirmLabel?: string; input?: string; danger?: boolean; alt?: string }
 interface Result { ok: boolean; value: string }
 type Pending = Opts & { resolve: (r: Result) => void };
 
@@ -27,6 +28,7 @@ export function DialogHost() {
           <div className="actions">
             {/* destructive dialogs focus Cancel so a stray Enter doesn't delete anything */}
             <button type="button" className="pill-btn ghost" autoFocus={p.danger && !p.input} onClick={() => close({ ok: false, value: '' })}>Cancel</button>
+            {p.alt && <button type="button" className="pill-btn ghost" onClick={() => close({ ok: true, value: 'alt' })}>{p.alt}</button>}
             <button type="submit" className={p.danger ? 'danger' : ''} autoFocus={!p.danger && !p.input}>{p.confirmLabel ?? 'Confirm'}</button>
           </div>
         </form>

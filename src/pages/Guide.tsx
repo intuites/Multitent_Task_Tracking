@@ -64,7 +64,7 @@ const FEATURES: Feature[] = [
   { id: 'reports', icon: BarChart3, name: 'Reports', line: 'Completion, workload, departments and overdue work, ready to export.',
     steps: ['Pick a report and filter it.', 'Export it to Excel (with charts) or PDF.'], visual: <DashMock /> },
 ];
-const HEADLINE = 'Your organization, its departments and every task in one calm place.';
+const HEADLINE = 'Assign work. Track it. Get it done on time.';
 
 /** Pointer-driven tilt / spotlight / parallax, written as CSS variables once per frame. Skipped on touch and reduced motion. */
 function usePointerFx(root: React.RefObject<HTMLElement>) {
@@ -131,7 +131,7 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
         <div className="g-hero-copy">
           <p className="g-kicker"><span className="g-kdot" aria-hidden="true" />Product guide</p>
           <h1 aria-label={HEADLINE}>{HEADLINE.split(' ').map((w, i) => <span key={i} className="g-word" aria-hidden="true" style={css({ '--i': i })}>{w} </span>)}</h1>
-          <p className="g-lead">The main features, and how each one works.</p>
+          <p className="g-lead">Taskify gives each organization one place to assign tasks to its departments and people, follow every status, and stay on deadline with reminders, email updates and reports.</p>
           <div className="g-cta">
             <button type="button" className="pill-btn light g-shine" onClick={() => go(FEATURES[0].id)}>Explore features<ArrowRight size={16} aria-hidden="true" /></button>
             {standalone ? <a href="/" className="pill-btn g-ghost">Sign in</a> : <Link to="/" className="pill-btn g-ghost">Back to dashboard</Link>}

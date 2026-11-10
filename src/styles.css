@@ -821,6 +821,29 @@ dialog h2 { margin: 4px 0 0; font-size: var(--fs-xl); letter-spacing: -0.01em; }
 .dlg-ico.danger { background: var(--bad-bg); color: var(--danger); }
 dialog .actions { margin-top: 6px; }
 dialog .actions > * { min-width: 104px; }
+/* a dialog that asks you to pick one option: each is a card; the chosen one takes the brand colour */
+dialog.dlg-pick { width: min(460px, 92vw); }
+.dlg-choices { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.dlg-choice { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px; cursor: pointer;
+  background: var(--surface); border: 1.5px solid var(--line); font-weight: var(--fw-regular); transition: border-color .2s var(--ease), background-color .2s var(--ease), box-shadow .2s var(--ease); }
+.dlg-choice:hover { border-color: var(--control-line); }
+.dlg-choice:has(input:checked) { border-color: var(--brand); background: var(--brand-tint); box-shadow: 0 8px 22px -14px color-mix(in srgb, var(--brand) 70%, transparent); }
+.dlg-choice:has(input:focus-visible) { outline: 2px solid var(--brand-2); outline-offset: 2px; }
+.dlg-choice-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--surface-2); color: var(--muted); transition: background-color .2s var(--ease), color .2s var(--ease); }
+.dlg-choice:has(input:checked) .dlg-choice-ico { background: var(--brand-grad); color: var(--brand-ink); }
+.dlg-choice-text { display: grid; gap: 3px; }
+.dlg-choice-text b { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+.dlg-choice-text small { color: var(--muted); font-size: var(--fs-sm); line-height: 1.4; }
+/* the radio itself, drawn: a ring that fills with a dot */
+.dlg-choice input { appearance: none; flex: none; width: 22px; height: 22px; min-height: 0; margin: 0; padding: 0; border-radius: 50%; border: 2px solid var(--control-line); background: var(--surface);
+  display: grid; place-items: center; cursor: pointer; transition: border-color .2s var(--ease); }
+.dlg-choice input::after { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--brand); transform: scale(0); transition: transform .25s var(--settle, var(--ease)); }
+.dlg-choice input:checked { border-color: var(--brand); }
+.dlg-choice input:checked::after { transform: scale(1); }
+.dlg-choice input:focus-visible { outline: none; box-shadow: none; }
+dialog.dlg-pick .actions { margin-top: 10px; }
+dialog.dlg-pick .actions button[type=submit] { min-width: 132px; }
+@media (prefers-reduced-motion: reduce) { .dlg-choice, .dlg-choice-ico, .dlg-choice input, .dlg-choice input::after { transition: none; } }
 
 /* ---------- calendar ---------- */
 .cal-nav { display: flex; align-items: center; gap: 8px; }

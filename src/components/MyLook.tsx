@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Monitor, Moon, Palette, RotateCcw, Sun, Type } from 'lucide-react';
+import { Building2, Check, Layers, Monitor, Moon, Palette, RotateCcw, Sun, Type } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { loadJakarta, lookOf, prefsFor, previewLook, restoreLook, useTheme, DEFAULT_COLOR, LOOK_KEYS, type FontFamily, type Look, type Prefs, type TextSize, type ThemePref } from '../lib/theme';
 import { rpc } from '../lib/ui';
@@ -51,10 +51,15 @@ export default function MyLook({ person, onSaved }: { person?: { id: string; nam
         // in more than one organization: ask whether this look is for this one only or for all of them
         let only = false;
         if (memberships.length > 1) {
-          const r = await ask({ title: 'Where should this look apply?', message: `You belong to ${memberships.length} organizations. Use this look only in ${orgName}, or in all of them?`,
-            confirmLabel: `Only ${orgName}`, alt: 'All my organizations' });
+          const n = memberships.length;
+          const r = await ask({ title: 'Where should this look apply?', icon: <Palette size={22} />, confirmLabel: 'Save look',
+            message: `You belong to ${n} organizations. Pick where to use ${colorName.toLowerCase().startsWith('custom') ? 'this look' : colorName}.`,
+            choices: [
+              { value: 'only', label: `Only ${orgName}`, hint: `Your other ${n - 1 === 1 ? 'organization keeps its' : `${n - 1} organizations keep their`} current look.`, icon: <Building2 size={18} /> },
+              { value: 'all', label: 'All my organizations', hint: `The same look in all ${n}. Looks saved for one organization are replaced.`, icon: <Layers size={18} /> },
+            ] });
           if (!r.ok) return;
-          only = r.value !== 'alt';
+          only = r.value === 'only';
         }
         const others = { ...myPrefs.orgs }; delete others[orgId];
         // savePrefs keeps everything else as saved; "all" also clears looks saved for single organizations

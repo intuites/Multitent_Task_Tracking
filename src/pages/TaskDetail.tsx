@@ -12,7 +12,7 @@ import MentionInput, { withMentions } from '../components/MentionInput';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { useLive } from '../lib/live';
-import { Avatar, initials } from '../components/Frame';
+import { Avatar } from '../components/Frame';
 import { emailText, loadEmails, type ExtraEmail } from '../components/MemberEmails';
 
 const CYCLES: [string, string][] = [['daily', 'Daily'], ['weekdays', 'Weekdays'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['semiannual', 'Every 6 months'], ['yearly', 'Yearly']];
@@ -24,7 +24,7 @@ export default function TaskDetail() {
   const { membership, session } = useAuth();
   const orgId = membership!.org_id, uid = session!.user.id, role = membership!.role;
   const canAssign = can(role, 'task:write');
-  const { active, name } = usePeople(orgId);
+  const { active, name, photo } = usePeople(orgId);
   const [t, setT] = useState<any>(null);
   const [d, setD] = useState<any>({ assignees: [], subtasks: [], parent: null, comments: [], history: [], activity: [], contacts: [], recur: null });
   const [error, setError] = useState('');
@@ -237,7 +237,7 @@ export default function TaskDetail() {
                     <span className={`sub-dot ${s.status}`} aria-hidden="true" />
                     <b>{s.title}</b>
                     <small className={isOverdue(s) ? 'overdue' : 'muted'}>{s.start_date && new Date(s.start_date) > new Date() ? `Starts ${fmt(s.start_date)}` : s.due_date ? `Due ${fmt(s.due_date)}` : ''}</small>
-                    <span className="sub-who">{s.tt_task_assignees.slice(0, 3).map((a: any) => <Avatar key={a.user_id} name={name(a.user_id)} className="avatar xs" />)}</span>
+                    <span className="sub-who">{s.tt_task_assignees.slice(0, 3).map((a: any) => <Avatar key={a.user_id} name={name(a.user_id)} url={photo(a.user_id)} className="avatar xs" />)}</span>
                     <Badge v={s.status} />
                   </Link>
                 </li>))}</ul>)}
@@ -259,7 +259,7 @@ export default function TaskDetail() {
                 const who = c.author_name ?? name(c.user_id);
                 return (
                   <li key={c.id} className={c.user_id === uid ? 'mine' : ''}>
-                    <span className="avatar sm" aria-hidden="true">{initials(who)}</span>
+                    <Avatar name={who} url={photo(c.user_id)} className="avatar sm" />
                     <div className="bubble">
                       <div className="bubble-head"><b>{who}</b><small>{fmtTime(c.created_at)}{c.edited_at && ' · edited'}</small></div>
                       {c.deleted_at ? <p className="muted"><em>Comment deleted</em></p> : editing === c.id ? (
@@ -279,7 +279,7 @@ export default function TaskDetail() {
               })}</ul>)}
             <form className="composer" onSubmit={addComment}>
               <MentionInput key={composer} name="body" label="Add comment" placeholder="Write a comment… Type @ to mention an assignee"
-                people={d.assignees.filter((a: any) => a.user_id !== uid).map((a: any) => ({ id: a.user_id, name: name(a.user_id) })).filter((p: any) => p.name !== '…')} />
+                people={d.assignees.filter((a: any) => a.user_id !== uid).map((a: any) => ({ id: a.user_id, name: name(a.user_id), avatar: photo(a.user_id) })).filter((p: any) => p.name !== '…')} />
               <div className="composer-bar">
                 <button type="submit"><Send size={15} aria-hidden="true" />Post</button>
               </div>
@@ -335,7 +335,7 @@ export default function TaskDetail() {
                 const ex = extras.get(a.user_id) ?? [], primary = active.find((p) => p.id === a.user_id)?.email ?? '';
                 return (
                 <li key={a.user_id}>
-                  <span className="avatar sm" aria-hidden="true">{initials(name(a.user_id))}</span>
+                  <Avatar name={name(a.user_id)} url={photo(a.user_id)} className="avatar sm" />
                   <span className="grow">{name(a.user_id)}
                     {(ex.length > 0 || a.email) && (canAssign && ex.length > 0
                       ? <select className="me-pick" aria-label={`Address that gets ${name(a.user_id)}'s emails for this task`} value={a.email ?? ''}

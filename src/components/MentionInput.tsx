@@ -1,5 +1,5 @@
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { initials } from './Frame';
+import { Avatar } from './Frame';
 import { mentionedIds, mentionQuery, type Mentionable } from '../lib/mentions';
 
 /** A comment box where typing @ lists `people` (the task's assignees) to mention. Sends `mentions` (JSON ids) with the form. */
@@ -46,7 +46,7 @@ export default function MentionInput({ people, name, label, placeholder }: { peo
           {matches.map((p, i) => (
             <li key={p.id} id={`${listId}-${i}`} role="option" aria-selected={i === hi} className={i === hi ? 'on' : ''}
               onMouseDown={(e) => { e.preventDefault(); choose(p); }} onMouseEnter={() => setHi(i)}>
-              <span className="avatar sm" aria-hidden="true">{initials(p.name)}</span>{p.name}
+              <Avatar name={p.name} url={p.avatar} className="avatar sm" />{p.name}
             </li>))}
         </ul>
       ) : <p id={listId} className="mention-list mention-none">{people.length ? 'No assignee matches that name.' : 'Only this task’s assignees can be mentioned, and it has none besides you.'}</p>)}

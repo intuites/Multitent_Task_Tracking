@@ -2110,6 +2110,7 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .al-item p b { font-weight: var(--fw-semibold); }
 .al-item p a { font-weight: var(--fw-semibold); }
 .al-av { position: relative; overflow: visible; box-shadow: 0 0 0 3px var(--surface); }
+.al-av img { border-radius: 50%; }
 .al-av i { position: absolute; right: -8px; bottom: -6px; display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%;
   box-shadow: 0 0 0 2px var(--surface); background: var(--cat-bg); color: var(--cat-fg); }
 .c-task { --cat-bg: var(--info-bg); --cat-fg: var(--info-fg); }

@@ -1,4 +1,4 @@
-export interface Mentionable { id: string; name: string }
+export interface Mentionable { id: string; name: string; avatar?: string | null }
 
 /** The "@word" being typed right before the caret, if any. */
 export function mentionQuery(text: string, caret: number): { at: number; q: string } | null {

@@ -161,7 +161,7 @@ export default function Employees() {
                 <thead><tr><th>Person</th><th>Role</th><th>Open</th><th>Overdue</th><th>Status</th>{admin && <th><span className="sr-only">Actions</span></th>}</tr></thead>
                 <tbody>{shown.map((p) => (
                   <tr key={p.id} className={p.active ? '' : 'inactive'}>
-                    <td><Link to={`/employees/${p.id}`} className="emp-person emp-open" title={`Open ${p.name}'s profile`}><Avatar name={p.name} /><span><b>{p.name}{p.id === uid && <small className="muted"> (you)</small>}</b><small className="muted">{p.email}</small></span></Link></td>
+                    <td><Link to={`/employees/${p.id}`} className="emp-person emp-open" title={`Open ${p.name}'s profile`}><Avatar name={p.name} url={p.avatar} /><span><b>{p.name}{p.id === uid && <small className="muted"> (you)</small>}</b><small className="muted">{p.email}</small></span></Link></td>
                     <td>{admin && p.id !== uid ? (
                       <select aria-label={`Role for ${p.name}`} value={p.role} onChange={(e) => setRole(p, e.target.value)}>
                         {ROLES.map((r) => <option key={r} value={r}>{label(r)}</option>)}
@@ -200,7 +200,7 @@ export default function Employees() {
             <table className="emp-table"><thead><tr><th>Person</th><th>Role</th><th>Assigned</th><th>Completed</th><th>Overdue</th><th>On time</th><th>Progress</th></tr></thead>
               <tbody>{[...perfRows].sort((a, b) => b.s.done - a.s.done).map(({ p, s }) => (
                 <tr key={p.id} className={p.active ? '' : 'inactive'}>
-                  <td><Link to={`/employees/${p.id}`} className="emp-person emp-open" title={`Open ${p.name}'s profile`}><Avatar name={p.name} /><span><b>{p.name}</b><small className="muted">{p.email}</small></span></Link></td>
+                  <td><Link to={`/employees/${p.id}`} className="emp-person emp-open" title={`Open ${p.name}'s profile`}><Avatar name={p.name} url={p.avatar} /><span><b>{p.name}</b><small className="muted">{p.email}</small></span></Link></td>
                   <td><span className="prio">{label(p.role)}</span></td><td>{s.assigned}</td><td>{s.done}</td><td className={s.overdue ? 'overdue' : ''}>{s.overdue}</td><td>{s.onTime === null ? '—' : `${s.onTime}%`}</td>
                   <td className="perf-bar"><span className="meter" role="img" aria-label={`${pct(s)}% completed`}><i style={{ width: `${pct(s)}%` }} /></span></td>
                 </tr>))}</tbody></table>
@@ -271,7 +271,7 @@ export function Departments({ say }: { say: (m: Msg) => void }) {
             </header>
             {members.length === 0 ? <p className="muted tc-count">No members yet.</p> : (
               <ul className="tc-members">{members.map((m) => (
-                <li key={m.user_id}><Avatar name={nameOf(m.user_id)} className="avatar xs" /><span className="grow">{nameOf(m.user_id)}</span>
+                <li key={m.user_id}><Avatar name={nameOf(m.user_id)} url={people.find((p) => p.id === m.user_id)?.avatar} className="avatar xs" /><span className="grow">{nameOf(m.user_id)}</span>
                   {admin && <button type="button" className="tc-x" aria-label={`Remove ${nameOf(m.user_id)} from ${d.name}`}
                     onClick={() => run(supabase.from('tt_department_members').delete().eq('department_id', d.id).eq('user_id', m.user_id), `${nameOf(m.user_id)} removed from ${d.name}.`)}><X size={13} aria-hidden="true" /></button>}
                 </li>))}</ul>)}

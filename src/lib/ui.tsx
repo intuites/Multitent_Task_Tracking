@@ -36,7 +36,7 @@ export function kickEmails() {
   }, 1200);
 }
 
-export interface Person { id: string; name: string; email: string; role: string; active: boolean }
+export interface Person { id: string; name: string; email: string; role: string; active: boolean; avatar?: string | null }
 
 // short-lived: someone who joins while the app is open shows up in pickers within 30 s, without a reload
 const cache = new Map<string, Promise<Person[]>>();
@@ -50,11 +50,11 @@ export function loadPeople(orgId: string, fresh = false): Promise<Person[]> {
       const { data: all } = await supabase.from('tt_org_members').select('*').eq('org_id', orgId);
       const m = (all ?? []).filter((x: any) => x.joined_at !== null);
       const ids = m.map((x) => x.user_id);
-      const { data: p } = ids.length ? await supabase.from('tt_profiles').select('user_id, full_name, email').in('user_id', ids) : { data: [] as any[] };
+      const { data: p } = ids.length ? await supabase.from('tt_profiles').select('user_id, full_name, email, avatar_url').in('user_id', ids) : { data: [] as any[] };
       const pm = new Map((p ?? []).map((x: any) => [x.user_id, x]));
       return m.map((x) => {
         const pr: any = pm.get(x.user_id);
-        return { id: x.user_id, name: pr?.full_name || pr?.email || 'Unknown', email: pr?.email ?? '', role: x.role, active: x.active };
+        return { id: x.user_id, name: pr?.full_name || pr?.email || 'Unknown', email: pr?.email ?? '', role: x.role, active: x.active, avatar: pr?.avatar_url ?? null };
       });
     })());
   }
@@ -94,7 +94,9 @@ export function usePeople(orgId: string) {
     }
     return '…';
   };
-  return { people, active: people.filter((p) => p.active), name };
+  // the person's profile photo, wherever they appear (null: initials)
+  const photo = (id?: string | null) => people.find((x) => x.id === id)?.avatar ?? null;
+  return { people, active: people.filter((p) => p.active), name, photo };
 }
 
 /** Saves a generated file (Excel workbook etc.) through the browser's download. */

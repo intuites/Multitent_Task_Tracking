@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { Badge, fmt, fmtTime, rpc, usePeople } from '../lib/ui';
-import { initials } from '../components/Frame';
+import { Avatar } from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
 import { DashSkeleton } from '../components/Skeleton';
 import { useLive } from '../lib/live';
@@ -146,7 +146,7 @@ export default function Dashboard() {
   const { membership, session } = useAuth();
   const orgId = membership!.org_id, uid = session!.user.id;
   const canAssign = can(membership!.role, 'task:write');
-  const { name } = usePeople(orgId);
+  const { name, photo } = usePeople(orgId);
   const [d, setD] = useState<any>(null);
   const [error, setError] = useState('');
   const [tick, setTick] = useState(0);
@@ -237,7 +237,7 @@ export default function Dashboard() {
             <div className="panel-head"><h3 id="tm-h">Team at work</h3>{can(membership!.role, 'members:manage') && <Link to="/employees" className="pill-btn ghost sm"><Plus size={14} aria-hidden="true" />Add member</Link>}</div>
             {d.team.length === 0 ? <p className="muted">Nobody has open work assigned.</p> : (
               <ul className="team">{d.team.map((w: any) => (
-                <li key={w.user_id}><span className="avatar" aria-hidden="true">{initials(name(w.user_id))}</span>
+                <li key={w.user_id}><Avatar name={name(w.user_id)} url={photo(w.user_id)} />
                   <span className="who"><b>{name(w.user_id)}</b><small>{w.task ? <>Working on <Link to={`/tasks/${w.task.id}`}>{w.task.title}</Link></> : `${w.open} open tasks`}</small></span>
                   {w.task && <Badge v={w.task.status} />}</li>))}
               </ul>)}

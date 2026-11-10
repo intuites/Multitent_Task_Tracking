@@ -23,7 +23,7 @@ export function ActivityLogs() {
   const { membership, session } = useAuth();
   const orgId = membership!.org_id;
   const zone = safeZone(membership!.time_zone);
-  const { people, name: rawName } = usePeople(orgId);
+  const { people, name: rawName, photo } = usePeople(orgId);
   const name = (id?: string | null) => { const n = rawName(id); return n === 'Former member' ? 'a former member' : n; }; // reads inside a sentence
   const [rows, setRows] = useState<LogRow[] | null>(null);
   const [titles, setTitles] = useState<Record<string, string>>({});
@@ -84,7 +84,7 @@ export function ActivityLogs() {
               const actor = r.actor_id ? name(r.actor_id).replace(/^a /, 'A ') : 'Taskify';
               return (
                 <li key={r.id} className={`al-item c-${s.category}`}>
-                  <span className="avatar sm al-av" aria-hidden="true">{initials(actor)}<i><Icon size={11} /></i></span>
+                  <span className="avatar sm al-av" aria-hidden="true">{photo(r.actor_id) ? <img src={photo(r.actor_id)!} alt="" /> : initials(actor)}<i><Icon size={11} /></i></span>
                   <p><b>{actor}</b> {s.verb}{s.target && <> {s.target.to ? <Link to={s.target.to}>{s.target.text}</Link> : s.target.text}</>}{s.rest}
                     {count > 1 && <span className="al-count" title={`${count} times in a row`}>×{count}</span>}</p>
                   <small className="al-meta"><time dateTime={r.created_at}>{time(r.created_at)}</time><span>{CAT_NAME[s.category]}</span></small>

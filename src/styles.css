@@ -229,6 +229,8 @@ a.kpi:hover .go { transform: rotate(45deg); }
 .tile-ico { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 9px; color: var(--white); font-weight: var(--fw-bold); font-size: var(--fs-sm); }
 .team li { display: flex; align-items: center; gap: 12px; }
 .team .who { flex: 1; }
+/* a long task title (even one with no spaces) wraps to two lines instead of pushing the card wider */
+.team .who small, .team .who > a { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .team .who a { color: var(--text); font-weight: var(--fw-semibold); }
 .team .who small a { font-weight: var(--fw-semibold); }
 
@@ -821,7 +823,7 @@ dialog .actions > * { min-width: 104px; }
 .td-hero-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .td-badges, .td-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .td-actions .pill-btn { padding: 8px 16px; }
-.td-title { margin: 14px 0 12px; font-size: var(--fs-h3); font-weight: var(--fw-title); letter-spacing: -0.02em; line-height: 1.2; }
+.td-title { margin: 14px 0 12px; font-size: var(--fs-h3); font-weight: var(--fw-title); letter-spacing: -0.02em; line-height: 1.2; overflow-wrap: anywhere; }
 .td-meta { display: flex; flex-wrap: wrap; gap: 8px; }
 .td-meta > * { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--text); font-size: var(--fs-sm); font-weight: var(--fw-book); text-decoration: none; }
 .td-meta a:hover { background: var(--brand-tint); color: var(--brand-deep); box-shadow: none; }
@@ -1462,7 +1464,10 @@ dialog.nt-sheet[open] { animation: sheet-in .32s var(--settle); }
 @media (prefers-reduced-motion: reduce) { .sel-pop { animation: none; } }
 
 /* ---------- task list: expandable subtasks ---------- */
-.task-title { display: inline-flex; align-items: center; gap: 8px; }
+.task-title { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+/* the title column takes about 40% and long titles wrap (even without spaces) to two lines; hover shows the whole title */
+th.col-title { width: 40%; min-width: 200px; }
+.title-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; min-width: 0; line-height: 1.35; }
 .expand, .expand-gap { flex: none; width: 26px; height: 26px; }
 .expand { display: grid; place-items: center; min-height: 0; padding: 0; border-radius: 8px; background: var(--surface-2); color: var(--muted); transition: background-color .2s, color .2s; }
 .expand:hover { filter: none; background: var(--brand-tint); color: var(--brand); }

@@ -175,7 +175,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
       {error && <p role="alert">{error}</p>}
       {loading ? <ListSkeleton /> : rows.length === 0 ? <p>No tasks match.{canWrite && ' Use “New task” to create one.'}</p> : (
         <table>
-          <thead><tr>{canWrite && <th />}<th>Title</th><th>Status</th><th className="col-opt">Priority</th><th>Assignees</th><th className="col-opt">Department</th><th>Due</th></tr></thead>
+          <thead><tr>{canWrite && <th />}<th className="col-title">Title</th><th>Status</th><th className="col-opt">Priority</th><th>Assignees</th><th className="col-opt">Department</th><th>Due</th></tr></thead>
           <tbody>{rows.map((t) => {
             const kids = subs[t.id] ?? [], isOpen = open.has(t.id), done = kids.filter((k) => !isOpenStatus(k.status)).length;
             return (
@@ -187,7 +187,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
                       {kids.length > 0
                         ? <button type="button" className={`expand ${isOpen ? 'on' : ''}`} aria-expanded={isOpen} aria-controls={`subs-${t.id}`} aria-label={`${isOpen ? 'Hide' : 'Show'} ${kids.length} subtasks of ${t.title}`} onClick={() => toggle(t.id)}><ChevronRight size={16} aria-hidden="true" /></button>
                         : <span className="expand-gap" aria-hidden="true" />}
-                      <Link to={`/tasks/${t.id}`}>{t.title}</Link>
+                      <Link to={`/tasks/${t.id}`} className="title-clamp" title={t.title}>{t.title}</Link>
                       {t.start_date && new Date(t.start_date) > new Date() && <span className="future-chip" title="Future task">Starts {new Date(t.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
                       {kids.length > 0 && <button type="button" className="sub-count" onClick={() => toggle(t.id)} title="Subtasks done"><ListTree size={13} aria-hidden="true" />{done}/{kids.length}</button>}
                     </span>
@@ -199,7 +199,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
                 {isOpen && kids.map((k, i) => (
                   <tr key={k.id} id={i === 0 ? `subs-${t.id}` : undefined} className="sub-row" style={{ '--i': i } as React.CSSProperties}>
                     {canWrite && <td />}
-                    <td><span className="task-title sub"><span className="sub-line" aria-hidden="true" /><span className={`sub-dot ${k.status}`} aria-hidden="true" /><Link to={`/tasks/${k.id}`}>{k.title}</Link></span></td>
+                    <td><span className="task-title sub"><span className="sub-line" aria-hidden="true" /><span className={`sub-dot ${k.status}`} aria-hidden="true" /><Link to={`/tasks/${k.id}`} className="title-clamp" title={k.title}>{k.title}</Link></span></td>
                     <td><Badge v={k.status} /></td><td className="col-opt">{label(k.priority)}</td>
                     <td>{names(k)}</td><td className="muted col-opt">Subtask {i + 1} of {kids.length}</td>
                     <td>{k.start_date && new Date(k.start_date) > new Date() ? <small className="muted">Starts {new Date(k.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</small> : <Due t={k} />}</td>

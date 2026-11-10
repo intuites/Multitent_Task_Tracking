@@ -6,7 +6,7 @@ import {
 import { LiquidBg, reducedMotion } from '../components/Liquid';
 import { ThemeToggle } from '../components/Frame';
 
-interface Feature { id: string; icon: LucideIcon; name: string; short: string; line: string; steps: string[]; visual: ReactNode }
+interface Feature { id: string; icon: LucideIcon; name: string; line: string; steps: string[]; visual: ReactNode }
 const css = (v: Record<string, string | number>) => v as React.CSSProperties;
 
 const Flow = () => (
@@ -42,26 +42,26 @@ const AssignMock = () => (
 );
 
 const FEATURES: Feature[] = [
-  { id: 'organizations', icon: Building2, name: 'Organizations', short: 'Your own private space', line: 'Whoever creates an organization is its admin. Nobody outside it can see its data.',
+  { id: 'organizations', icon: Building2, name: 'Organizations', line: 'Whoever creates an organization is its admin. Nobody outside it can see its data.',
     steps: ['Create your organization; you become its admin.', 'Invite members as admin or employee.', 'Another organization never sees your people, departments or tasks.'],
     visual: <ListMock rows={[['Acme Corp', 'Only Acme’s members'], ['Northwind', 'Only Northwind’s members'], ['Globex', 'Only Globex’s members']]} /> },
-  { id: 'departments', icon: Layers, name: 'Departments', short: 'Organization → department → people', line: 'Group your members into departments, then assign work in three picks.',
+  { id: 'departments', icon: Layers, name: 'Departments', line: 'Group your members into departments, then assign work in three picks.',
     steps: ['Open Employees → Departments and choose the organization.', 'Add departments and the members in each.', 'When creating a task: organization, department, member.'], visual: <AssignMock /> },
-  { id: 'dashboard', icon: LayoutDashboard, name: 'Dashboard', short: 'Today at a glance', line: 'See what needs attention today the moment you sign in.',
+  { id: 'dashboard', icon: LayoutDashboard, name: 'Dashboard', line: 'See what needs attention today the moment you sign in.',
     steps: ['Counts for open, overdue, due-today and pending work.', 'Click any card to open that list of tasks.'], visual: <DashMock /> },
-  { id: 'tasks', icon: ListChecks, name: 'Tasks and subtasks', short: 'One clear path', line: 'Every task follows one clear path, and big work splits into subtasks.',
+  { id: 'tasks', icon: ListChecks, name: 'Tasks and subtasks', line: 'Every task follows one clear path, and big work splits into subtasks.',
     steps: ['Pick the organization, then the department, then a member of that department.', 'Add subtasks, each with its own owner and date.', 'Mark it Future if the work starts later.'], visual: <Flow /> },
-  { id: 'reminders', icon: RotateCcw, name: 'Reminders and cycles', short: 'Repeat work, handled', line: 'Recurring work reopens by itself, and reminders keep it moving.',
+  { id: 'reminders', icon: RotateCcw, name: 'Reminders and cycles', line: 'Recurring work reopens by itself, and reminders keep it moving.',
     steps: ['Set a reminder: once, daily, weekly, monthly, quarterly, every 6 months or yearly.', 'Mark it Completed this cycle; it reopens on the next cycle day.', 'Completed permanently stops every reminder.'], visual: <CycleMock /> },
-  { id: 'templates', icon: CopyPlus, name: 'Task templates', short: 'Set up once', line: 'Set up repeat work once, then create it in one click.',
+  { id: 'templates', icon: CopyPlus, name: 'Task templates', line: 'Set up repeat work once, then create it in one click.',
     steps: ['Save the title, departments, assignee and subtasks as a template.', 'Use it to create the task and all its subtasks together.'],
     visual: <ListMock rows={[['Client onboarding', '5 subtasks'], ['Monthly invoice run', '3 subtasks'], ['New hire setup', '4 subtasks']]} /> },
-  { id: 'calendar', icon: CalendarDays, name: 'Calendar', short: 'Plan by month', line: 'Deadlines and start dates by month.',
+  { id: 'calendar', icon: CalendarDays, name: 'Calendar', line: 'Deadlines and start dates by month.',
     steps: ['Filter by person, priority or status.', 'Click a day to see its plan.'], visual: <CalMock /> },
-  { id: 'roles', icon: ShieldCheck, name: 'Roles', short: 'Who can do what', line: 'Two roles inside every organization, plus the platform team outside them.',
+  { id: 'roles', icon: ShieldCheck, name: 'Roles', line: 'Two roles inside every organization, plus the platform team outside them.',
     steps: ['Admins manage members, departments and settings, and create and assign tasks to anyone.', 'Employees work on the tasks given to them and update their status.', 'Platform admins sit outside every organization and look after all of them.'],
     visual: <ListMock rows={[['Admin', 'People, departments, tasks, settings'], ['Employee', 'Works on their tasks'], ['Platform admin', 'Looks after every organization']]} /> },
-  { id: 'reports', icon: BarChart3, name: 'Reports', short: 'Export in a click', line: 'Completion, workload, departments and overdue work, ready to export.',
+  { id: 'reports', icon: BarChart3, name: 'Reports', line: 'Completion, workload, departments and overdue work, ready to export.',
     steps: ['Pick a report and filter it.', 'Export it to Excel (with charts) or PDF.'], visual: <DashMock /> },
 ];
 const HEADLINE = 'Your organization, its departments and every task in one calm place.';
@@ -149,16 +149,6 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
             <div className="g-float f3"><span className="dot ev-start" />Assigned to Priya<small>Finance department</small></div>
           </div></div>
         </div>
-      </section>
-
-      <section className="g-overview" aria-label="All features">
-        {FEATURES.map((f, i) => (
-          <button key={f.id} type="button" className="g-tile" data-fx style={css({ '--i': i })} onClick={() => go(f.id)}>
-            <span className="g-tile-ico"><f.icon size={20} aria-hidden="true" /></span>
-            <b>{f.name}</b><small>{f.short}</small>
-            <ArrowRight className="g-tile-go" size={16} aria-hidden="true" />
-          </button>
-        ))}
       </section>
 
       <nav className="g-nav" aria-label="Features" ref={navRef}>

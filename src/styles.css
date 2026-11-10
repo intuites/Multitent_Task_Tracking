@@ -1093,23 +1093,6 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
 @keyframes g-in { from { opacity: 0; transform: translateY(28px) scale(.94); } }
 @keyframes g-bob { to { transform: translateY(-12px); } }
 
-/* overview tiles with a cursor spotlight */
-.g-overview { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: var(--g-max); margin: 0 auto 18px; }
-.g-tile { --mx: 50%; --my: 50%; position: relative; display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; column-gap: 12px; align-items: center;
-  min-height: 0; padding: 16px; border-radius: 20px; text-align: left; color: var(--text); font-weight: var(--fw-regular); overflow: hidden; isolation: isolate;
-  background: var(--g-glass); border: 1px solid var(--line); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 35%, transparent);
-  transition: transform .35s var(--settle, var(--ease)), border-color .3s, box-shadow .3s; animation: g-tile-in .7s var(--ease) both; animation-delay: calc(.2s + var(--i) * 50ms); }
-.g-tile::before { content: ''; position: absolute; inset: 0; z-index: -1; opacity: 0; transition: opacity .3s;
-  background: radial-gradient(220px circle at var(--mx) var(--my), color-mix(in srgb, var(--brand-3) 26%, transparent), transparent 70%); }
-.g-tile:hover { filter: none; translate: 0 -3px; border-color: color-mix(in srgb, var(--brand-3) 45%, var(--line)); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 35%, transparent), 0 18px 36px -20px color-mix(in srgb, color-mix(in oklab, var(--accent-n) 59%, var(--black)) 45%, transparent); }
-.g-tile:hover::before { opacity: 1; }
-.g-tile-ico { grid-row: span 2; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: var(--brand-grad); color: var(--brand-ink);
-  box-shadow: 0 8px 18px -8px color-mix(in srgb, color-mix(in oklab, var(--accent-n) 81%, var(--black)) 60%, transparent); transition: transform .4s var(--settle, var(--ease)); }
-.g-tile:hover .g-tile-ico { transform: rotate(-8deg) scale(1.08); }
-.g-tile b { font-size: var(--fs-md); } .g-tile small { grid-column: 2; color: var(--muted); font-size: var(--fs-xs); }
-.g-tile-go { grid-row: 1 / span 2; grid-column: 3; color: var(--muted); opacity: 0; transform: translateX(-6px); transition: opacity .25s, transform .3s var(--ease); }
-.g-tile:hover .g-tile-go { opacity: 1; transform: none; color: var(--brand); }
-@keyframes g-tile-in { from { opacity: 0; transform: translateY(16px) scale(.97); } }
 
 /* sticky feature bar: sliding liquid pill + reading progress */
 .g-nav { position: sticky; top: 104px; z-index: 15; display: flex; gap: 4px; max-width: var(--g-max); margin: 0 auto 8px; padding: 6px; overflow-x: auto; scrollbar-width: none;
@@ -1223,18 +1206,15 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
   .g-feature.flip .g-text { order: 0; }
   .g-hero-art, .g-orb { display: none; }
   .g-nav { top: 96px; }
-  .g-overview { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 560px) { .g-overview { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) {
-  .ga, .g-orb, .g-kdot, .g-word, .g-lead, .g-cta, .g-kicker, .g-shine::after, .g-float, .g-tile, .g-ico::before, .gv::before, .gv-step, .gv-step::before,
+  .ga, .g-orb, .g-kdot, .g-word, .g-lead, .g-cta, .g-kicker, .g-shine::after, .g-float, .g-ico::before, .gv::before, .gv-step, .gv-step::before,
   .gv-bars i, .gv-chips span, .gv-bell svg, .gv-orbit-ring, .gv-timeline::before, .gv-cal .today, .gv-track i, .g-progress { animation: none !important; }
   .gv, .g-float, .g-orb, .g-ind { transition: none !important; }
   .gv-step::before { clip-path: inset(0 100% 0 0); }
 }
 :root[data-theme="dark"] .guide { --g-edge: var(--line); }
 :root[data-theme="dark"] .gv { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 6%, transparent), 0 40px 70px -36px color-mix(in srgb, var(--black) 80%, transparent); }
-:root[data-theme="dark"] .g-tile { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 5%, transparent); }
 
 /* ================= profile ================= */
 .pf-hero { position: relative; overflow: hidden; isolation: isolate; display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap;
@@ -1768,14 +1748,12 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
     .g-hero { transform-origin: 50% 100%; animation: g-hero-out linear both; animation-timeline: scroll(root); animation-range: 0 75vh; }
     .ga { animation: ga-drift 26s ease-in-out infinite alternate, ga-par linear both; animation-timeline: auto, scroll(root); }
     .ga.a2, .ga.a4 { --pz: -1; }
-    .g-tile { transform-origin: 50% 0; animation: g-tile-3d linear both; animation-timeline: view(); animation-range: entry 0% entry 85%; }
     .g-stage { animation: g-stage-in linear both; animation-timeline: view(); animation-range: entry 0% entry 60%; }
     .g-end { animation: g-end-3d linear both; animation-timeline: view(); animation-range: entry 0% entry 90%; transform-origin: 50% 100%; }
   }
 }
 @keyframes g-hero-out { to { transform: perspective(1400px) rotateX(16deg) scale(.9) translateY(40px); opacity: .25; } }
 @keyframes ga-par { to { translate: 0 calc(var(--pz, 1) * -35vh); } }
-@keyframes g-tile-3d { from { opacity: 0; transform: perspective(900px) rotateX(-70deg) translateY(30px); } }
 @keyframes g-stage-in { from { opacity: 0; transform: translateY(80px) scale(.92); } }
 @keyframes g-end-3d { from { opacity: 0; transform: perspective(1100px) rotateX(40deg) translateY(90px) scale(.9); } }
 @media (prefers-reduced-motion: reduce) {
@@ -1862,7 +1840,7 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 :root:not([data-theme="dark"]) :is(.card, .kpi, .rp-kpi, .sk-card, .pf-stat, .perf-kpi):not(.feature):not(.esc-card) { box-shadow: 0 0 0 1px var(--line); }
 :root:not([data-theme="dark"]) :is(a.kpi, .rp-kpi, .pf-stat, .perf-kpi, .tpl-card, .cal-cell):not(.feature):hover,
 :root:not([data-theme="dark"]) .dash > .card:not(.esc-card):hover { box-shadow: 0 0 0 1px var(--hover-ring), 0 14px 30px color-mix(in srgb, color-mix(in oklab, var(--accent-n) 38%, var(--black)) 10%, transparent); }
-:root:not([data-theme="dark"]) :is(.team-card, .md-tile, .g-tile):hover { border-color: var(--hover-ring); }
+:root:not([data-theme="dark"]) :is(.team-card, .md-tile):hover { border-color: var(--hover-ring); }
 
 /* ---------- sidebar: active edge + icons-only mode ---------- */
 .side-link.active { box-shadow: inset 0 0 0 1.5px var(--brand); background: color-mix(in srgb, var(--brand) 8%, transparent); }

@@ -382,35 +382,91 @@ dialog .actions { display: flex; gap: var(--space-2); justify-content: flex-end;
 }
 
 /* ---------- sign in / sign up ---------- */
-.auth { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); min-height: 100vh; padding: 14px; gap: 14px; }
-.auth-art { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; padding: 40px 44px; border-radius: var(--r-frame); color: var(--white);
+/* form on the left, the brand panel with a live picture of Taskify on the right; every colour comes from the
+   brand tokens, so an organization's (or person's) chosen colour carries through, light and dark */
+.auth { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); min-height: 100vh; min-height: 100dvh; padding: 14px; gap: 14px; background: var(--bg); }
+.auth-main { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 22px 40px 18px; background: var(--surface); border-radius: var(--r-frame); }
+.auth-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.auth-top .brand { padding: 0; }
+.auth-corner { display: flex; gap: 8px; align-items: center; }
+.auth-corner .pill-btn { padding: 9px 16px; font-size: var(--fs-sm); }
+.auth-body { flex: 1; display: grid; place-items: center; }
+.auth-foot { margin: 0; text-align: center; color: var(--muted); font-size: var(--fs-xs); }
+.auth .login { width: 100%; max-width: 400px; margin: 0; }
+.auth .login h1 { margin: 0; font-size: var(--fs-4xl); font-weight: var(--fw-title); letter-spacing: -0.03em; line-height: 1.1; text-wrap: balance; }
+.auth-intro { display: grid; gap: 6px; margin-top: 6px; }
+.auth-sub { margin: -4px 0 8px; }
+.auth-intro .auth-sub { margin: 0; }
+.auth-rule { font-size: var(--fs-xs); }
+.auth-switch { margin: 2px 0 0; text-align: center; color: var(--muted); font-size: var(--fs-sm); }
+.auth-switch .link { min-height: 0; padding: 2px 4px; font-size: inherit; }
+
+/* Sign in | Create account: the highlight slides under the chosen side */
+.auth-seg { position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: var(--r-pill); background: var(--surface-2); border: 1px solid var(--line); }
+.auth-seg-pill { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: var(--r-pill); background: var(--brand-grad);
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, color-mix(in oklab, var(--accent-n) 70%, var(--black)) 60%, transparent); transition: transform .5s var(--settle, var(--ease)); }
+.auth-seg[data-mode=up] .auth-seg-pill { transform: translateX(100%); }
+.auth-seg button { position: relative; min-height: 40px; padding: 8px 12px; border-radius: var(--r-pill); background: none; color: var(--muted); font-weight: var(--fw-semibold); transition: color .3s var(--ease); }
+.auth-seg button:hover { filter: none; color: var(--text); }
+.auth-seg button[aria-pressed=true] { color: var(--brand-ink); }
+.auth-seg button:focus-visible { outline: 2px solid var(--brand-2); outline-offset: 2px; }
+
+/* the brand panel */
+.auth-art { position: relative; overflow: hidden; isolation: isolate; display: flex; flex-direction: column; gap: 32px; padding: 56px 52px; border-radius: var(--r-frame); color: var(--white);
   background:
-    radial-gradient(circle at 100% 100%, transparent 0 180px, color-mix(in srgb, var(--white) 7%, transparent) 181px 182px, transparent 183px 280px, color-mix(in srgb, var(--white) 6%, transparent) 281px 282px, transparent 283px 390px, color-mix(in srgb, var(--white) 5%, transparent) 391px 392px, transparent 393px),
     radial-gradient(120% 90% at 100% 100%, color-mix(in srgb, color-mix(in oklab, var(--accent-n) 63%, var(--white)) 45%, transparent), transparent 60%),
     radial-gradient(90% 70% at 0% 0%, color-mix(in srgb, var(--white) 7%, transparent), transparent 70%),
     linear-gradient(160deg, color-mix(in oklab, var(--accent-n) 69%, var(--black)) 0%, color-mix(in oklab, var(--accent-n) 48%, var(--black)) 100%); }
-.auth-art::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+.auth-art::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .5;
   background-image: radial-gradient(color-mix(in srgb, var(--white) 14%, transparent) 1px, transparent 1.2px); background-size: 22px 22px;
-  mask-image: linear-gradient(180deg, var(--black) 0%, transparent 65%); }
-.auth-art .brand { position: relative; color: var(--white); padding: 0; }
-.auth-art .brand .mark { border-color: var(--white); color: var(--white); }
-.auth-copy { position: relative; max-width: 30rem; }
-.auth-head { margin: 0 0 24px; font-size: var(--fs-h1); font-weight: var(--fw-title); line-height: 1.15; letter-spacing: -0.03em; }
-.auth-copy ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; color: color-mix(in oklab, var(--accent-n) 19%, var(--white)); }
-.auth-copy li { display: flex; align-items: center; gap: 10px; }
-.auth-copy li svg { flex: none; padding: 3px; width: 22px; height: 22px; border-radius: 50%; background: color-mix(in srgb, var(--white) 14%, transparent); color: var(--white); }
-.auth-main { display: grid; place-items: center; padding: 32px; background: var(--surface); border-radius: var(--r-frame); }
-.auth .login { width: 100%; max-width: 380px; margin: 0; }
-.auth .login h1 { margin: 0; font-size: var(--fs-4xl); font-weight: var(--fw-title); letter-spacing: -0.03em; }
-.auth-sub { margin: -4px 0 8px; }
+  mask-image: linear-gradient(180deg, var(--black) 0%, transparent 60%); }
+.auth-art > :not(.liquid) { position: relative; z-index: 1; }
+.auth-art .liquid { opacity: .9; }
+.auth-pane { max-width: 30rem; }
+.auth-head { margin: 0 0 12px; font-size: var(--fs-h1); font-weight: var(--fw-title); line-height: 1.12; letter-spacing: -0.03em; text-wrap: balance; }
+.auth-lede { margin: 0; font-size: var(--fs-lg); line-height: 1.5; color: color-mix(in oklab, var(--accent-n) 16%, var(--white)); text-wrap: pretty; }
+
+/* the picture of Taskify: a card from the app, in the app's own colours, with one update floating over it */
+.pv-stage { flex: 1; display: grid; place-items: center; padding: 8px 0 28px; }
+.pv-card { width: min(100%, 420px); padding: 18px; border-radius: 22px; background: var(--surface); color: var(--text);
+  box-shadow: 0 30px 60px -28px color-mix(in srgb, var(--black) 70%, transparent), 0 2px 6px -2px color-mix(in srgb, var(--black) 25%, transparent);
+  animation: pv-in .9s var(--settle, var(--ease)) .15s both; }
+.pv-head { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 4px 12px; border-bottom: 1px solid var(--line); }
+.pv-head b { font-size: var(--fs-md); }
+.pv-head small { color: var(--muted); font-size: var(--fs-xs); }
+.pv-list { list-style: none; margin: 0; padding: 0; }
+.pv-list li { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--line); animation: pv-row .7s var(--settle, var(--ease)) both; }
+.pv-list li:last-child { border-bottom: 0; padding-bottom: 4px; }
+.pv-list li:nth-child(1) { animation-delay: .35s; } .pv-list li:nth-child(2) { animation-delay: .45s; } .pv-list li:nth-child(3) { animation-delay: .55s; }
+.pv-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.pv-list b { font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.pv-list small { color: var(--muted); font-size: var(--fs-xs); }
+.pv-steps li > svg:first-child { flex: none; padding: 7px; width: 34px; height: 34px; border-radius: 10px; background: var(--brand-tint); color: var(--brand); }
+.pv-done { flex: none; padding: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--ok-bg); color: var(--ok-fg); }
+.pv-chips, .pv-avatars { display: flex; gap: 6px; margin-top: 4px; }
+.pv-chips i { padding: 2px 9px; border-radius: var(--r-pill); background: var(--surface-2); border: 1px solid var(--line); font-style: normal; font-size: var(--fs-2xs); font-weight: var(--fw-semibold); }
+.pv-avatars i { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--brand-grad); color: var(--brand-ink); font-style: normal; font-size: var(--fs-2xs); font-weight: var(--fw-bold); box-shadow: 0 0 0 2px var(--surface); }
+.pv-avatars i + i { margin-left: -6px; }
+.pv-toast { justify-self: end; margin: -26px -14px 0 0; display: flex; align-items: center; gap: 10px; max-width: 300px; padding: 11px 14px; border-radius: 14px;
+  background: var(--surface); color: var(--text); font-size: var(--fs-sm);
+  box-shadow: 0 18px 40px -18px color-mix(in srgb, var(--black) 70%, transparent); animation: pv-toast .8s var(--settle, var(--ease)) .8s both; }
+.pv-toast svg { flex: none; color: var(--brand); }
+/* the entrance plays once per visit; afterwards the Sign in / Create account morph alone moves the picture */
+.auth-art.settled .pv-card, .auth-art.settled .pv-list li, .auth-art.settled .pv-toast { animation: none; }
+@keyframes pv-in { from { opacity: 0; transform: translateY(24px) scale(.97); } }
+@keyframes pv-row { from { opacity: 0; transform: translateY(8px); } }
+@keyframes pv-toast { from { opacity: 0; transform: translateY(12px) scale(.94); } }
+
+@media (max-width: 960px) { .auth-art { padding: 44px 36px; } .auth-main { padding: 24px 28px 20px; } }
+/* phones and small tablets: the form alone, full width; the picture would only push it below the fold */
 @media (max-width: 860px) {
   .auth { grid-template-columns: 1fr; padding: 0; gap: 0; }
-  .auth-art { border-radius: 0; padding: 24px; gap: 20px; }
-  .auth-head { font-size: var(--fs-2xl); margin-bottom: 12px; }
-  .auth-copy ul { display: none; }
-  .auth-main { border-radius: 0; align-items: start; padding: 28px 20px; }
-}
-.auth-or { display: flex; align-items: center; gap: 12px; margin: 4px 0; color: var(--muted); font-size: var(--fs-xs); }
+  .auth-art { display: none; }
+  .auth-main { border-radius: 0; padding: 16px 20px 20px; gap: 20px; }
+  .auth-body { place-items: start center; }
+  .auth .login h1 { font-size: var(--fs-3xl); }
+  .auth-corner .pill-btn { display: none; }
+}.auth-or { display: flex; align-items: center; gap: 12px; margin: 4px 0; color: var(--muted); font-size: var(--fs-xs); }
 .auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
 /* ---------- notifications page ---------- */
@@ -669,17 +725,35 @@ tbody tr, .inbox-item, .plist li, .team li { transition: background-color .25s v
 }
 
 /* ---------- sign in / sign up ---------- */
-.auth-art > :not(.liquid) { z-index: 1; }
-.auth-art .liquid { opacity: .9; }
-.auth-head { animation: auth-rise .8s var(--ease) .1s both; }
-.auth-copy li { animation: auth-rise .7s var(--ease) both; }
-.auth-copy li:nth-child(1) { animation-delay: .3s; } .auth-copy li:nth-child(2) { animation-delay: .4s; } .auth-copy li:nth-child(3) { animation-delay: .5s; }
 .auth-main .login { animation: auth-rise .7s var(--ease) .05s both; }
 @keyframes auth-rise { from { opacity: 0; transform: translateY(14px); filter: blur(3px); } }
 
-.auth-swap { display: grid; gap: var(--space-3); animation: auth-swap .45s var(--ease) both; }
-@keyframes auth-swap { from { opacity: 0; transform: translateX(12px); } }
-
+/* Sign in <-> Create account: one shared-element morph (View Transitions). Each named part glides from its old
+   place and size to its new one; text keeps its natural size instead of being stretched; the name field and the
+   new picture fade in place. */
+.auth-seg-pill { view-transition-name: auth-pill; }
+.auth-intro { view-transition-name: auth-intro; }
+.auth-name { view-transition-name: auth-name; }
+.auth-email { view-transition-name: auth-email; }
+.auth-pass { view-transition-name: auth-pass; }
+.auth .captcha { view-transition-name: auth-captcha; }
+.auth-submit { view-transition-name: auth-submit; }
+.auth-switch { view-transition-name: auth-switch; }
+.auth-pane { view-transition-name: auth-pane; }
+.pv-card { view-transition-name: auth-card; }
+.pv-toast { view-transition-name: auth-toast; }
+.vt .auth-seg-pill, .vt .auth-seg button { transition: none; }
+.vt .pv-card, .vt .pv-list li, .vt .pv-toast { animation: none; }
+::view-transition-group(*) { animation-duration: .55s; animation-timing-function: cubic-bezier(.16, 1, .3, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .3s; }
+::view-transition-old(auth-intro), ::view-transition-new(auth-intro), ::view-transition-old(auth-pane), ::view-transition-new(auth-pane),
+::view-transition-old(auth-switch), ::view-transition-new(auth-switch), ::view-transition-old(auth-email), ::view-transition-new(auth-email) { width: auto; height: auto; }
+::view-transition-new(auth-name) { animation: vt-in .45s cubic-bezier(.16, 1, .3, 1) .08s both; }
+::view-transition-old(auth-name) { animation: vt-out .2s ease-out both; }
+::view-transition-new(auth-card), ::view-transition-new(auth-toast) { animation: vt-in .5s cubic-bezier(.16, 1, .3, 1) .1s both; }
+::view-transition-old(auth-card), ::view-transition-old(auth-toast) { animation: vt-out .25s ease-out both; }
+@keyframes vt-in { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } }
+@keyframes vt-out { to { opacity: 0; transform: translateY(-6px); filter: blur(4px); } }
 .auth .login input { min-height: 46px; border-radius: 12px; transition: border-color .2s var(--ease), box-shadow .2s var(--ease), background-color .2s; }
 .auth .login input:focus-visible { outline: none; border-color: var(--brand-2); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-n) 14%, transparent); }
 .auth .login input[aria-invalid=true] { border-color: var(--danger); background: color-mix(in srgb, var(--bad-bg) 35%, var(--surface)); }
@@ -702,7 +776,7 @@ tbody tr, .inbox-item, .plist li, .team li { transition: background-color .25s v
   background: var(--cap-bg); transition: border-color .15s ease-out, box-shadow .15s ease-out; }
 .captcha-field:hover { border-color: var(--control-line); }
 .captcha-field:focus-within { border-color: var(--brand-2); box-shadow: var(--ring); }
-.captcha-clip { width: 298px; height: 72px; overflow: hidden; flex: none; }
+.captcha-clip { width: 296px; height: 72px; overflow: hidden; flex: none; }
 .captcha-clip > div { margin: -3px 0 0 -3px; }
 .captcha p { margin: 6px 0 0; font-size: var(--fs-xs); }
 @media (max-width: 360px) { .captcha-clip { width: 262px; } .captcha-clip > div { transform: scale(.88); transform-origin: left top; } }
@@ -729,8 +803,8 @@ tbody tr, .inbox-item, .plist li, .team li { transition: background-color .25s v
 .field-head button.link { min-height: 0; padding: 2px 8px; margin-right: -8px; font-size: var(--fs-sm); }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-head, .auth-copy li, .auth-main .login, .auth-swap, .auth-msg, .login.shake-0, .login.shake-1, .spin { animation: none !important; }
-  .auth-submit { transition: none; }
+  .auth-main .login, .pv-card, .pv-list li, .pv-toast, .auth-msg, .login.shake-0, .login.shake-1, .spin { animation: none !important; }
+  .auth-submit, .auth-seg-pill, .auth-seg button { transition: none; }
 }
 
 /* ---------- small fixes ---------- */
@@ -1028,9 +1102,6 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
   transition: background-color .35s var(--ease), border-color .35s var(--ease), color .35s var(--ease), fill .35s, box-shadow .35s !important; }
 .theme-ico { display: grid; animation: theme-spin .5s var(--ease) both; }
 @keyframes theme-spin { from { opacity: 0; transform: rotate(-90deg) scale(.6); } }
-.auth-corner { position: absolute; top: 18px; right: 18px; display: flex; gap: 8px; align-items: center; }
-.auth-corner .pill-btn { padding: 9px 16px; font-size: var(--fs-sm); }
-.auth-main { position: relative; }
 
 /* big display numbers use proportional figures (the tabular "1" in this face has a foot) */
 .kpi b, .esc-num, .rp-kpi b, .rp-tile b, .gauge-num b, .ring text, .stats b, .pf-stat b { font-variant-numeric: proportional-nums; }

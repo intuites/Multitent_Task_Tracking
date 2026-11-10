@@ -40,7 +40,8 @@ export default function OrgSettings() {
   const [org, setOrg] = useState<any>(null);
   // Data is for admins; Danger zone for whoever created the organization (and platform admins), as the database allows
   const mayDelete = !!org && (org.created_by === uid || !!membership!.platform);
-  const sections = SECTIONS.filter((s) => (s.id === 'data' ? canEdit : s.id === 'danger' ? mayDelete : true));
+  // Appearance (the starting look for new people) is for platform admins only; everyone sets their own look in Profile → Appearance
+  const sections = SECTIONS.filter((s) => (s.id === 'data' ? canEdit : s.id === 'danger' ? mayDelete : s.id === 'look' ? !!membership!.platform : true));
   const tab: Tab = sections.some((s) => s.id === params.get('tab')) ? params.get('tab') as Tab : 'general';
   const setTab = (t: Tab) => setParams(t === 'general' ? {} : { tab: t }, { replace: true });
   const [roles, setRoles] = useState<Record<string, number>>({});

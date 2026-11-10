@@ -384,16 +384,14 @@ dialog .actions { display: flex; gap: var(--space-2); justify-content: flex-end;
 /* ---------- sign in / sign up ---------- */
 /* one centered card on a page softly lit by the brand colour (an organization's or person's chosen colour
    carries through, light and dark); headings use the organization's display font */
-.auth { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; gap: 8px; min-height: 100vh; min-height: 100dvh; padding: 14px 28px 12px; background: var(--bg); }
+.auth { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-rows: 1fr auto; gap: 8px; min-height: 100vh; min-height: 100dvh; padding: 14px 28px 12px; background: var(--bg); }
 .auth-glow { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
 .auth-glow i { position: absolute; width: 60vmax; height: 60vmax; border-radius: 50%; filter: blur(80px); opacity: .75; animation: auth-drift 22s ease-in-out infinite alternate; }
 .auth-glow i:first-child { top: -30vmax; left: -18vmax; background: radial-gradient(circle, color-mix(in srgb, var(--accent-n) 45%, transparent), transparent 65%); }
 .auth-glow i:last-child { bottom: -32vmax; right: -20vmax; background: radial-gradient(circle, color-mix(in srgb, var(--brand-2) 38%, transparent), transparent 65%); animation-delay: -11s; }
 @keyframes auth-drift { to { translate: 6vmax 4vmax; scale: 1.12; } }
-.auth-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.auth-top .brand { padding: 0; }
-.auth-corner { display: flex; gap: 8px; align-items: center; }
-.auth-corner .pill-btn { padding: 9px 16px; font-size: var(--fs-sm); }
+.auth-top { position: absolute; top: 14px; right: 20px; z-index: 2; display: flex; align-items: center; gap: 8px; }
+.auth-top .pill-btn { padding: 9px 16px; font-size: var(--fs-sm); }
 .auth-body { display: grid; place-items: center; }
 .auth-foot { margin: 0; text-align: center; color: var(--muted); font-size: var(--fs-xs); }
 .auth .login { width: 100%; max-width: 440px; margin: 0; gap: 12px; padding: 24px 30px 20px; border-radius: 26px; background: var(--surface); border: 1px solid var(--line);
@@ -406,6 +404,40 @@ dialog .actions { display: flex; gap: var(--space-2); justify-content: flex-end;
 .auth-switch { margin: 0; text-align: center; color: var(--muted); font-size: var(--fs-sm); }
 .auth-switch .link { min-height: 0; padding: 2px 4px; font-size: inherit; }
 
+/* a faint dot grid in the brand colour, fading toward the edges, so the page reads as designed rather than empty */
+.auth::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .55;
+  background-image: radial-gradient(color-mix(in srgb, var(--brand) 26%, transparent) 1px, transparent 1.5px); background-size: 22px 22px;
+  mask-image: radial-gradient(65% 60% at 50% 45%, var(--black), transparent 80%); }
+.auth-stack { width: 100%; max-width: 440px; display: grid; justify-items: center; gap: 16px; }
+.auth-stack > .login { width: 100%; }
+/* the logo opens the card; its ring ripples out once as the page arrives */
+.auth-logo { display: inline-flex; align-items: center; gap: 10px; font-size: var(--fs-xl); letter-spacing: -0.02em; }
+.auth-logo .mark { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--brand); color: var(--brand); font-weight: var(--fw-black); }
+.auth-logo .mark::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--brand); opacity: 0; animation: auth-ring 1.6s var(--settle, var(--ease)) .25s; }
+@keyframes auth-ring { from { opacity: .7; transform: scale(1); } to { opacity: 0; transform: scale(2.1); } }
+
+/* returning person: their account as a chip instead of an empty email field */
+.auth-who { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; background: var(--surface-2); border: 1px solid var(--line); animation: msg-in .45s var(--settle, var(--ease)) both; }
+.auth-who-av { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--brand-grad); color: var(--brand-ink); font-weight: var(--fw-bold); font-size: var(--fs-sm);
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 4px color-mix(in srgb, var(--brand) 35%, transparent); }
+.auth-who-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.auth-who-text b, .auth-who-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auth-who-text b { font-size: var(--fs-sm); } .auth-who-text small { color: var(--muted); font-size: var(--fs-xs); }
+.auth-who .link { flex: none; min-height: 0; padding: 4px 6px; font-size: var(--fs-sm); }
+.auth-caps { display: inline-flex; align-items: center; gap: 6px; color: var(--warn-fg); font-size: var(--fs-xs); font-weight: var(--fw-semibold); animation: msg-in .3s var(--ease) both; }
+
+/* signed in: the button becomes a tick, then the card lifts away into the workspace */
+.auth-tick { animation: auth-tick .45s var(--settle, var(--ease)) both; }
+@keyframes auth-tick { from { opacity: 0; transform: scale(.3) rotate(-30deg); } }
+.login.auth-done { animation: auth-away .45s var(--ease) .3s both; }
+@keyframes auth-away { 40% { transform: scale(1.012); } to { opacity: 0; transform: scale(1.05) translateY(-8px); filter: blur(6px); } }
+
+/* signed up: the card becomes a "check your inbox" note */
+.auth-sent { justify-items: center; text-align: center; }
+.auth-sent .auth-sub { margin: 0; max-width: 32ch; }
+.auth-sent-ico { position: relative; display: grid; place-items: center; width: 72px; height: 72px; margin-bottom: 4px; border-radius: 50%; background: var(--brand-tint); color: var(--brand); animation: auth-tick .6s var(--settle, var(--ease)) both; }
+.auth-sent-ico::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--brand); opacity: 0; animation: auth-ring 1.6s var(--settle, var(--ease)) .3s; }
+.auth-sent .auth-submit { width: 100%; }
 /* fields carry an icon that takes the brand colour while you type in them */
 .ifield { position: relative; display: block; }
 .ifield > svg:first-child { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; transition: color .2s var(--ease); }
@@ -430,7 +462,8 @@ dialog .actions { display: flex; gap: var(--space-2); justify-content: flex-end;
   .auth { padding: 14px 14px 18px; }
   .auth-body { place-items: start center; }
   .auth .login { padding: 22px 18px 20px; border-radius: 22px; }
-  .auth-corner .pill-btn { display: none; }
+  .auth-top .pill-btn { display: none; }
+  .auth-stack { gap: 12px; }
 }.auth-or { display: flex; align-items: center; gap: 12px; margin: 4px 0; color: var(--muted); font-size: var(--fs-xs); }
 .auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
@@ -704,6 +737,7 @@ tbody tr, .inbox-item, .plist li, .team li { transition: background-color .25s v
 .auth .captcha { view-transition-name: auth-captcha; }
 .auth-submit { view-transition-name: auth-submit; }
 .auth-switch { view-transition-name: auth-switch; }
+.auth-who { view-transition-name: auth-who; }
 .vt .auth-seg-pill, .vt .auth-seg button { transition: none; }
 ::view-transition-group(*) { animation-duration: .55s; animation-timing-function: cubic-bezier(.16, 1, .3, 1); }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .3s; }
@@ -762,7 +796,7 @@ tbody tr, .inbox-item, .plist li, .team li { transition: background-color .25s v
 .field-head button.link { min-height: 0; padding: 2px 8px; margin-right: -8px; font-size: var(--fs-sm); }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth .login, .auth-glow i, .auth-msg, .login.shake-0, .login.shake-1, .spin { animation: none !important; }
+  .auth .login, .auth-glow i, .auth-logo .mark::after, .auth-who, .auth-caps, .auth-tick, .login.auth-done, .auth-sent-ico, .auth-sent-ico::after, .auth-msg, .login.shake-0, .login.shake-1, .spin { animation: none !important; }
   .auth-submit, .auth-seg-pill, .auth-seg button { transition: none; }
 }
 
@@ -1066,7 +1100,6 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
 .kpi b, .esc-num, .rp-kpi b, .rp-tile b, .gauge-num b, .ring text, .stats b, .pf-stat b { font-variant-numeric: proportional-nums; }
 
 @media (prefers-reduced-motion: reduce) { .theme-ico { animation: none; } html.theme-anim * { transition: none !important; } }
-@media (max-width: 860px) { .auth-corner { position: static; justify-self: end; margin-bottom: 8px; } }
 
 /* ================= product guide: liquid glass =================
    Everything that moves animates transform, opacity or clip-path only (composited); pointer effects write CSS

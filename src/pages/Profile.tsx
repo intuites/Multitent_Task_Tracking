@@ -5,6 +5,7 @@ import {
   LogOut, Mail, MapPin, Pencil, Phone, ShieldCheck, Trash2, Users,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { strength } from '../lib/password';
 import { useAuth } from '../lib/auth';
 import { Badge, fmt, isOverdue, label } from '../lib/ui';
 import { ROLE_TEXT } from '../lib/roles';
@@ -19,11 +20,6 @@ type Tab = 'overview' | 'work' | 'details' | 'look' | 'security';
 const TABS: { id: Tab; name: string }[] = [{ id: 'overview', name: 'Overview' }, { id: 'work', name: 'My work' }, { id: 'details', name: 'Edit details' }, { id: 'look', name: 'Appearance' }, { id: 'security', name: 'Security' }];
 const FIELDS = ['full_name', 'job_title', 'department', 'phone', 'location', 'bio'] as const;
 
-// rough strength guide for the new-password field: length plus character variety
-const strength = (p: string) => {
-  const s = [p.length >= 8, p.length >= 12, /[A-Z]/.test(p) && /[a-z]/.test(p), /\d/.test(p), /[^A-Za-z0-9]/.test(p)].filter(Boolean).length;
-  return { score: s, text: ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Very strong'][s] };
-};
 
 export default function Profile() {
   const { session, membership, memberships, switchOrg, signOut, refresh } = useAuth();

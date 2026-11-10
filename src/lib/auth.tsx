@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Session } from '@supabase/supabase-js';
 import { supabase, configured, authLinkType } from './supabase';
 import type { Role } from '../../api/_lib/permissions';
-import { applyLook, applyThemePref, lookToKeep, themePref, type Prefs } from './theme';
+import { applyLook, applyThemePref, lookOf, lookToKeep, themePref, type Prefs } from './theme';
+import { readLastUser, saveLastUser } from './lastUser';
 import { setOrgZone } from './greeting';
 
 /** platform: a platform admin working in an org they aren't a member of (acts as owner there; the database agrees, see migration 0018) */
@@ -100,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const keep = prof && 'prefs' in prof && m ? lookToKeep(p, m) : null;
       if (keep) { p = keep; supabase.from('tt_profiles').update({ prefs: keep }).eq('user_id', session.user.id).then(() => {}); }
       setPrefs(p);
+      saveLastUser({ name: prof?.full_name || session.user.email?.split('@')[0], org: m?.org_name ?? '' }); // the sign-in page's greeting next time
       setMemberships(all);
       setMembership(m ?? null);
       // before migration 0026 there is no status column; the query errors and the list stays empty
@@ -114,7 +116,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // the person's own look over the open organization's (signed out: the defaults); index.html shows the cached one until then
   useEffect(() => {
     if (loading) return;
-    applyLook(session ? membership : null, session ? prefs : {});
+    // signed out: the look of whoever last signed in here (sign-in page greeting), else Taskify's defaults
+    if (session) saveLastUser({ look: lookOf(prefs, membership) });
+    applyLook(session ? membership : null, session ? prefs : readLastUser()?.look ?? {});
     setOrgZone(membership?.time_zone);
   }, [loading, session, membership, prefs]);
   useEffect(() => { if (!loading && session) applyThemePref(prefs.theme); }, [loading, session, prefs.theme]);

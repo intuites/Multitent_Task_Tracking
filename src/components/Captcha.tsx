@@ -47,7 +47,8 @@ export default function Captcha({ onToken, reset }: { onToken: (t: string) => vo
   if (!KEY) return null;
   return (
     <div className="captcha">
-      <div ref={box} />
+      {/* Google's box can't be restyled inside; this frames it as one of the form's fields and trims its own square border */}
+      <div className="captcha-field"><div className="captcha-clip"><div ref={box} /></div></div>
       {failed && <p role="alert" className="muted">The robot check didn't load. Check your connection, then reload the page.</p>}
     </div>
   );

@@ -686,10 +686,18 @@ tbody tr, .inbox-item, .plist li, .team li { transition: background-color .25s v
 .auth-msg { display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 12px 14px; border-radius: 12px; font-size: var(--fs-sm); line-height: 1.45; font-weight: var(--fw-medium);
   border: 1px solid; animation: msg-in .4s var(--ease) both; }
 .auth-msg svg { flex: none; margin-top: 1px; }
-/* Google's box is a fixed 304 x 78 frame: hold its height while it loads, shrink it on very narrow phones */
-.captcha { min-height: 78px; }
+/* Google's box is a fixed 304 x 78 frame we can't style inside. The field around it takes Google's own
+   background (light #f9f9f9, dark #222), the inputs' radius, border and focus ring, and clips Google's square border. */
+.captcha { --cap-bg: #f9f9f9; }
+:root[data-theme="dark"] .captcha { --cap-bg: #222222; }
+.captcha-field { display: flex; align-items: center; height: 76px; overflow: hidden; border: 1px solid var(--control-border); border-radius: 12px;
+  background: var(--cap-bg); transition: border-color .15s ease-out, box-shadow .15s ease-out; }
+.captcha-field:hover { border-color: var(--control-line); }
+.captcha-field:focus-within { border-color: var(--brand-2); box-shadow: var(--ring); }
+.captcha-clip { width: 298px; height: 72px; overflow: hidden; flex: none; }
+.captcha-clip > div { margin: -3px 0 0 -3px; }
 .captcha p { margin: 6px 0 0; font-size: var(--fs-xs); }
-@media (max-width: 360px) { .captcha > div { transform: scale(.88); transform-origin: left top; } }
+@media (max-width: 360px) { .captcha-clip { width: 262px; } .captcha-clip > div { transform: scale(.88); transform-origin: left top; } }
 .auth-msg.error { background: var(--bad-bg); border-color: var(--bad-line); color: var(--bad-fg); }
 .auth-msg.ok { background: var(--ok-bg); border-color: var(--ok-line); color: var(--ok-fg); }
 @keyframes msg-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }

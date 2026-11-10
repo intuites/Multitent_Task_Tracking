@@ -150,6 +150,23 @@ export function confirmSignup(name: string, link: string, appUrl: string): Mail 
   return { subject, html: layout({ org: name, tz: 'UTC', appUrl }, subject, body, subject), text: `Hi ${name}, confirm your email to finish creating your Taskify account:\n\n${link}` };
 }
 
+/** Invitation to an organization: `link` sets their password (new account) or simply opens Taskify (existing account). */
+export function inviteEmail(org: string, link: string, appUrl: string, isNew: boolean): Mail {
+  const subject = `You're invited to ${org} on Taskify`;
+  const line = isNew ? `${org} added you to Taskify. Choose a password to join and see your tasks.` : `${org} added you to Taskify. Sign in to join and see your tasks.`;
+  const body = p(esc(line)) + button(link, isNew ? 'Accept and set password' : 'Sign in to join')
+    + p('If you weren’t expecting this, ignore this email.', `color:${MUTED};font-size:13px;margin-top:16px;`);
+  return { subject, html: layout({ org, tz: 'UTC', appUrl }, esc(subject), body, line), text: `${line}\n\n${link}` };
+}
+
+/** Password reset: the one-time link to choose a new password. */
+export function resetEmail(link: string, appUrl: string): Mail {
+  const subject = 'Reset your Taskify password';
+  const body = p('Someone asked to reset the password for this email. Choose a new one here:') + button(link, 'Choose a new password')
+    + p('If it wasn’t you, ignore this email. Your password stays the same.', `color:${MUTED};font-size:13px;margin-top:16px;`);
+  return { subject, html: layout({ org: 'your account', tz: 'UTC', appUrl }, subject, body, subject), text: `Choose a new Taskify password:\n\n${link}\n\nIf it wasn't you, ignore this email.` };
+}
+
 const DIGEST_MAX = 100; // Gmail clips messages over ~100 KB; past this, the rest is a link
 /** Midday or end-of-day digest: open tasks grouped by department, overdue first. */
 export function digest(kind: 'midday' | 'eod', rows: DigestRow[], counts: { open: number; overdue: number; dueToday: number; doneToday: number },

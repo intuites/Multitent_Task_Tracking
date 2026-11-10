@@ -18,7 +18,9 @@ const TYPES: Record<string, TypeInfo> = {
   task_assigned: { label: 'Assigned to me', hint: 'Someone gives you a task', icon: UserPlus, tone: 'brand' },
   task_assignment_changed: { label: 'Removed from a task', hint: 'You are unassigned', icon: UserPlus, tone: 'brand' },
   task_status: { label: 'Status changes', hint: 'A task you follow moves', icon: RefreshCw, tone: 'brand' },
+  task_completed: { label: 'Task completed', hint: 'A task you lead, manage or follow is done', icon: BadgeCheck, tone: 'ok' },
   task_comment: { label: 'New comments', hint: 'Replies on your tasks', icon: MessageSquare, tone: 'brand' },
+  task_reminder: { label: 'Reminders', hint: 'The reminders set on your tasks', icon: AlarmClock, tone: 'warn' },
   review_requested: { label: 'Review requests', hint: 'A task is ready for review', icon: Eye, tone: 'brand' },
   deadline_upcoming: { label: 'Due soon', hint: 'Within the next 24 hours', icon: CalendarClock, tone: 'warn' },
   due_today: { label: 'Due today', hint: 'On the morning it is due', icon: CalendarClock, tone: 'warn' },
@@ -28,8 +30,9 @@ const TYPES: Record<string, TypeInfo> = {
   org_review: { label: 'Organization review', hint: 'New organizations and approval decisions', icon: BadgeCheck, tone: 'brand' },
 };
 const GROUPS: [string, string[]][] = [
-  ['Tasks', ['task_assigned', 'task_assignment_changed', 'task_status', 'task_comment', 'review_requested']],
-  ['Deadlines', ['deadline_upcoming', 'due_today', 'task_overdue']],
+  // only what Taskify actually sends; each switch is read by the database before anything is queued (tt_notify)
+  ['Tasks', ['task_assigned', 'task_assignment_changed', 'task_status', 'task_completed', 'task_comment']],
+  ['Deadlines', ['task_reminder', 'deadline_upcoming', 'due_today', 'task_overdue']],
 ];
 const fallback: TypeInfo = { label: 'Update', hint: '', icon: RefreshCw, tone: 'brand' };
 const PAGE = 40;
@@ -71,12 +74,13 @@ export default function Notifications() {
     const [n, c, p] = await Promise.all([
       q,
       supabase.from('tt_notifications').select('id', { count: 'exact', head: true }).eq('user_id', uid).not('type', 'like', NO_ESC).is('read_at', null),
-      supabase.from('tt_notification_preferences').select('*').eq('user_id', uid),
+      // settings are per organization: only this one's, or another organization's "off" would show here
+      supabase.from('tt_notification_preferences').select('*').eq('user_id', uid).eq('org_id', orgId ?? ''),
     ]);
     if (n.error) setError(n.error.message);
     setRows(n.data ?? []); setUnread(c.count ?? 0);
     setPrefs(Object.fromEntries((p.data ?? []).map((x: any) => [x.type, { in_app: x.in_app, email: x.email }])));
-  }, [uid, filter, limit]);
+  }, [uid, orgId, filter, limit]);
   useEffect(() => {
     load();
     window.addEventListener('tt-notifications', load);
@@ -162,7 +166,7 @@ export default function Notifications() {
         {orgId && (
           <aside className="card prefs" aria-labelledby="prefs-h">
             <h3 id="prefs-h">What to notify me about</h3>
-            <p className="muted prefs-sub">Turn off anything you don't need. Email needs an email provider to be set up.</p>
+            <p className="muted prefs-sub">Choose what reaches you in Taskify and by email, for {membership?.org_name || 'this organization'}. Changes save right away.</p>
             <div className="prefs-cols" aria-hidden="true"><span>In app</span><span>Email</span></div>
             {GROUPS.map(([g, types]) => (
               <div key={g} className="prefs-group">

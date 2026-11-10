@@ -1,4 +1,6 @@
-import { admin, authUser, handler, HttpError } from './_lib/http.js';
+import { admin, appUrl, authUser, handler, HttpError } from './_lib/http.js';
+import { sendEmail } from './_lib/email.js';
+import { inviteEmail } from './_lib/emailTemplates.js';
 
 const ROLES = ['admin', 'employee'];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -25,8 +27,11 @@ export default handler('POST', async (req) => {
   if (!ROLES.includes(role)) throw new HttpError(400, 'Invalid role');
   if (!['owner', 'admin'].includes(me.role)) throw new HttpError(403, 'Not authorized');
 
-  const invited = await db.auth.admin.inviteUserByEmail(email, { redirectTo: process.env.APP_URL || process.env.RENDER_EXTERNAL_URL, data: { full_name } });
-  let uid = invited.data.user?.id;
+  // the link comes back to us instead of Supabase mailing it: it goes out through Taskify's own mail (SMTP), like every other email
+  const app = appUrl(req);
+  const invited = await db.auth.admin.generateLink({ type: 'invite', email, options: { data: { full_name }, redirectTo: app || undefined } });
+  const link = invited.data.properties?.action_link;
+  let uid = link ? invited.data.user?.id : undefined;
   if (!uid) {
     // already registered: find them by their login email (exact match), never by the editable profile email
     const { data: found } = await db.rpc('tt_user_id_by_email', { p_email: email });
@@ -43,6 +48,17 @@ export default handler('POST', async (req) => {
   let { error } = await db.from('tt_org_members').insert({ org_id, user_id: uid, role, active: false, joined_at: null });
   if (error && /joined_at/.test(error.message)) ({ error } = await db.from('tt_org_members').insert({ org_id, user_id: uid, role, active: true })); // before 0046
   if (error) throw new HttpError(400, 'Could not add member');
+
+  // a new person gets the link to set their password; someone with an account already joins on their next sign-in
+  const { data: org } = await db.from('tt_organizations').select('name').eq('id', org_id).maybeSingle();
+  const mail = inviteEmail(org?.name || 'Your organization', link || app, app, !!link);
+  const sent = await sendEmail(email, mail.subject, mail.text, mail.html);
+  if (!sent.ok) {
+    console.error('invite email failed', sent.error);
+    // undo, so "Invite" can simply be pressed again
+    await db.from('tt_org_members').delete().eq('org_id', org_id).eq('user_id', uid).is('joined_at', null);
+    throw new HttpError(502, "The invitation email couldn't be sent. Try again in a minute.");
+  }
   await db.from('tt_activity_logs').insert({
     org_id, entity_type: 'organization', entity_id: org_id, action: 'member_invited',
     actor_id: user.id, detail: { role },

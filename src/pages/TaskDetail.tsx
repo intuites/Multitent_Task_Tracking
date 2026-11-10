@@ -7,6 +7,7 @@ import { can } from '../../api/_lib/permissions';
 import { canTransition, TASK_STATUSES, type TaskStatus } from '../../api/_lib/taskStatus';
 import { Badge, dateToTs, fmt, fmtTime, isOpen, isOverdue, kickEmails, label, NO_ESC, rpc, usePeople } from '../lib/ui';
 import FilePanel from '../components/FilePanel';
+import MentionInput, { withMentions } from '../components/MentionInput';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { useLive } from '../lib/live';
@@ -31,6 +32,7 @@ export default function TaskDetail() {
   const [subForm, setSubForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [toSel, setToSel] = useState('');
+  const [composer, setComposer] = useState(0);
   const [extras, setExtras] = useState<Map<string, ExtraEmail[]>>(new Map());
   const idRef = useRef(id); idRef.current = id;
 
@@ -120,11 +122,17 @@ export default function TaskDetail() {
   };
   const addComment = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = e.currentTarget, f = new FormData(form);
+    const f = new FormData(e.currentTarget);
+    const row = { org_id: orgId, task_id: id, user_id: uid, body: String(f.get('body')).trim() };
+    let mentions: string[] = [];
+    try { mentions = JSON.parse(String(f.get('mentions') || '[]')); } catch { /* none */ }
     run(async () => {
-      await must(supabase.from('tt_task_comments').insert({ org_id: orgId, task_id: id, user_id: uid, body: String(f.get('body')).trim() }));
+      // the database checks each mention is an assignee of this task before notifying (migration 0047)
+      let { error } = await supabase.from('tt_task_comments').insert({ ...row, mentions });
+      if (error && /mentions/.test(error.message)) ({ error } = await supabase.from('tt_task_comments').insert(row)); // before 0047
+      if (error) throw new Error(error.message);
       kickEmails();
-      form.reset();
+      setComposer((n) => n + 1); // a fresh, empty comment box
     });
   };
   const addSubtask = (e: FormEvent<HTMLFormElement>) => {
@@ -258,7 +266,7 @@ export default function TaskDetail() {
                           <textarea name="body" defaultValue={c.body} rows={2} required />
                           <span className="row filters"><button type="submit">Save</button><button type="button" className="link" onClick={() => setEditing(null)}>Cancel</button></span>
                         </form>
-                      ) : <p>{c.body}</p>}
+                      ) : <p>{withMentions(c.body, (c.mentions ?? []).map(name))}</p>}
                       {!c.deleted_at && (c.user_id === uid || canAssign) && editing !== c.id && (
                         <div className="bubble-tools">
                           {c.user_id === uid && <button type="button" className="link" onClick={() => setEditing(c.id)}>Edit</button>}
@@ -269,7 +277,8 @@ export default function TaskDetail() {
                   </li>);
               })}</ul>)}
             <form className="composer" onSubmit={addComment}>
-              <textarea aria-label="Add comment" name="body" rows={2} required placeholder="Write a comment…" />
+              <MentionInput key={composer} name="body" label="Add comment" placeholder="Write a comment… Type @ to mention an assignee"
+                people={d.assignees.filter((a: any) => a.user_id !== uid).map((a: any) => ({ id: a.user_id, name: name(a.user_id) })).filter((p: any) => p.name !== '…')} />
               <div className="composer-bar">
                 <button type="submit"><Send size={15} aria-hidden="true" />Post</button>
               </div>

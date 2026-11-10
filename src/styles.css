@@ -862,6 +862,12 @@ dialog .actions > * { min-width: 104px; }
 .composer { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; transition: border-color .2s, box-shadow .2s; }
 .composer:focus-within { border-color: var(--brand-2); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-n) 12%, transparent); }
 .composer textarea { display: block; width: 100%; border: 0; border-radius: 0; resize: vertical; padding: 12px 14px; box-shadow: none !important; outline: none; }
+/* @mention picker: sits between the text and the Post bar, so the composer's rounded clip never cuts it */
+.mention-list { list-style: none; margin: 0; padding: 6px; border-top: 1px solid var(--line); max-height: 220px; overflow-y: auto; }
+.mention-list li { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 10px; cursor: pointer; font-weight: var(--fw-medium); }
+.mention-list li.on { background: var(--brand-tint); color: var(--text); }
+.mention-none { padding: 10px 14px; color: var(--muted); font-size: var(--fs-sm); }
+.mention { padding: 0 3px; border-radius: 5px; background: var(--brand-tint); color: var(--link); font-weight: var(--fw-semibold); }
 .composer-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px; background: var(--surface-2); }
 .composer-bar select { width: auto !important; min-height: 34px; border-color: var(--line); }
 .timeline { list-style: none; margin: 0; padding: 0 0 0 4px; }

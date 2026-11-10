@@ -156,6 +156,9 @@ h4 { margin: var(--space-3) 0 var(--space-1); font-weight: var(--fw-title); }
 .notif:hover { filter: none; background: var(--surface-2); }
 .notif.new::before { content: ''; position: absolute; left: 9px; top: 16px; width: 7px; height: 7px; border-radius: 50%; background: var(--brand-2); }
 .notif.new .notif-title { font-weight: var(--fw-title); }
+/* a long title (even one with no spaces) wraps to two lines inside the menu instead of running past its edge */
+.notif { grid-template-columns: minmax(0, 1fr); }
+.notif-title, .inbox-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .notif-title { font-size: var(--fs-sm); }
 .notif-body { font-size: var(--fs-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .notif-time { font-size: var(--fs-2xs); color: var(--muted); }

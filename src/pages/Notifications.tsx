@@ -148,7 +148,7 @@ export default function Notifications() {
                   <li key={n.id} className={n.read_at ? 'inbox-item' : 'inbox-item new'}>
                     <span className={`inbox-ico t-${t.tone}`} aria-hidden="true"><t.icon size={17} /></span>
                     <button type="button" className="inbox-main" onClick={() => open(n)}>
-                      <span className="inbox-title">{n.title}</span>
+                      <span className="inbox-title" title={n.title}>{n.title}</span>
                       {n.body && <span className="inbox-body">{n.body}</span>}
                       <span className="inbox-meta">{t.label} · {ago(n.created_at)}</span>
                     </button>

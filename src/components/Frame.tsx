@@ -136,7 +136,7 @@ function NotificationBell({ userId, unread, onChanged, allTo, onAll }: BellProps
           {rows === null ? <p className="pop-empty">Loading…</p> : rows.length === 0 ? <p className="pop-empty">You're all caught up.</p> : (
             <ul className="notif-list">{rows.map((n) => (
               <li key={n.id}><button type="button" className={n.read_at ? 'notif' : 'notif new'} onClick={() => openOne(n)}>
-                <span className="notif-title">{n.title}</span>
+                <span className="notif-title" title={n.title}>{n.title}</span>
                 {n.body && <span className="notif-body">{n.body}</span>}
                 <span className="notif-time">{ago(n.created_at)}</span>
               </button></li>))}

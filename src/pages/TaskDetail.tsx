@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Archive, ArchiveRestore, ArrowLeft, CalendarClock, Layers, Pencil, Plus, Send, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { pickName } from '../lib/names';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { canTransition, TASK_STATUSES, type TaskStatus } from '../../api/_lib/taskStatus';
@@ -216,8 +217,8 @@ export default function TaskDetail() {
                 <label>Actual hours<input type="number" step="0.25" min="0" name="actual_hours" defaultValue={t.actual_hours ?? ''} /></label>
                 <label>Tags<input name="tags" defaultValue={t.tags.join(', ')} /></label>
                 {'lead_id' in t && <>
-                  <label>Lead<select name="lead_id" defaultValue={t.lead_id ?? ''}><option value="">No lead</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-                  <label>Manager<select name="manager_id" defaultValue={t.manager_id ?? ''}><option value="">No manager</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+                  <label>Lead<select name="lead_id" defaultValue={t.lead_id ?? ''}><option value="">No lead</option>{active.map((p) => <option key={p.id} value={p.id}>{pickName(p, active, uid)}</option>)}</select></label>
+                  <label>Manager<select name="manager_id" defaultValue={t.manager_id ?? ''}><option value="">No manager</option>{active.map((p) => <option key={p.id} value={p.id}>{pickName(p, active, uid)}</option>)}</select></label>
                 </>}
                 <label className="span-all">Description<textarea name="description" rows={4} defaultValue={t.description ?? ''} /></label>
                 <span className="row filters span-all td-edit-actions"><button type="submit">Save changes</button><button type="button" className="link" onClick={() => setEdit(false)}>Cancel</button>
@@ -243,7 +244,7 @@ export default function TaskDetail() {
             {canAssign && (subForm ? (
               <form className="sub-add" onSubmit={addSubtask}>
                 <input name="title" aria-label="Subtask title" placeholder="Subtask title" required maxLength={200} autoFocus />
-                <select name="assignee" aria-label="Subtask assignee" defaultValue=""><option value="">Unassigned</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+                <select name="assignee" aria-label="Subtask assignee" defaultValue=""><option value="">Unassigned</option>{active.map((p) => <option key={p.id} value={p.id}>{pickName(p, active, uid)}</option>)}</select>
                 <label>Start<input type="date" name="start" /></label>
                 <label>Due<input type="date" name="due" /></label>
                 <span className="row filters"><button type="submit"><Plus size={15} aria-hidden="true" />Add subtask</button><button type="button" className="link" onClick={() => setSubForm(false)}>Cancel</button></span>
@@ -349,7 +350,7 @@ export default function TaskDetail() {
                 </li>); })}</ul>)}
             {canAssign && unassigned.length > 0 && (
               <select aria-label="Add assignee" value="" onChange={(e) => e.target.value && run(() => rpc('tt_assign', { p_task: id, p_user: e.target.value, p_add: true }))}>
-                <option value="">+ Add assignee</option>{unassigned.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                <option value="">+ Add assignee</option>{unassigned.map((p) => <option key={p.id} value={p.id}>{pickName(p, active, uid)}</option>)}
               </select>)}
           </section>
 

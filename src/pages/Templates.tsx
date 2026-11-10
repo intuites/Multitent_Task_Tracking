@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CopyPlus, GripVertical, ListTree, Mail, Pencil, Play, Plus, Trash2, UserRound, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { pickName } from '../lib/names';
 import { useAuth } from '../lib/auth';
 import { label, rpc, usePeople } from '../lib/ui';
 import { ask } from '../components/Dialog';
@@ -17,7 +18,7 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const emails = (s: string) => s.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
 
 export default function Templates() {
-  const { membership } = useAuth();
+  const { membership, session } = useAuth();
   const orgId = membership!.org_id;
   const navigate = useNavigate();
   const { active, name } = usePeople(orgId);
@@ -94,7 +95,7 @@ export default function Templates() {
             <label>Task title<input value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} required maxLength={200} placeholder="Onboard new client" /></label>
             <label>Priority<select value={edit.priority} onChange={(e) => setEdit({ ...edit, priority: e.target.value })}>{['low', 'medium', 'high', 'urgent'].map((p) => <option key={p} value={p}>{label(p)}</option>)}</select></label>
             <label>Due after (days)<input type="number" min={0} max={3650} value={edit.due_offset_days ?? ''} onChange={(e) => setEdit({ ...edit, due_offset_days: e.target.value === '' ? null : Number(e.target.value) })} /></label>
-            <label>Default assignee<select value={edit.assignee_id ?? ''} onChange={(e) => setEdit({ ...edit, assignee_id: e.target.value || null })}><option value="">Choose when using</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+            <label>Default assignee<select value={edit.assignee_id ?? ''} onChange={(e) => setEdit({ ...edit, assignee_id: e.target.value || null })}><option value="">Choose when using</option>{active.map((p) => <option key={p.id} value={p.id}>{pickName(p, active, session?.user.id)}</option>)}</select></label>
             <label>Notify these emails<input name="emails" key={edit.id ?? 'new'} defaultValue={edit.notify_emails.join(', ')} placeholder="lead@company.com, ops@company.com" /></label>
             <fieldset className="pf-wide tpl-depts"><legend>Departments</legend>
               {depts.length === 0 ? <span className="muted">No departments yet. Add them in Employees &amp; Teams.</span> : depts.map((d) => (
@@ -111,7 +112,7 @@ export default function Templates() {
                 <li key={i}>
                   <GripVertical size={16} className="muted" aria-hidden="true" />
                   <input aria-label={`Subtask ${i + 1} title`} value={s.title} onChange={(e) => setSub(i, { title: e.target.value })} placeholder={`Subtask ${i + 1}`} maxLength={200} />
-                  <select aria-label={`Subtask ${i + 1} assignee`} value={s.assignee_id ?? ''} onChange={(e) => setSub(i, { assignee_id: e.target.value || null })}><option value="">Same as task</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+                  <select aria-label={`Subtask ${i + 1} assignee`} value={s.assignee_id ?? ''} onChange={(e) => setSub(i, { assignee_id: e.target.value || null })}><option value="">Same as task</option>{active.map((p) => <option key={p.id} value={p.id}>{pickName(p, active, session?.user.id)}</option>)}</select>
                   <label className="sub-num">Starts day<input type="number" min={0} max={3650} value={s.start_offset_days} onChange={(e) => setSub(i, { start_offset_days: Number(e.target.value) || 0 })} /></label>
                   <label className="sub-num">Due day<input type="number" min={0} max={3650} value={s.due_offset_days ?? ''} onChange={(e) => setSub(i, { due_offset_days: e.target.value === '' ? null : Number(e.target.value) })} /></label>
                   <button type="button" className="icon-btn sm danger-text" aria-label={`Remove subtask ${i + 1}`} onClick={() => setEdit({ ...edit, subtasks: edit.subtasks.filter((_, j) => j !== i) })}><Trash2 size={14} aria-hidden="true" /></button>
@@ -131,7 +132,7 @@ export default function Templates() {
             <label className="pf-wide">Task title<input name="title" defaultValue={use.title} maxLength={200} /></label>
             <label>Department<select name="department" defaultValue={use.department_ids[0] ?? ''}><option value="">None</option>
               {(use.department_ids.length ? depts.filter((d) => use.department_ids.includes(d.id)) : depts).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
-            <label>Assignee<select name="assignee" defaultValue={use.assignee_id ?? ''}><option value="">Unassigned</option>{active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+            <label>Assignee<select name="assignee" defaultValue={use.assignee_id ?? ''}><option value="">Unassigned</option>{active.map((p) => <option key={p.id} value={p.id}>{pickName(p, active, session?.user.id)}</option>)}</select></label>
             <label>Start date<input type="date" name="start" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
             <label>Also notify<input name="emails" placeholder="extra@company.com" /></label>
             <p className="muted pf-wide tpl-note">Creates 1 task and {use.subtasks.length} subtask{use.subtasks.length === 1 ? '' : 's'}.{use.notify_emails.length > 0 && ` Notifies ${use.notify_emails.join(', ')}.`}</p>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Building2, Check, Layers, Pencil, Plus, Search, Trash2, UserPlus, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { pickName } from '../lib/names';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { Badge, fetchAll, fileStamp, label, loadInvites, loadPeople, rpc, saveBlob, type Person } from '../lib/ui';
@@ -214,7 +215,7 @@ export default function Employees() {
 
 /** Organization → its departments → each department's members. Owners and admins of that organization can edit. */
 export function Departments({ say }: { say: (m: Msg) => void }) {
-  const { membership, memberships } = useAuth();
+  const { membership, memberships, session } = useAuth();
   const orgs = memberships.filter((m) => can(m.role, 'task:write'));
   const [orgId, setOrgId] = useState(membership!.org_id);
   const admin = can(orgs.find((m) => m.org_id === orgId)?.role, 'members:manage');
@@ -276,7 +277,7 @@ export function Departments({ say }: { say: (m: Msg) => void }) {
                 </li>))}</ul>)}
             {admin && (
               <select className="tc-add" aria-label={`Add member to ${d.name}`} value="" onChange={(e) => e.target.value && run(supabase.from('tt_department_members').insert({ department_id: d.id, user_id: e.target.value, org_id: orgId }), `${nameOf(e.target.value)} added to ${d.name}.`)}>
-                <option value="">+ Add member</option>{people.filter((p) => !members.some((m) => m.user_id === p.id)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                <option value="">+ Add member</option>{people.filter((p) => !members.some((m) => m.user_id === p.id)).map((p) => <option key={p.id} value={p.id}>{pickName(p, people, session?.user.id)}</option>)}
               </select>)}
           </article>);
       })}</div>)}

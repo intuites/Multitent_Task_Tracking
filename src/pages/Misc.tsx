@@ -3,6 +3,7 @@ import { deleteAccount } from '../lib/deleteAccount';
 import { Link } from 'react-router-dom';
 import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { supabase } from '../lib/supabase';
+import { pickName } from '../lib/names';
 import { useAuth } from '../lib/auth';
 import { fetchAll, fileStamp, fmtTime, label, NO_ESC, rpc, saveBlob, usePeople } from '../lib/ui';
 import { ask } from '../components/Dialog';
@@ -19,7 +20,7 @@ const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((
 
 /** Who changed what, as a day-by-day timeline in the organization's time zone. */
 export function ActivityLogs() {
-  const { membership } = useAuth();
+  const { membership, session } = useAuth();
   const orgId = membership!.org_id;
   const zone = safeZone(membership!.time_zone);
   const { people, name: rawName } = usePeople(orgId);
@@ -62,7 +63,7 @@ export function ActivityLogs() {
         </div>
         <label className="al-who"><span className="sr-only">Filter by person</span>
           <select value={who} onChange={(e) => setWho(e.target.value)}>
-            <option value="">Everyone</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            <option value="">Everyone</option>{people.map((p) => <option key={p.id} value={p.id}>{pickName(p, people, session?.user.id)}</option>)}
           </select>
         </label>
       </div>

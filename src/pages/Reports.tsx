@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CheckCircle2, Clock, Hourglass, Layers, PieChart, Repeat, Users, X, type LucideIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { pickName } from '../lib/names';
 import { useAuth } from '../lib/auth';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
 import { fetchAll, fileStamp, isOpen, isOverdue, label, saveBlob, usePeople } from '../lib/ui';
@@ -50,7 +51,7 @@ function BarList({ rows, by, value, max }: { rows: Row[]; by: string; value: str
 }
 
 export default function Reports() {
-  const { membership } = useAuth();
+  const { membership, session } = useAuth();
   const orgId = membership!.org_id;
   const { people, name } = usePeople(orgId);
   const [report, setReport] = useState<Report>('task_completion');
@@ -159,7 +160,7 @@ export default function Reports() {
           <label>To<input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
         </div>
         <select aria-label="Filter by department" value={dept} onChange={(e) => setDept(e.target.value)}><option value="">All departments</option>{data?.d.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
-        <select aria-label="Filter by employee" value={emp} onChange={(e) => setEmp(e.target.value)}><option value="">All employees</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+        <select aria-label="Filter by employee" value={emp} onChange={(e) => setEmp(e.target.value)}><option value="">All employees</option>{people.map((p) => <option key={p.id} value={p.id}>{pickName(p, people, session?.user.id)}</option>)}</select>
         <select aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Any status</option>{STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
         <select aria-label="Filter by priority" value={priority} onChange={(e) => setPriority(e.target.value)}><option value="">Any priority</option>{['low', 'medium', 'high', 'urgent'].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
         {filtered && <button type="button" className="link" onClick={clear}><X size={15} aria-hidden="true" />Clear filters</button>}

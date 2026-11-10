@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { BellRing, ChevronDown, ListTree, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { pickName } from '../lib/names';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { dateToTs, label, loadPeople, rpc, type Person } from '../lib/ui';
@@ -150,7 +151,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
         <label>Department<select value={dept} onChange={(e) => { setDept(e.target.value); setAssignee(''); }} required disabled={!orgId || !depts.length}>
           <option value="">{!orgId ? 'Select organization first' : depts.length ? 'Select department' : 'No departments in this organization'}</option>{depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
         <label>Assign to<select value={assignee} onChange={(e) => setAssignee(e.target.value)} required disabled={!dept || !deptPeople.length}>
-          <option value="">{!dept ? 'Select department first' : deptPeople.length ? 'Select member' : 'No members in this department'}</option>{deptPeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+          <option value="">{!dept ? 'Select department first' : deptPeople.length ? 'Select member' : 'No members in this department'}</option>{deptPeople.map((p) => <option key={p.id} value={p.id}>{pickName(p, people, uid)}</option>)}</select></label>
       </div>
       {extras.length > 0 && (
         <label className="nt-sendto"><span>Send task emails to <small className="muted">(optional)</small></span>
@@ -162,9 +163,9 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
         </label>)}
       <div className="nt-row">
         <label><span>Lead <small className="muted">(optional)</small></span><select value={lead} onChange={(e) => setLead(e.target.value)} disabled={!orgId}>
-          <option value="">{orgId ? 'No lead' : 'Select organization first'}</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+          <option value="">{orgId ? 'No lead' : 'Select organization first'}</option>{people.map((p) => <option key={p.id} value={p.id}>{pickName(p, people, uid)}</option>)}</select></label>
         <label><span>Manager <small className="muted">(optional)</small></span><select value={manager} onChange={(e) => setManager(e.target.value)} disabled={!orgId}>
-          <option value="">{orgId ? 'No manager' : 'Select organization first'}</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+          <option value="">{orgId ? 'No manager' : 'Select organization first'}</option>{people.map((p) => <option key={p.id} value={p.id}>{pickName(p, people, uid)}</option>)}</select></label>
       </div>
       <small className="muted nt-help">The lead and manager get the completed email and the daily digests for this task.</small>
       <label>Task title<input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={200} placeholder="What needs to be done" /></label>
@@ -196,7 +197,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
               <span className="nt-n">{i + 1}</span>
               <input aria-label={`Sub-task ${i + 1} title`} value={s.title} onChange={(e) => setSub(i, { title: e.target.value })} placeholder="Sub-task title" maxLength={200} />
               <select aria-label={`Sub-task ${i + 1} department`} value={s.department_id} onChange={(e) => setSub(i, { department_id: e.target.value, assignee_id: '' })}><option value="">Department</option>{depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
-              <select aria-label={`Sub-task ${i + 1} owner`} value={s.assignee_id} onChange={(e) => setSub(i, { assignee_id: e.target.value })}><option value="">Same as task</option>{inDept(s.department_id || dept).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+              <select aria-label={`Sub-task ${i + 1} owner`} value={s.assignee_id} onChange={(e) => setSub(i, { assignee_id: e.target.value })}><option value="">Same as task</option>{inDept(s.department_id || dept).map((p) => <option key={p.id} value={p.id}>{pickName(p, people, uid)}</option>)}</select>
               <input aria-label={`Sub-task ${i + 1} due date`} type="date" value={s.due} onChange={(e) => setSub(i, { due: e.target.value })} />
               <button type="button" className="icon-btn sm danger-text" aria-label={`Remove sub-task ${i + 1}`} onClick={() => setSubs(subs.filter((_, j) => j !== i))}><Trash2 size={14} aria-hidden="true" /></button>
             </li>))}</ol>)}

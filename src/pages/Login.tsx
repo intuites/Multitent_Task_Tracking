@@ -1,9 +1,7 @@
-import { useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { AlertCircle, ArrowRight, BellRing, Building2, Check, CheckCircle2, Eye, EyeOff, History, Layers, Loader2, LockKeyhole, Mail, MailCheck, MessageSquare, ShieldCheck, UserPlus, UserRound } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Badge } from '../lib/ui';
-import { LiquidBg } from '../components/Liquid';
 import { ThemeToggle } from '../components/Frame';
 import Captcha, { captchaOn } from '../components/Captcha';
 
@@ -85,7 +83,7 @@ export default function Login() {
   const signIn = mode === 'in';
 
   return (
-    <AuthLayout scene={mode}>
+    <AuthLayout>
       <form className={bad ? `login shake-${msg!.n % 2}` : 'login'} onSubmit={submit}>
         <div className="auth-seg" role="group" aria-label="Sign in or create an account" data-mode={mode}>
           <span className="auth-seg-pill" aria-hidden="true" />
@@ -142,94 +140,17 @@ export default function Login() {
   );
 }
 
-const SCENES: Record<Mode, { head: string; lede: string }> = {
-  in: { head: 'Pick up right where your team left off.', lede: 'Every task, deadline and update for your organization, in one place.' },
-  up: { head: 'Your organization, set up in minutes.', lede: 'Add departments, invite your people and start assigning work.' },
-};
-
-// Example content for the picture of Taskify: illustrative tasks and people, not real data.
-const COLS: { s: string; cards: [string, string, string, string][] }[] = [
-  { s: 'not_yet_started', cards: [['Q3 budget review', 'Finance', 'Due Fri', 'MK'], ['Onboard new hires', 'HR', 'Due Mon', 'PS']] },
-  { s: 'started', cards: [['Design review', 'IT', 'Due today', 'AR'], ['QA sign-off', 'IT', 'Due tomorrow', 'PS']] },
-  { s: 'completed', cards: [['Client invoice', 'Finance', 'Done Mon', 'MK']] },
-];
-const DEPTS: [string, number, string[]][] = [['Finance', 4, ['MK', 'RJ']], ['IT', 6, ['AR', 'PS']], ['Sales', 3, ['NV', 'TS']]];
-
-/** The brand panel's picture of Taskify: the task board when signing in, the organization map when creating an account. */
-function Preview({ scene }: { scene: Mode }) {
-  if (scene === 'in') return (
-    <div className="pv-stage"><div className="pv-scene">
-      <div className="pv-board">
-        <div className="pv-bar"><b>Tasks</b><span className="pv-tabs"><i className="on">Board</i><i>List</i><i>Calendar</i></span></div>
-        <div className="pv-cols">
-          {COLS.map((c) => (
-            <div key={c.s} className="pv-col">
-              <p className="pv-col-h"><Badge v={c.s} /><small>{c.cards.length}</small></p>
-              {c.cards.map(([title, dept, due, who]) => (
-                <div key={title} className="pv-task">
-                  <b>{title}</b>
-                  <span className="pv-meta"><i className="pv-tag">{dept}</i><span className={/today/.test(due) ? 'pv-due hot' : 'pv-due'}>{due}</span><i className="pv-av">{who}</i></span>
-                </div>))}
-            </div>))}
-        </div>
-      </div>
-      <div className="pv-float pv-f1"><MessageSquare size={16} aria-hidden="true" /><span><b>Priya</b> commented on QA sign-off</span></div>
-      <div className="pv-float pv-f2"><BellRing size={16} aria-hidden="true" /><span>Reminder: <b>QA sign-off</b> is due tomorrow</span></div>
-    </div></div>
-  );
-  return (
-    <div className="pv-stage"><div className="pv-scene">
-      <div className="pv-board pv-org">
-        <div className="pv-bar"><b>Your organization</b><span className="pv-tabs"><i className="on">Departments</i><i>People</i></span></div>
-        <div className="pv-root"><Building2 size={20} aria-hidden="true" /><span><b>Your firm</b><small>America/New_York</small></span><Check size={16} className="pv-done" aria-hidden="true" /></div>
-        <div className="pv-tree">
-          {DEPTS.map(([d, n, av]) => (
-            <div key={d} className="pv-dept"><Layers size={16} aria-hidden="true" /><b>{d}</b><small>{n} people</small>
-              <span className="pv-avatars">{av.map((a) => <i key={a}>{a}</i>)}<i>+{n - av.length}</i></span></div>))}
-        </div>
-      </div>
-      <div className="pv-float pv-f1"><MailCheck size={16} aria-hidden="true" /><span>Invitation sent to <b>priya@yourfirm.com</b></span></div>
-      <div className="pv-float pv-f2"><UserPlus size={16} aria-hidden="true" /><span><b>Design review</b> assigned to IT</span></div>
-    </div></div>
-  );
-}
-
-// Shared shell for sign-in, password setup, two-factor and onboarding: content left, brand panel with a preview right.
-export function AuthLayout({ children, scene = 'in' }: { children: ReactNode; scene?: Mode }) {
-  const s = SCENES[scene];
-  const first = useRef(scene), moved = useRef(false);
-  if (scene !== first.current) moved.current = true;
-  const art = useRef<HTMLElement>(null);
-  // the board leans a little toward the pointer (CSS ignores it for touch and reduced motion)
-  const lean = (e: ReactPointerEvent) => {
-    const r = art.current!.getBoundingClientRect();
-    art.current!.style.setProperty('--px', ((e.clientX - r.left) / r.width - 0.5).toFixed(3));
-    art.current!.style.setProperty('--py', ((e.clientY - r.top) / r.height - 0.5).toFixed(3));
-  };
+// Shared shell for sign-in, password setup, two-factor and onboarding: one centered card on a soft brand-tinted page.
+export function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="auth">
-      <main className="auth-main">
-        <div className="auth-top">
-          <span className="brand"><span className="mark" aria-hidden="true">T</span><span>Taskify</span></span>
-          <span className="auth-corner"><a href="/guide" className="pill-btn ghost">How Taskify works</a><ThemeToggle /></span>
-        </div>
-        <div className="auth-body">{children}</div>
-        <p className="auth-foot">Each organization sees only its own data.</p>
-      </main>
-      <aside ref={art} className={moved.current ? 'auth-art settled' : 'auth-art'} aria-hidden="true" onPointerMove={lean}
-        onPointerLeave={() => { art.current!.style.setProperty('--px', '0'); art.current!.style.setProperty('--py', '0'); }}>
-        <LiquidBg tone="deep" />
-        <div className="auth-pane">
-          <p className="auth-head">{s.head}</p>
-          <p className="auth-lede">{s.lede}</p>
-        </div>
-        <Preview scene={scene} />
-        <ul className="auth-facts">
-          <li><History size={16} />Every status change is recorded</li>
-          <li><ShieldCheck size={16} />Each organization sees only its own data</li>
-          <li><BellRing size={16} />Reminders and updates by email</li>
-        </ul>
-      </aside>
+      <div className="auth-glow" aria-hidden="true"><i /><i /></div>
+      <div className="auth-top">
+        <span className="brand"><span className="mark" aria-hidden="true">T</span><span>Taskify</span></span>
+        <span className="auth-corner"><a href="/guide" className="pill-btn ghost">How Taskify works</a><ThemeToggle /></span>
+      </div>
+      <main className="auth-body">{children}</main>
+      <p className="auth-foot">Each organization sees only its own data.</p>
     </div>
   );
 }

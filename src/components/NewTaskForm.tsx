@@ -71,15 +71,12 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
     })();
   }, [orgId]);
 
-  // people in a department = its members (Employees → Departments); nobody until a department is picked.
-  // The admin creating the task is always offered too, first, so they can take a task themselves.
+  // people in a department = its members (Employees → Departments); nobody until a department is picked
   const inDept = (d: string) => {
     if (!d) return [];
     const ids = new Set(dm.filter((m) => m.department_id === d).map((m) => m.user_id));
-    const me = people.find((p) => p.id === uid);
-    return [...(me ? [me] : []), ...people.filter((p) => ids.has(p.id) && p.id !== uid)];
+    return people.filter((p) => ids.has(p.id));
   };
-  const optName = (p: { id: string; name: string }) => (p.id === uid ? `${p.name} (me)` : p.name);
 
   function applyTemplate(id: string) {
     const t = templates.find((x) => x.id === id);
@@ -153,7 +150,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
         <label>Department<select value={dept} onChange={(e) => { setDept(e.target.value); setAssignee(''); }} required disabled={!orgId || !depts.length}>
           <option value="">{!orgId ? 'Select organization first' : depts.length ? 'Select department' : 'No departments in this organization'}</option>{depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
         <label>Assign to<select value={assignee} onChange={(e) => setAssignee(e.target.value)} required disabled={!dept || !deptPeople.length}>
-          <option value="">{!dept ? 'Select department first' : deptPeople.length ? 'Select member' : 'No members in this department'}</option>{deptPeople.map((p) => <option key={p.id} value={p.id}>{optName(p)}</option>)}</select></label>
+          <option value="">{!dept ? 'Select department first' : deptPeople.length ? 'Select member' : 'No members in this department'}</option>{deptPeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       </div>
       {extras.length > 0 && (
         <label className="nt-sendto"><span>Send task emails to <small className="muted">(optional)</small></span>
@@ -199,7 +196,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
               <span className="nt-n">{i + 1}</span>
               <input aria-label={`Sub-task ${i + 1} title`} value={s.title} onChange={(e) => setSub(i, { title: e.target.value })} placeholder="Sub-task title" maxLength={200} />
               <select aria-label={`Sub-task ${i + 1} department`} value={s.department_id} onChange={(e) => setSub(i, { department_id: e.target.value, assignee_id: '' })}><option value="">Department</option>{depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
-              <select aria-label={`Sub-task ${i + 1} owner`} value={s.assignee_id} onChange={(e) => setSub(i, { assignee_id: e.target.value })}><option value="">Same as task</option>{inDept(s.department_id || dept).map((p) => <option key={p.id} value={p.id}>{optName(p)}</option>)}</select>
+              <select aria-label={`Sub-task ${i + 1} owner`} value={s.assignee_id} onChange={(e) => setSub(i, { assignee_id: e.target.value })}><option value="">Same as task</option>{inDept(s.department_id || dept).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
               <input aria-label={`Sub-task ${i + 1} due date`} type="date" value={s.due} onChange={(e) => setSub(i, { due: e.target.value })} />
               <button type="button" className="icon-btn sm danger-text" aria-label={`Remove sub-task ${i + 1}`} onClick={() => setSubs(subs.filter((_, j) => j !== i))}><Trash2 size={14} aria-hidden="true" /></button>
             </li>))}</ol>)}

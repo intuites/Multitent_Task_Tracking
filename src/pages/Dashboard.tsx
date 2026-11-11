@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, BarChart3, CalendarClock, Plus } from 'lucide-react';
+import { ArrowUpRight, BarChart3, CalendarClock, CalendarRange, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
@@ -161,7 +161,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [tick, setTick] = useState(0);
   // remembered per browser
-  const [period, setPeriodState] = useState<Period>(() => { try { const v = localStorage.getItem('tt-dash-period'); return v === 'month' || v === 'all' ? v : 'week'; } catch { return 'week'; } });
+  const [period, setPeriodState] = useState<Period>(() => { try { const v = localStorage.getItem('tt-dash-period'); return v === 'week' || v === 'month' ? v : 'all'; } catch { return 'all'; } });
   const setPeriod = (p: Period) => { setPeriodState(p); try { localStorage.setItem('tt-dash-period', p); } catch { /* storage blocked */ } };
 
   // live: reload when any task in this org changes (and on the clock every 2 minutes, so "due today" stays right)
@@ -216,21 +216,23 @@ export default function Dashboard() {
         <div>
           <h2 className="page-title">Dashboard</h2>
           <p className="page-sub">{all ? `How ${membership!.org_name} is doing today, across every task.` : 'What needs your attention today.'}</p>
-          <div className="dash-period">
-            <div className="cc-ranges" role="group" aria-label="Show tasks for">
-              {PERIODS.map(([p, l]) => <button key={p} type="button" aria-pressed={period === p} onClick={() => setPeriod(p)}>{l}</button>)}
-            </div>
-            <small className="muted" aria-live="polite">{span ? `Tasks due ${span}; Completed counts tasks finished ${span}.` : 'Every task, whenever it is due.'}</small>
-          </div>
         </div>
         <div className="page-actions">
+          {/* open, overdue and pending count tasks due in the period; completed counts tasks finished in it */}
+          <label className="dash-period" title={span ? `Tasks due ${span}; Completed counts tasks finished ${span}` : 'Every task, whenever it is due'}>
+            <CalendarRange size={16} aria-hidden="true" />
+            <span className="sr-only">Show tasks for</span>
+            <select value={period} onChange={(e) => setPeriod(e.target.value as Period)}>
+              {PERIODS.map(([p, l]) => <option key={p} value={p}>{l}</option>)}
+            </select>
+          </label>
           {canAssign && <Link to="/tasks?new=1" className="pill-btn"><Plus size={16} aria-hidden="true" />Add task</Link>}
           {can(membership!.role, 'report:read') && <Link to="/reports" className="pill-btn ghost">View reports</Link>}
         </div>
       </div>
 
       <div className="dash">
-        <div className="a-k1"><Kpi feature title={all ? 'Open tasks' : 'My open tasks'} value={c.open} note={`${c.active} started`} to={tasks} /></div>
+        <div className="a-k1"><Kpi feature title={all ? 'Open tasks' : 'My open tasks'} value={c.open} note={span ? `Due ${span} · ${c.active} started` : `${c.active} started`} to={tasks} /></div>
         <div className="a-k2"><Kpi title="Overdue" value={c.overdue} note={c.overdue ? 'Past their due date' : 'Everything is on time'} to={`${tasks}?view=overdue`} /></div>
         <div className="a-k3"><Kpi title="Due today" value={c.dueToday} note="Before midnight" to={`${tasks}?view=due_today`} /></div>
         <div className="a-k4"><Kpi title="Pending" value={c.waiting} note="Waiting on something" to={`${tasks}?view=pending`} /></div>

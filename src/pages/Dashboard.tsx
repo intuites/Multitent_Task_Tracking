@@ -4,7 +4,7 @@ import { ArrowUpRight, BarChart3, CalendarClock, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
-import { Badge, fmt, fmtTime, rpc, usePeople } from '../lib/ui';
+import { Badge, fetchAll, fmt, fmtTime, rpc, usePeople } from '../lib/ui';
 import { Avatar } from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
 import { DashSkeleton } from '../components/Skeleton';
@@ -60,8 +60,8 @@ function buckets(from: Date, to: Date) {
   return out;
 }
 
-// The signed-in person's completed tasks over a chosen range, a labelled bar per day / week / month.
-function CompletedChart({ orgId, uid, tick, reports }: { orgId: string; uid: string; tick: number; reports: boolean }) {
+// Completed tasks over a chosen range, a labelled bar per day / week / month: the signed-in person's, or (uid null) the whole organization's.
+function CompletedChart({ orgId, uid, tick, reports }: { orgId: string; uid: string | null; tick: number; reports: boolean }) {
   const [range, setRange] = useState<Range>('this_week');
   const [cFrom, setCFrom] = useState(''), [cTo, setCTo] = useState('');
   const [dates, setDates] = useState<number[] | null>(null);
@@ -70,8 +70,8 @@ function CompletedChart({ orgId, uid, tick, reports }: { orgId: string; uid: str
   useEffect(() => {
     let live = true;
     setDates(null);
-    supabase.from('tt_tasks').select('completed_at, tt_task_assignees!inner(user_id)').eq('org_id', orgId).eq('tt_task_assignees.user_id', uid)
-      .is('archived_at', null).in('status', ['completed', 'completed_cycle']).gte('completed_at', from.toISOString()).lt('completed_at', to.toISOString()).limit(10000)
+    const q = supabase.from('tt_tasks').select(uid ? 'completed_at, tt_task_assignees!inner(user_id)' : 'completed_at').eq('org_id', orgId);
+    (uid ? q.eq('tt_task_assignees.user_id', uid) : q).is('archived_at', null).in('status', ['completed', 'completed_cycle']).gte('completed_at', from.toISOString()).lt('completed_at', to.toISOString()).limit(10000)
       .then(({ data }) => { if (live) setDates((data ?? []).map((r: any) => Date.parse(r.completed_at))); });
     return () => { live = false; };
   }, [orgId, uid, key, tick]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -83,7 +83,7 @@ function CompletedChart({ orgId, uid, tick, reports }: { orgId: string; uid: str
 
   return (<>
     <div className="cc-head">
-      <div><h3 id="an-h">My completed tasks</h3><small className="muted">{dates === null ? 'Loading…' : `${total} in ${title.toLowerCase()}`}</small></div>
+      <div><h3 id="an-h">{uid ? 'My completed tasks' : 'Completed by the team'}</h3><small className="muted">{dates === null ? 'Loading…' : `${total} in ${title.toLowerCase()}`}</small></div>
       {/* employees can't open Reports; the link would only bounce them back here */}
       {reports && <Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link>}
     </div>
@@ -146,6 +146,9 @@ export default function Dashboard() {
   const { membership, session } = useAuth();
   const orgId = membership!.org_id, uid = session!.user.id;
   const canAssign = can(membership!.role, 'task:write');
+  // platform admins are never assigned tasks (they belong to no organization), so they see the open organization's totals
+  const all = !!membership!.platform;
+  const tasks = all ? '/tasks' : '/my-tasks';
   const { name, photo } = usePeople(orgId);
   const [d, setD] = useState<any>(null);
   const [error, setError] = useState('');
@@ -163,20 +166,22 @@ export default function Dashboard() {
       const now = new Date();
       const start = new Date(now); start.setHours(0, 0, 0, 0);
       const end = new Date(start); end.setDate(end.getDate() + 1);
-      // the week chart and the progress gauge count only the signed-in person's own tasks (what My Tasks shows)
-      const myTasks = (cols: string) => supabase.from('tt_tasks').select(`${cols}, tt_task_assignees!inner(user_id)`).eq('org_id', orgId)
-        .eq('tt_task_assignees.user_id', uid).is('archived_at', null);
+      // the person's own tasks (what My Tasks shows); a platform admin's: every task in the organization
+      const myTasks = (cols: string) => {
+        const q = supabase.from('tt_tasks').select(all ? cols : `${cols}, tt_task_assignees!inner(user_id)`).eq('org_id', orgId);
+        return (all ? q : q.eq('tt_task_assignees.user_id', uid)).is('archived_at', null);
+      };
       try {
         const [sum, myAll, next, current, mine] = await Promise.all([
           rpc('tt_org_summary', { p_org: orgId, p_day_start: start.toISOString(), p_day_end: end.toISOString() }),
-          myTasks('status, due_date').limit(5000),
+          fetchAll(() => myTasks('id, status, due_date').order('id')).then((data) => ({ data })),
           myTasks('id, title, status, due_date').not('status', 'in', OPEN).gte('due_date', now.toISOString()).order('due_date').limit(1),
           supabase.from('tt_tasks').select('id, title, status, tt_task_assignees(user_id)').eq('org_id', orgId).is('archived_at', null)
             .in('status', ['started', 'pending', 'not_yet_started']).order('updated_at', { ascending: false }).limit(100),
           supabase.from('tt_tasks').select('id, title, status, due_date, tt_task_assignees!inner(user_id)').eq('org_id', orgId).eq('tt_task_assignees.user_id', uid)
             .is('archived_at', null).not('status', 'in', OPEN).order('due_date', { nullsFirst: false }).limit(4),
         ]);
-        // every number on this page is the signed-in person's own tasks
+        // every number on this page is the signed-in person's own tasks (a platform admin's: the organization's)
         const own = { done: 0, cycle: 0, active: 0, pending: 0, open: 0, overdue: 0, dueToday: 0, waiting: 0 };
         for (const r of (myAll.data ?? []) as any[]) {
           if (r.status === 'completed' || r.status === 'completed_cycle') { own.done++; if (r.status === 'completed_cycle') own.cycle++; continue; }
@@ -195,7 +200,7 @@ export default function Dashboard() {
         });
       } catch (x) { setError((x as Error).message); }
     })();
-  }, [orgId, uid, tick]);
+  }, [orgId, uid, tick, all]);
 
   if (error) return <div className="card"><p role="alert">{error}</p></div>;
   if (!d) return <DashSkeleton />;
@@ -205,7 +210,7 @@ export default function Dashboard() {
       <div className="page-head">
         <div>
           <h2 className="page-title">Dashboard</h2>
-          <p className="page-sub">What needs your attention today.</p>
+          <p className="page-sub">{all ? `How ${membership!.org_name} is doing today, across every task.` : 'What needs your attention today.'}</p>
         </div>
         <div className="page-actions">
           {canAssign && <Link to="/tasks?new=1" className="pill-btn"><Plus size={16} aria-hidden="true" />Add task</Link>}
@@ -214,13 +219,13 @@ export default function Dashboard() {
       </div>
 
       <div className="dash">
-        <div className="a-k1"><Kpi feature title="My open tasks" value={d.open} note={`${d.active} started`} to="/my-tasks" /></div>
-        <div className="a-k2"><Kpi title="Overdue" value={d.overdue} note={d.overdue ? 'Past their due date' : 'Everything is on time'} to="/my-tasks?view=overdue" /></div>
-        <div className="a-k3"><Kpi title="Due today" value={d.dueToday} note="Before midnight" to="/my-tasks?view=due_today" /></div>
-        <div className="a-k4"><Kpi title="Pending" value={d.waiting} note="Waiting on something" to="/my-tasks?view=pending" /></div>
+        <div className="a-k1"><Kpi feature title={all ? 'Open tasks' : 'My open tasks'} value={d.open} note={`${d.active} started`} to={tasks} /></div>
+        <div className="a-k2"><Kpi title="Overdue" value={d.overdue} note={d.overdue ? 'Past their due date' : 'Everything is on time'} to={`${tasks}?view=overdue`} /></div>
+        <div className="a-k3"><Kpi title="Due today" value={d.dueToday} note="Before midnight" to={`${tasks}?view=due_today`} /></div>
+        <div className="a-k4"><Kpi title="Pending" value={d.waiting} note="Waiting on something" to={`${tasks}?view=pending`} /></div>
 
         <section className="card a-an" aria-labelledby="an-h">
-          <CompletedChart orgId={orgId} uid={uid} tick={tick} reports={can(membership!.role, 'report:read')} />
+          <CompletedChart orgId={orgId} uid={all ? null : uid} tick={tick} reports={can(membership!.role, 'report:read')} />
         </section>
 
         <section className="card a-re" aria-labelledby="re-h">
@@ -251,7 +256,7 @@ export default function Dashboard() {
         </section>
 
         <section className="card a-pg" aria-labelledby="pg-h">
-          <h3 id="pg-h">My task progress</h3>
+          <h3 id="pg-h">{all ? 'Task progress' : 'My task progress'}</h3>
           <Gauge done={d.done} active={d.active} pending={d.pending} />
         </section>
 
@@ -260,7 +265,7 @@ export default function Dashboard() {
           <h3 id="es-h">Completed</h3>
           <b className="esc-num"><CountUp value={d.done} /></b>
           <p>{d.cycle} this cycle · {d.done - d.cycle} permanently</p>
-          <Link to="/my-tasks?view=completed" className="round-btn" aria-label="Open my completed tasks"><ArrowUpRight size={20} aria-hidden="true" /></Link>
+          <Link to={`${tasks}?view=completed`} className="round-btn" aria-label={all ? 'Open completed tasks' : 'Open my completed tasks'}><ArrowUpRight size={20} aria-hidden="true" /></Link>
         </section>
       </div>
     </>

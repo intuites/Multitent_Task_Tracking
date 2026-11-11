@@ -2,7 +2,8 @@ import type { Look } from './theme';
 
 /** The person who last signed in on this device, so the sign-in page can greet them in their own colours.
  *  Kept only in this browser; "Not you?" on the sign-in page forgets it. */
-export interface LastUser { name?: string; org?: string; login?: string; look?: Look }
+/** photo: their profile photo's public address (null: initials). */
+export interface LastUser { name?: string; org?: string; login?: string; photo?: string | null; look?: Look }
 const KEY = 'tt-last-user';
 
 export function readLastUser(): LastUser | null {

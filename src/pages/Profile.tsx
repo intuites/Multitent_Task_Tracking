@@ -16,6 +16,7 @@ import { PageSkeleton } from '../components/Skeleton';
 import { MemberEmails } from '../components/MemberEmails';
 import MyLook from '../components/MyLook';
 import { deletePhotoFile, photoProblem, uploadPhoto } from '../lib/photo';
+import { saveLastUser } from '../lib/lastUser';
 
 type Tab = 'overview' | 'work' | 'details' | 'look' | 'security';
 const TABS: { id: Tab; name: string }[] = [{ id: 'overview', name: 'Overview' }, { id: 'work', name: 'My work' }, { id: 'details', name: 'Edit details' }, { id: 'look', name: 'Appearance' }, { id: 'security', name: 'Security' }];
@@ -101,6 +102,7 @@ export default function Profile() {
     setUploading(false);
     if (error) return setMsg({ kind: 'error', text: error.message });
     await deletePhotoFile(old);
+    saveLastUser({ photo: url }); // the sign-in page's greeting shows the new photo
     setMsg({ kind: 'ok', text: 'Photo updated.' });
     window.dispatchEvent(new Event('tt-profile'));
     load();
@@ -111,6 +113,7 @@ export default function Profile() {
     const { error } = await supabase.from('tt_profiles').update({ avatar_url: null }).eq('user_id', uid);
     if (error) return setMsg({ kind: 'error', text: error.message });
     await deletePhotoFile(prev);
+    saveLastUser({ photo: null });
     setMsg({ kind: 'ok', text: 'Photo removed.' });
     window.dispatchEvent(new Event('tt-profile'));
     load();

@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const keep = prof && 'prefs' in prof && m ? lookToKeep(p, m) : null;
       if (keep) { p = keep; supabase.from('tt_profiles').update({ prefs: keep }).eq('user_id', session.user.id).then(() => {}); }
       setPrefs(p);
-      saveLastUser({ name: prof?.full_name || session.user.email?.split('@')[0], org: m?.org_name ?? '' }); // the sign-in page's greeting next time
+      saveLastUser({ name: prof?.full_name || session.user.email?.split('@')[0], org: m?.org_name ?? '', photo: prof?.avatar_url ?? null }); // the sign-in page's greeting next time
       setMemberships(all);
       setMembership(m ?? null);
       // before migration 0026 there is no status column; the query errors and the list stays empty

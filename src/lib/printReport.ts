@@ -31,38 +31,59 @@ function stacked(list: NonNullable<PdfSection['stacked']>) {
   }).join('')}</div>${legend}`;
 }
 
+// a column whose every value is a number (or a percentage) is right-aligned; short values never wrap
+const isNum = (v: unknown) => typeof v === 'number' || /^-?\d+(\.\d+)?%?$/.test(String(v));
+function table(s: PdfSection) {
+  const rows = s.rows!, num = s.columns!.map((_, i) => rows.every((r) => isNum(r[i]) || r[i] === '' || r[i] === '—'));
+  // numbers and dates ("Nov 04, 2026") stay on one line
+  const cls = (i: number, v: unknown) => (num[i] ? 'n' : /^[A-Z][a-z]{2} \d{2}, \d{4}$/.test(String(v)) ? 's' : '');
+  // the long text columns get the room; the rest size to their content
+  const width: Record<string, string> = { Task: '19%', Description: '25%', 'Assigned to': '12%' };
+  // a short table moves to the next page whole rather than leaving a row or two behind
+  return `<table${rows.length <= 15 ? ' class="keep"' : ''}><thead><tr>${s.columns!.map((c, i) => `<th${num[i] ? ' class="n"' : ''}${width[c] && (s.columns!.length > 8) ? ` style="width:${width[c]}"` : ''}>${esc(c)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map((row) => `<tr>${row.map((c, i) => `<td class="${cls(i, c)}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+// text inside a CSS string (the page footer): no quotes, backslashes or line breaks
+const cssText = (v: string) => v.replace(/["\\\n\r]/g, ' ');
+
 export function reportHtml(r: PdfReport) {
   // a table with many columns (the full task list) prints landscape so it isn't shrunk to fit
   const wide = r.sections.some((s) => (s.columns?.length ?? 0) > 8);
   const sections = r.sections.map((s) => `<section${(s.columns?.length ?? 0) > 8 ? ' class="wide"' : ''}><h2>${esc(s.title)}</h2>${s.bars?.length ? bars(s.bars) : ''}${s.stacked?.length ? stacked(s.stacked) : ''}
-    ${s.columns && s.rows?.length ? `<table><thead><tr>${s.columns.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${s.rows.map((row) => `<tr>${row.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>` : ''}
+    ${s.columns && s.rows?.length ? table(s) : ''}
     ${s.rows && !s.rows.length ? '<p class="empty">Nothing to show.</p>' : ''}${s.note ? `<p class="note">${esc(s.note)}</p>` : ''}</section>`).join('');
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(r.title)}</title><style>
-  :root { --a: ${brandColor()}; --b: color-mix(in oklab, var(--a) 72%, #000); }
-  @page { size: A4${wide ? ' landscape' : ''}; margin: 12mm; }
+  :root { --a: ${brandColor()}; --b: color-mix(in oklab, var(--a) 72%, #000); --ink: #1f2a24; --mute: #5b6862; --line: #dfe6e2; }
+  /* our own page footer; declaring margin boxes also stops the browser printing its date, title and URL on every page */
+  @page { size: A4${wide ? ' landscape' : ''}; margin: 13mm 12mm 15mm;
+    @top-left { content: ''; } @top-center { content: ''; } @top-right { content: ''; } @bottom-center { content: ''; }
+    @bottom-left { content: "Taskify  |  ${cssText(r.title)}"; font: 9pt "Segoe UI", system-ui, sans-serif; color: #7b8781; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 9pt "Segoe UI", system-ui, sans-serif; color: #7b8781; } }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body { margin: 0; font: 11px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: #1f2a24; }
-  header { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 0 12px; border-bottom: 3px solid var(--b); margin-bottom: 16px; }
-  header h1 { margin: 0; font-size: 22px; color: var(--b); } header p { margin: 4px 0 0; color: #6b7770; }
-  .mark { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, color-mix(in oklab, var(--a) 90%, #000), color-mix(in oklab, var(--a) 55%, #000)); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 17px; }
-  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
-  .kpi { padding: 10px 12px; border-radius: 10px; background: color-mix(in oklab, var(--a) 11%, #fff); } .kpi small { display: block; color: #4d5a53; } .kpi b { font-size: 19px; color: var(--b); }
+  body { margin: 0; font: 10.5pt/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink); }
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding: 0 0 10pt; border-bottom: 3px solid var(--b); margin-bottom: 14pt; }
+  header h1 { margin: 0; font-size: 20pt; line-height: 1.2; color: var(--b); } header p { margin: 4pt 0 0; color: var(--mute); font-size: 10pt; }
+  .mark { flex: none; width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, color-mix(in oklab, var(--a) 90%, #000), color-mix(in oklab, var(--a) 55%, #000)); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 17px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8pt; margin-bottom: 16pt; break-inside: avoid; }
+  .kpi { padding: 9pt 11pt; border-radius: 9px; background: color-mix(in oklab, var(--a) 11%, #fff); }
+  .kpi small { display: block; color: var(--mute); font-size: 9.5pt; } .kpi b { display: block; margin-top: 2pt; font-size: 18pt; line-height: 1.15; color: var(--b); }
   /* long sections flow onto the next page; a heading never sits alone at the bottom, a chart never splits */
-  section { margin: 0 0 18px; } h2 { font-size: 13px; color: var(--b); margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid #d5ddd8; break-after: avoid; }
-  .bars { display: grid; gap: 5px; margin: 6px 0 10px; break-inside: avoid; }
-  td, th { overflow-wrap: break-word; vertical-align: top; } .wide table { font-size: 9.5px; } .wide td:nth-child(2) { width: 32%; } .bar { display: grid; grid-template-columns: 150px 1fr 48px; gap: 8px; align-items: center; }
-  .bl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .bar b { text-align: right; }
-  .bt { height: 12px; border-radius: 6px; background: #eef2ef; overflow: hidden; display: block; } .bt i { display: block; height: 100%; border-radius: 6px; }
+  section { margin: 0 0 16pt; } h2 { font-size: 13pt; color: var(--b); margin: 0 0 8pt; padding-bottom: 4pt; border-bottom: 1px solid var(--line); break-after: avoid; }
+  .bars { display: grid; gap: 5pt; margin: 4pt 0 10pt; break-inside: avoid; }
+  .bar { display: grid; grid-template-columns: minmax(130px, 24%) minmax(0, 1fr) 48px; gap: 10px; align-items: center; font-size: 10pt; }
+  .bl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .bar b { text-align: right; font-variant-numeric: tabular-nums; }
+  .bt { height: 11pt; border-radius: 6px; background: #eef2ef; overflow: hidden; display: block; } .bt i { display: block; height: 100%; border-radius: 6px; }
   .bt.stack { display: flex; background: none; } .bt.stack i { border-radius: 0; } .bt.stack i:first-child { border-radius: 6px 0 0 6px; } .bt.stack i:last-child { border-radius: 0 6px 6px 0; }
-  .legend { display: flex; gap: 14px; color: #4d5a53; margin-bottom: 8px; } .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
-  table { width: 100%; border-collapse: collapse; } th { background: var(--b); color: #fff; text-align: left; font-weight: 600; padding: 5px 7px; }
-  td { padding: 4px 7px; border-bottom: 1px solid #e4e9e6; } tr:nth-child(even) td { background: #f5f8f6; } thead { display: table-header-group; } tr { break-inside: avoid; }
-  .note, .empty { color: #6b7770; font-style: italic; margin: 6px 0 0; }
-  footer { margin-top: 20px; color: #9aa5a0; font-size: 10px; text-align: center; }
+  .legend { display: flex; gap: 16px; color: var(--mute); font-size: 9.5pt; margin: 0 0 8pt; } .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  table { width: 100%; border-collapse: collapse; font-size: 10pt; } thead { display: table-header-group; } tr { break-inside: avoid; }
+  th { background: var(--b); color: #fff; text-align: left; font-weight: 600; padding: 6pt 7pt; vertical-align: bottom; }
+  td { padding: 5pt 7pt; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: break-word; } tr:nth-child(even) td { background: #f5f8f6; }
+  table.keep { break-inside: avoid; } .n { text-align: right; font-variant-numeric: tabular-nums; } td.s { white-space: nowrap; }
+  .wide table { font-size: 9pt; } .wide th, .wide td { padding-left: 5pt; padding-right: 5pt; }  .note, .empty { color: var(--mute); font-style: italic; margin: 6pt 0 0; }
   </style></head><body>
   <header><div><h1>${esc(r.title)}</h1><p>${esc(r.subtitle)}</p></div><span class="mark">T</span></header>
   ${r.kpis.length ? `<div class="kpis">${r.kpis.map(([k, v]) => `<div class="kpi"><small>${esc(k)}</small><b>${esc(v)}</b></div>`).join('')}</div>` : ''}
-  ${sections}<footer>Taskify · ${esc(new Date().toLocaleString())}</footer></body></html>`;
+  ${sections}</body></html>`;
 }
 
 /** Opens the print dialog for the report; choose "Save as PDF" as the destination. */

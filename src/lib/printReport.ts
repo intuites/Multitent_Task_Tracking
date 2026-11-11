@@ -76,10 +76,10 @@ export function reportHtml(r: PdfReport) {
   .bt.stack { display: flex; background: none; } .bt.stack i { border-radius: 0; } .bt.stack i:first-child { border-radius: 6px 0 0 6px; } .bt.stack i:last-child { border-radius: 0 6px 6px 0; }
   .legend { display: flex; gap: 16px; color: var(--mute); font-size: 9.5pt; margin: 0 0 8pt; } .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
   table { width: 100%; border-collapse: collapse; font-size: 10pt; } thead { display: table-header-group; } tr { break-inside: avoid; }
-  th { background: var(--b); color: #fff; text-align: left; font-weight: 600; padding: 6pt 7pt; vertical-align: bottom; }
-  td { padding: 5pt 7pt; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: break-word; } tr:nth-child(even) td { background: #f5f8f6; }
+  th { background: var(--b); color: #fff; text-align: left; font-weight: 600; padding: 5pt 7pt; line-height: 1.25; vertical-align: bottom; }
+  td { padding: 3.5pt 7pt; line-height: 1.3; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: break-word; } tr:nth-child(even) td { background: #f5f8f6; }
   table.keep { break-inside: avoid; } .n { text-align: right; font-variant-numeric: tabular-nums; } td.s { white-space: nowrap; }
-  .wide table { font-size: 9pt; } .wide th, .wide td { padding-left: 5pt; padding-right: 5pt; }  .note, .empty { color: var(--mute); font-style: italic; margin: 6pt 0 0; }
+  .wide table { font-size: 9pt; } .wide th, .wide td { padding-left: 4.5pt; padding-right: 4.5pt; } .wide td { padding-top: 3pt; padding-bottom: 3pt; }  .note, .empty { color: var(--mute); font-style: italic; margin: 6pt 0 0; }
   </style></head><body>
   <header><div><h1>${esc(r.title)}</h1><p>${esc(r.subtitle)}</p></div><span class="mark">T</span></header>
   ${r.kpis.length ? `<div class="kpis">${r.kpis.map(([k, v]) => `<div class="kpi"><small>${esc(k)}</small><b>${esc(v)}</b></div>`).join('')}</div>` : ''}

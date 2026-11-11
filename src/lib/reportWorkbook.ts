@@ -307,7 +307,9 @@ export function reportPdf({ org, filters, tasks, depts, people, label, parts, al
         columns: ['Person', 'Role', 'Assigned', 'Open', 'Completed', 'Overdue', 'Completion', 'On time'], rows: ppl.map(({ p, s }) => [p.name, label(p.role), s.total, s.open, s.done, s.overdue, pc(s.rate), pc(s.onTime)]) }] : []),
       ...(want('summary') ? [
         { title: 'Priority', bars: PRIORITIES.map((p) => ({ label: label(p), value: tasks.filter((t) => t.priority === p).length, color: p === 'urgent' ? 'E06C5A' : p === 'high' ? 'F2B134' : '3F9D6B' })) },
-        { title: 'Completed per month (last 12 months)', bars: months().map((m) => ({ label: monthName(m), value: tasks.filter((t) => inMonth(t.completed_at, m)).length, color: '1B5E3B' })) },
+        { title: 'Completed per month (last 12 months)', bars: months().map((m) => ({ label: monthName(m), value: tasks.filter((t) => inMonth(t.completed_at, m)).length, color: '1B5E3B' })) }] : []),
+      // the full task list already has every overdue task, so the separate list only comes without it
+      ...(want('summary') && !want('tasks') ? [
         { title: `Overdue tasks (${late.length})`, columns: ['Task', 'Status', 'Priority', 'Due', 'Assigned to'],
           rows: late.slice(0, 200).map((t) => [t.title, label(t.status), label(t.priority), fmtDay(t.due_date), t.tt_task_assignees.map((a) => name(a.user_id)).join(', ') || 'Unassigned']),
           note: late.length > 200 ? `Showing 200 of ${late.length}. The Excel export lists every task.` : undefined }] : []),
@@ -348,7 +350,8 @@ export function platformPdf({ orgs, members, profiles, depts, tasks, label, filt
 /** The full task list as a PDF table; long lists stop at 500 rows (the Excel export has every task). */
 function taskTable(tasks: Task[], label: Label, deptName: (t: Task) => string, personName: (id: string) => string, subs: (t: Task) => string, orgOf?: (t: Task) => string) {
   const list = [...tasks].sort((a, b) => b.created_at.localeCompare(a.created_at));
-  const short = (s?: string | null) => (s && s.length > 140 ? `${s.slice(0, 139)}…` : s ?? '');
+  // the PDF keeps descriptions to about two lines; the Excel export has the full text
+  const short = (s?: string | null) => { const t = (s ?? '').replace(/\s+/g, ' ').trim(); return t.length > 100 ? `${t.slice(0, 99).trimEnd()}…` : t; };
   return { title: `All tasks (${list.length})`, columns: [...(orgOf ? ['Organization'] : []), 'Task', 'Description', 'Status', 'Priority', 'Department', 'Assigned to', 'Created by', 'Due', 'Subtasks done'],
     rows: list.slice(0, 500).map((t) => [...(orgOf ? [orgOf(t)] : []), t.title, short(t.description), label(t.status), label(t.priority), deptName(t),
       t.tt_task_assignees.map((a) => personName(a.user_id)).join(', ') || 'Unassigned', t.created_by ? personName(t.created_by) : '', fmtDay(t.due_date), subs(t)]),

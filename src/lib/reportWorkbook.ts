@@ -351,9 +351,13 @@ export function platformPdf({ orgs, members, profiles, depts, tasks, label, filt
 function taskTable(tasks: Task[], label: Label, deptName: (t: Task) => string, personName: (id: string) => string, subs: (t: Task) => string, orgOf?: (t: Task) => string) {
   const list = [...tasks].sort((a, b) => b.created_at.localeCompare(a.created_at));
   // the PDF keeps descriptions to about two lines; the Excel export has the full text
-  const short = (s?: string | null) => { const t = (s ?? '').replace(/\s+/g, ' ').trim(); return t.length > 100 ? `${t.slice(0, 99).trimEnd()}…` : t; };
-  return { title: `All tasks (${list.length})`, columns: [...(orgOf ? ['Organization'] : []), 'Task', 'Description', 'Status', 'Priority', 'Department', 'Assigned to', 'Created by', 'Due', 'Subtasks done'],
-    rows: list.slice(0, 500).map((t) => [...(orgOf ? [orgOf(t)] : []), t.title, short(t.description), label(t.status), label(t.priority), deptName(t),
+  const short = (s?: string | null) => { const t = (s ?? '').replace(/\s+/g, ' ').trim(); return t.length > 120 ? `${t.slice(0, 119).trimEnd()}…` : t; };
+  // fits A4 portrait: fixed column shares, the description printed under the task's title
+  const shown = list.slice(0, 500), o = orgOf ? 1 : 0;
+  return { title: `All tasks (${list.length})`, columns: [...(orgOf ? ['Organization'] : []), 'Task', 'Status', 'Priority', 'Department', 'Assigned to', 'Created by', 'Due', 'Subtasks'],
+    widths: orgOf ? [12, 20, 10, 8, 11, 10, 9, 12, 8] : [27, 10, 8, 11, 13, 11, 12, 8],
+    sub: { col: o, text: shown.map((t) => short(t.description)) },
+    rows: shown.map((t) => [...(orgOf ? [orgOf(t)] : []), t.title, label(t.status), label(t.priority), deptName(t),
       t.tt_task_assignees.map((a) => personName(a.user_id)).join(', ') || 'Unassigned', t.created_by ? personName(t.created_by) : '', fmtDay(t.due_date), subs(t)]),
     note: list.length > 500 ? `Showing 500 of ${list.length}. The Excel export lists every task.` : undefined };
 }

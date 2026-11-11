@@ -9,6 +9,10 @@ export interface PdfSection {
   stacked?: { label: string; parts: { value: number; color: string; name: string }[] }[];
   columns?: string[];
   rows?: (string | number)[][];
+  /** fixed column shares in %, so the table can never be wider than the page */
+  widths?: number[];
+  /** a second, smaller line under one column of each row (e.g. the description under a task's title) */
+  sub?: { col: number; text: string[] };
   note?: string;
 }
 export interface PdfReport { title: string; subtitle: string; kpis: [string, string | number][]; sections: PdfSection[] }
@@ -37,11 +41,11 @@ function table(s: PdfSection) {
   const rows = s.rows!, num = s.columns!.map((_, i) => rows.every((r) => isNum(r[i]) || r[i] === '' || r[i] === '—'));
   // numbers and dates ("Nov 04, 2026") stay on one line
   const cls = (i: number, v: unknown) => (num[i] ? 'n' : /^[A-Z][a-z]{2} \d{2}, \d{4}$/.test(String(v)) ? 's' : '');
-  // the long text columns get the room; the rest size to their content
-  const width: Record<string, string> = { Task: '19%', Description: '25%', 'Assigned to': '12%' };
+  const cell = (r: number, i: number, v: unknown) => `<td class="${cls(i, v)}">${esc(v)}${s.sub?.col === i && s.sub.text[r] ? `<small class="sub">${esc(s.sub.text[r])}</small>` : ''}</td>`;
   // a short table moves to the next page whole rather than leaving a row or two behind
-  return `<table${rows.length <= 15 ? ' class="keep"' : ''}><thead><tr>${s.columns!.map((c, i) => `<th${num[i] ? ' class="n"' : ''}${width[c] && s.columns!.includes('Description') ? ` style="width:${width[c]}"` : ''}>${esc(c)}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map((row) => `<tr>${row.map((c, i) => `<td class="${cls(i, c)}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  return `<table class="${[rows.length <= 15 && 'keep', s.widths && 'fixed'].filter(Boolean).join(' ')}">${s.widths ? `<colgroup>${s.widths.map((w) => `<col style="width:${w}%">`).join('')}</colgroup>` : ''}
+    <thead><tr>${s.columns!.map((c, i) => `<th${num[i] ? ' class="n"' : ''}>${esc(c)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map((row, r) => `<tr>${row.map((c, i) => cell(r, i, c)).join('')}</tr>`).join('')}</tbody></table>`;
 }
 // text inside a CSS string (the page footer): no quotes, backslashes or line breaks
 const cssText = (v: string) => v.replace(/["\\\n\r]/g, ' ');
@@ -49,19 +53,17 @@ const cssText = (v: string) => v.replace(/["\\\n\r]/g, ' ');
 export function reportHtml(r: PdfReport) {
   // a table with many columns (the full task list) prints on landscape pages so it isn't shrunk to fit; the rest stays portrait.
   // When that table is all there is, every page is landscape (otherwise the title would sit alone on a portrait page).
-  const isWide = (s: PdfSection) => !!s.columns?.includes('Description');
-  const allWide = r.sections.length > 0 && r.sections.every(isWide);
-  const sections = r.sections.map((s) => `<section${isWide(s) ? ' class="wide"' : ''}><h2>${esc(s.title)}</h2>${s.bars?.length ? bars(s.bars) : ''}${s.stacked?.length ? stacked(s.stacked) : ''}
+  // every page is A4 portrait; a table with fixed widths (the task list) is set a little smaller to fit its columns
+  const sections = r.sections.map((s) => `<section${s.widths ? ' class="fit"' : ''}><h2>${esc(s.title)}</h2>${s.bars?.length ? bars(s.bars) : ''}${s.stacked?.length ? stacked(s.stacked) : ''}
     ${s.columns && s.rows?.length ? table(s) : ''}
     ${s.rows && !s.rows.length ? '<p class="empty">Nothing to show.</p>' : ''}${s.note ? `<p class="note">${esc(s.note)}</p>` : ''}</section>`).join('');
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(r.title)}</title><style>
   :root { --a: ${brandColor()}; --b: color-mix(in oklab, var(--a) 72%, #000); --ink: #1f2a24; --mute: #5b6862; --line: #dfe6e2; }
   /* our own page footer; declaring margin boxes also stops the browser printing its date, title and URL on every page */
-  @page { size: A4${allWide ? ' landscape' : ''}; margin: 13mm 12mm 15mm;
+  @page { size: A4; margin: 13mm 12mm 15mm;
     @top-left { content: ''; } @top-center { content: ''; } @top-right { content: ''; } @bottom-center { content: ''; }
     @bottom-left { content: "Taskify  |  ${cssText(r.title)}"; font: 9.5pt "Segoe UI", system-ui, sans-serif; color: #7b8781; }
     @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 9.5pt "Segoe UI", system-ui, sans-serif; color: #7b8781; } }
-  @page wide { size: A4 landscape; } section.wide { page: wide; }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body { margin: 0; font: 11.5pt/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink); }
   header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding: 0 0 10pt; border-bottom: 3px solid var(--b); margin-bottom: 14pt; }
@@ -82,7 +84,11 @@ export function reportHtml(r: PdfReport) {
   th { background: var(--b); color: #fff; text-align: left; font-weight: 600; padding: 5pt 7pt; line-height: 1.25; vertical-align: bottom; }
   td { padding: 3.5pt 7pt; line-height: 1.3; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: break-word; } tr:nth-child(even) td { background: #f5f8f6; }
   table.keep { break-inside: avoid; } .n { text-align: right; font-variant-numeric: tabular-nums; } td.s { white-space: nowrap; }
-  .wide table { font-size: 9.5pt; } .wide th, .wide td { padding-left: 4.5pt; padding-right: 4.5pt; } .wide td { padding-top: 3pt; padding-bottom: 3pt; }  .note, .empty { color: var(--mute); font-style: italic; margin: 6pt 0 0; }
+  /* any cell: a word longer than its column (a pasted link, "hjjjjjj...") breaks instead of pushing the table off the page */
+  td { overflow-wrap: anywhere; } td.s, td.n { overflow-wrap: normal; }
+  table.fixed { table-layout: fixed; } .fit table { font-size: 9pt; } .fit th, .fit td { padding-left: 3pt; padding-right: 3pt; } .fit th { overflow-wrap: anywhere; } .fit td { padding-top: 3.5pt; padding-bottom: 3.5pt; }
+  .sub { display: block; margin-top: 1.5pt; color: var(--mute); font-size: 8.5pt; line-height: 1.3; }
+  .note, .empty { color: var(--mute); font-style: italic; margin: 6pt 0 0; }
   </style></head><body>
   <header><div><h1>${esc(r.title)}</h1><p>${esc(r.subtitle)}</p></div><span class="mark">T</span></header>
   ${r.kpis.length ? `<div class="kpis">${r.kpis.map(([k, v]) => `<div class="kpi"><small>${esc(k)}</small><b>${esc(v)}</b></div>`).join('')}</div>` : ''}

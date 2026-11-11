@@ -21,7 +21,8 @@ export default function DateEnhancer() {
   const [month, setMonth] = useState(() => new Date());
   const [active, setActive] = useState('');
   const [dir, setDir] = useState(0);
-  const [pos, setPos] = useState({ top: 0, left: 0, up: false });
+  // vh: height of what "fixed" is measured from (the window, or a dialog), for opening upward
+  const [pos, setPos] = useState({ top: 0, left: 0, up: false, vh: 0 });
   const popRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const elRef = useRef<HTMLInputElement | null>(null);
@@ -77,7 +78,11 @@ export default function DateEnhancer() {
       const fitsBelow = window.innerHeight - r.bottom >= h + 16, up = !fitsBelow && r.top > h + 16;
       // fits neither below nor above (short windows): keep it whole on screen, over the field if need be
       const top = up ? r.top - 8 : fitsBelow ? r.bottom + 8 : Math.max(8, window.innerHeight - h - 8);
-      setPos({ top, left: Math.max(12, Math.min(r.left, window.innerWidth - w - 12)), up });
+      // inside a dialog with a blur or transform, "fixed" is measured from the dialog, not the window: shift by its corner
+      const host = el.closest('dialog'), cs = host && getComputedStyle(host);
+      const box = cs && (cs.transform !== 'none' || cs.backdropFilter !== 'none' || cs.filter !== 'none') ? host!.getBoundingClientRect() : null;
+      const dx = box ? box.left + host!.clientLeft : 0, dy = box ? box.top + host!.clientTop : 0;
+      setPos({ top: top - dy, left: Math.max(12, Math.min(r.left, window.innerWidth - w - 12)) - dx, up, vh: box ? box.height - host!.clientTop * 2 : window.innerHeight });
     };
     place();
     window.addEventListener('scroll', place, true);
@@ -114,7 +119,7 @@ export default function DateEnhancer() {
 
   return createPortal(
     <div ref={popRef} className={`dp ${pos.up ? 'up' : ''}`} role="dialog" aria-label={label}
-      style={{ left: pos.left, ...(pos.up ? { bottom: window.innerHeight - pos.top } : { top: pos.top }) }}>
+      style={{ left: pos.left, ...(pos.up ? { bottom: pos.vh - pos.top } : { top: pos.top }) }}>
       <span className="dp-blob a" aria-hidden="true" /><span className="dp-blob b" aria-hidden="true" />
       <div className="dp-head">
         <button type="button" className="dp-nav" aria-label="Previous month" onClick={() => shift(-1)}><ChevronLeft size={17} /></button>

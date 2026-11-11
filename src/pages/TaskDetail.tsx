@@ -12,6 +12,7 @@ import MentionInput, { withMentions } from '../components/MentionInput';
 import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { useLive } from '../lib/live';
+import { orgToday } from '../lib/greeting';
 import { Avatar } from '../components/Frame';
 import { emailText, loadEmails, type ExtraEmail } from '../components/MemberEmails';
 
@@ -19,7 +20,8 @@ const CYCLES: [string, string][] = [['daily', 'Daily'], ['weekdays', 'Weekdays']
 const toDateInput = (d?: string | null) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 // a pause date is a calendar day ('2026-11-28'): read it as local midnight, not UTC, so it never shows the day before
 const pauseDay = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-const tomorrow = () => { const x = new Date(); x.setDate(x.getDate() + 1); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+// the day after the organization's today (what the database checks), not this computer's
+const tomorrow = () => { const x = new Date(`${orgToday()}T12:00:00`); x.setDate(x.getDate() + 1); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
 
 export default function TaskDetail() {
   const { id } = useParams();

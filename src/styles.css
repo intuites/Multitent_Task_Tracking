@@ -2467,3 +2467,5 @@ h2, h3, h4 { letter-spacing: -0.01em; }
 .paused-note p { flex: 1; margin: 0; line-height: 1.5; }
 .paused-note .pill-btn { flex: none; }
 @media (max-width: 640px) { .paused-note { flex-wrap: wrap; } }
+/* a date picker opened inside a dialog floats over its edge instead of making the dialog scroll */
+dialog:has(> .dp) { overflow: visible; }

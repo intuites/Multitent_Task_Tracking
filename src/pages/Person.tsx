@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  Activity, ArrowLeft, Briefcase, Building, CheckCircle2, Clock, Gauge, ListChecks, Mail, MapPin, Palette, Phone, ShieldCheck, Trash2, UserMinus, X,
+  Activity, ArrowLeft, Briefcase, Building, Camera, CheckCircle2, Clock, Gauge, ListChecks, Mail, MapPin, Palette, Phone, ShieldCheck, Trash2, UserMinus, X,
 } from 'lucide-react';
 import { deleteAccount } from '../lib/deleteAccount';
+import { deletePhotoFile, photoProblem, uploadPhoto } from '../lib/photo';
 import MyLook from '../components/MyLook';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
@@ -37,6 +38,7 @@ export default function PersonPage() {
   const [tab, setTab] = useState<Tab>('overview');
   const [taskFilter, setTaskFilter] = useState<'open' | 'done' | 'overdue' | 'all'>('open');
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [extras, setExtras] = useState<ExtraEmail[]>([]);
   const [sentTo, setSentTo] = useState(''); // '' = every address, 'primary', or an extra address
 
@@ -91,6 +93,24 @@ export default function PersonPage() {
   const ok = (text: string) => { setMsg({ kind: 'ok', text }); load(); };
   const fail = (text: string) => setMsg({ kind: 'error', text });
   const log = (action: string, detail: object) => supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'member', entity_id: person.id, action, detail });
+
+  // an admin adds, changes or removes this person's photo (file: null removes it). The database decides who may (migration 0049).
+  const setPhoto = async (file: File | null) => {
+    if (file) { const bad = photoProblem(file); if (bad) return fail(bad); }
+    else if (!(await ask({ title: `Remove ${person.name}'s photo?`, message: 'Their initials show instead, everywhere in Taskify.', confirmLabel: 'Remove photo', danger: true })).ok) return;
+    setPhotoBusy(true);
+    try {
+      const old = (pr.avatar_url as string | null) ?? null;
+      const url = file ? await uploadPhoto(person.id, file) : null;
+      try { await rpc('tt_admin_set_photo', { p_org: orgId, p_user: person.id, p_url: url }); } catch (x) { await deletePhotoFile(url); throw x; }
+      await deletePhotoFile(old);
+      ok(file ? `Photo updated. ${person.name} and everyone else see it in Taskify.` : 'Photo removed. Their initials show instead.');
+    } catch (x) {
+      const m = (x as Error).message;
+      fail(/row-level security|tt_admin_set_photo|schema cache/i.test(m)
+        ? "This photo can't be saved. Either the database update (migration 0049) hasn't been run yet, or this person also belongs to another organization, so only they or a platform admin can change it." : m);
+    } finally { setPhotoBusy(false); }
+  };
 
   const saveDetails = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -154,7 +174,16 @@ export default function PersonPage() {
       <header className="card pf-hero ps-hero">
         <LiquidBg tone="deep" />
         <div className="pf-id">
-          <Avatar name={person.name} url={pr.avatar_url} className="pf-avatar" />
+          {canEdit && !isMe ? (
+            <div className={`pf-photo${photoBusy ? ' busy' : ''}`}>
+              <Avatar name={person.name} url={pr.avatar_url} className="pf-avatar" />
+              <label className="pf-cam" title={pr.avatar_url ? 'Change photo' : 'Add photo'}>
+                <Camera size={16} aria-hidden="true" /><span className="sr-only">{pr.avatar_url ? `Change ${person.name}'s photo` : `Add a photo for ${person.name}`}</span>
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={photoBusy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setPhoto(f); }} />
+              </label>
+              {pr.avatar_url && <button type="button" className="pf-cam rm" title="Remove photo" disabled={photoBusy} onClick={() => setPhoto(null)}><Trash2 size={15} aria-hidden="true" /><span className="sr-only">Remove {person.name}'s photo</span></button>}
+            </div>
+          ) : <Avatar name={person.name} url={pr.avatar_url} className="pf-avatar" />}
           <div className="pf-name">
             <h2>{person.name}{isMe && <small className="ps-you"> (you)</small>}</h2>
             <p>{pr.job_title || ROLE_TEXT[person.role as keyof typeof ROLE_TEXT]?.blurb || label(person.role)}</p>

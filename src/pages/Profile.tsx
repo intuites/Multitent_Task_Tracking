@@ -15,6 +15,7 @@ import { ask } from '../components/Dialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { MemberEmails } from '../components/MemberEmails';
 import MyLook from '../components/MyLook';
+import { deletePhotoFile, photoProblem, uploadPhoto } from '../lib/photo';
 
 type Tab = 'overview' | 'work' | 'details' | 'look' | 'security';
 const TABS: { id: Tab; name: string }[] = [{ id: 'overview', name: 'Overview' }, { id: 'work', name: 'My work' }, { id: 'details', name: 'Edit details' }, { id: 'look', name: 'Appearance' }, { id: 'security', name: 'Security' }];
@@ -90,29 +91,26 @@ export default function Profile() {
     if (!error) { window.dispatchEvent(new Event('tt-profile')); load(); }
   }
   async function upload(file: File) {
-    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) return setMsg({ kind: 'error', text: 'Use a PNG, JPG, WebP or GIF image.' });
-    if (file.size > 2 * 1024 * 1024) return setMsg({ kind: 'error', text: 'Photos can be up to 2 MB.' });
+    const bad = photoProblem(file);
+    if (bad) return setMsg({ kind: 'error', text: bad });
     setUploading(true);
-    // new file name each time so browsers don't keep showing the cached old photo
-    const path = `${uid}/avatar-${Date.now()}.${file.type.split('/')[1]}`;
-    const up = await supabase.storage.from('tt-avatars').upload(path, file, { upsert: false, contentType: file.type });
-    if (up.error) { setUploading(false); return setMsg({ kind: 'error', text: /bucket|not found/i.test(up.error.message) ? 'Photo upload needs the database update (migration 0010) first.' : up.error.message }); }
-    const url = supabase.storage.from('tt-avatars').getPublicUrl(path).data.publicUrl;
+    let url: string;
+    try { url = await uploadPhoto(uid, file); } catch (x) { setUploading(false); return setMsg({ kind: 'error', text: (x as Error).message }); }
     const old = p.avatar_url as string | null;
     const { error } = await supabase.from('tt_profiles').update({ avatar_url: url }).eq('user_id', uid);
     setUploading(false);
     if (error) return setMsg({ kind: 'error', text: error.message });
-    if (old) { const prev = old.split('/tt-avatars/')[1]; if (prev) await supabase.storage.from('tt-avatars').remove([prev]); }
+    await deletePhotoFile(old);
     setMsg({ kind: 'ok', text: 'Photo updated.' });
     window.dispatchEvent(new Event('tt-profile'));
     load();
   }
   async function removePhoto() {
     if (!(await ask({ title: 'Remove profile photo?', message: 'Your initials will show instead.', confirmLabel: 'Remove photo', danger: true })).ok) return;
-    const prev = String(p.avatar_url ?? '').split('/tt-avatars/')[1];
+    const prev = p.avatar_url as string | null;
     const { error } = await supabase.from('tt_profiles').update({ avatar_url: null }).eq('user_id', uid);
     if (error) return setMsg({ kind: 'error', text: error.message });
-    if (prev) await supabase.storage.from('tt-avatars').remove([prev]);
+    await deletePhotoFile(prev);
     setMsg({ kind: 'ok', text: 'Photo removed.' });
     window.dispatchEvent(new Event('tt-profile'));
     load();

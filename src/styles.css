@@ -193,8 +193,50 @@ h4 { margin: var(--space-3) 0 var(--space-1); font-weight: var(--fw-title); }
 .dash { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
 .dash > .card { margin: 0; }
 .a-k1, .a-k2, .a-k3, .a-k4 { grid-column: span 3; }
-.a-an { grid-column: span 6; } .a-re { grid-column: span 6; }
-.a-tm { grid-column: span 5; } .a-pg { grid-column: span 4; } .a-es { grid-column: span 3; } .a-full { grid-column: 1 / -1; }
+.a-an { grid-column: span 8; } .a-re { grid-column: span 4; } .a-full { grid-column: 1 / -1; }
+.dash > .card { align-self: start; }
+
+/* Dashboard: progress (split bar + completed per day/week/month) */
+.dp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.dp-head h3 { margin: 0; }
+.dp-num { margin: 6px 0 0; color: var(--muted); font-size: var(--fs-sm); }
+.dp-num b { color: var(--text); font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; }
+.dp-num > b:first-child { font-size: var(--fs-3xl); letter-spacing: -0.02em; margin-right: 2px; }
+.dp-split { display: flex; gap: 3px; height: 12px; margin: 16px 0 10px; border-radius: var(--r-pill); overflow: hidden; background: var(--surface-2); }
+.dp-split i { display: block; height: 100%; transition: width .6s var(--ease); }
+.dp-split i:first-child { border-radius: var(--r-pill) 0 0 var(--r-pill); }
+.dp-split .done, .dp-legend .done { background: var(--brand); }
+.dp-split .active, .dp-legend .active { background: var(--brand-3); }
+.dp-split .rest, .dp-legend .rest { background: var(--hatch); opacity: .55; }
+.dp-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: var(--fs-xs); }
+.dp-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.dp-legend i { width: 9px; height: 9px; border-radius: 3px; }
+.dp-legend b { color: var(--text); font-variant-numeric: tabular-nums; }
+.dp-sub { margin: 22px 0 10px; color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-semibold); }
+.dpg .weekbars { height: 170px; }
+
+/* Dashboard: up next */
+.dn-list { display: grid; margin: 0 -10px; padding: 0; list-style: none; }
+.dn-list a { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; color: var(--text); text-decoration: none; transition: background-color .2s var(--ease); }
+.dn-list a:hover { background: var(--surface-2); }
+.dn-list a:focus-visible { outline: 2px solid var(--brand-2); outline-offset: -2px; }
+.dn-list li + li a { border-top: 1px solid var(--line); border-radius: 0; }
+.dn-list li + li a:hover { border-radius: 12px; border-top-color: transparent; }
+.dn-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.dn-text b { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-semibold); font-size: var(--fs-sm); }
+.dn-text small { color: var(--muted); font-size: var(--fs-xs); }
+.dn-text small.late { color: var(--danger); font-weight: var(--fw-semibold); }
+.dn-empty { display: grid; justify-items: center; gap: 8px; padding: 28px 8px; color: var(--muted); text-align: center; }
+.dn-empty p { margin: 0; font-size: var(--fs-sm); }
+
+/* Dashboard: right column, up next above team at work */
+.dash-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.dash-side > .card { margin: 0; }
+.tm-open { flex: none; padding: 3px 10px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+/* the overdue card turns red only when something is overdue */
+.kpi.bad small { color: var(--danger); }
+.kpi.bad b { color: var(--danger); }
+@media (prefers-reduced-motion: reduce) { .dp-split i, .dn-list a { transition: none; } }
 
 .kpi { display: flex; flex-direction: column; gap: 6px; padding: 18px 20px; border-radius: var(--r-card); background: var(--surface); color: var(--text); text-decoration: none; min-height: 150px; }
 .kpi-head { display: flex; justify-content: space-between; align-items: center; font-weight: var(--fw-semibold); font-size: var(--fs-base); }
@@ -348,7 +390,6 @@ dialog .actions { display: flex; gap: var(--space-2); justify-content: flex-end;
   .hello { display: none; }
   .a-k1, .a-k2, .a-k3, .a-k4 { grid-column: span 6; }
   .a-an { grid-column: span 12; } .a-re { grid-column: span 12; }
-  .a-tm { grid-column: span 12; } .a-pg, .a-es { grid-column: span 6; }
 }
 /* tablets with the sidebar still showing: the bar keeps its buttons on one line (icon-only New task, no name block) */
 @media (max-width: 1080px) { .top-new span, .me-text, .hello small { display: none; } .top-new { padding: 10px; } }
@@ -1817,10 +1858,9 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .cc-ranges { display: flex; flex-wrap: wrap; gap: 4px; margin: 12px 0 6px; padding: 4px; width: fit-content; border-radius: var(--r-pill); background: var(--surface-2); }
 .cc-ranges button { min-height: 0; padding: 5px 12px; border-radius: var(--r-pill); background: none; color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-semibold); transition: background .2s, color .2s; }
 .cc-ranges button:hover { filter: none; color: var(--text); }
-/* Dashboard: the period filter under the page title */
-.dash-period { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 12px; }
-.dash-period .cc-ranges { margin: 0; }
-.dash-period small { font-size: var(--fs-xs); }
+/* Dashboard: the period filter, beside the page buttons */
+.cc-ranges.dash-period { margin: 0; align-self: center; }
+.cc-ranges.dash-period button { padding: 7px 14px; font-size: var(--fs-sm); }
 .cc-ranges button[aria-pressed=true] { background: var(--brand-grad); color: var(--brand-ink); box-shadow: 0 4px 12px -4px color-mix(in srgb, color-mix(in oklab, var(--accent-n) 81%, var(--black)) 60%, transparent); }
 .cc-custom { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 2px; animation: fade-in-up .25s var(--ease) both; }
 .cc-custom label { display: grid; gap: 4px; font-size: var(--fs-xs); color: var(--muted); } .cc-custom input { min-height: 34px; padding: 4px 10px; font-size: var(--fs-sm); }

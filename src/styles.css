@@ -1817,6 +1817,10 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .cc-ranges { display: flex; flex-wrap: wrap; gap: 4px; margin: 12px 0 6px; padding: 4px; width: fit-content; border-radius: var(--r-pill); background: var(--surface-2); }
 .cc-ranges button { min-height: 0; padding: 5px 12px; border-radius: var(--r-pill); background: none; color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-semibold); transition: background .2s, color .2s; }
 .cc-ranges button:hover { filter: none; color: var(--text); }
+/* Dashboard: the period filter under the page title */
+.dash-period { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 12px; }
+.dash-period .cc-ranges { margin: 0; }
+.dash-period small { font-size: var(--fs-xs); }
 .cc-ranges button[aria-pressed=true] { background: var(--brand-grad); color: var(--brand-ink); box-shadow: 0 4px 12px -4px color-mix(in srgb, color-mix(in oklab, var(--accent-n) 81%, var(--black)) 60%, transparent); }
 .cc-custom { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 2px; animation: fade-in-up .25s var(--ease) both; }
 .cc-custom label { display: grid; gap: 4px; font-size: var(--fs-xs); color: var(--muted); } .cc-custom input { min-height: 34px; padding: 4px 10px; font-size: var(--fs-sm); }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, BarChart3, CalendarClock, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -9,6 +9,7 @@ import { Avatar } from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
 import { DashSkeleton } from '../components/Skeleton';
 import { useLive } from '../lib/live';
+import { countTasks, PERIODS, type Period } from '../lib/dashPeriod';
 
 const OPEN = '(completed,completed_cycle)';
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -61,9 +62,15 @@ function buckets(from: Date, to: Date) {
 }
 
 // Completed tasks over a chosen range, a labelled bar per day / week / month: the signed-in person's, or (uid null) the whole organization's.
-function CompletedChart({ orgId, uid, tick, reports }: { orgId: string; uid: string | null; tick: number; reports: boolean }) {
+function CompletedChart({ orgId, uid, tick, reports, period }: { orgId: string; uid: string | null; tick: number; reports: boolean; period: Period }) {
   const [range, setRange] = useState<Range>('this_week');
   const [cFrom, setCFrom] = useState(''), [cTo, setCTo] = useState('');
+  // the dashboard filter moves the chart to the same period (all time: the last 12 months, a bar per month); its own tabs still work
+  useEffect(() => {
+    if (period === 'week') setRange('this_week');
+    else if (period === 'month') setRange('this_month');
+    else { const t = new Date(); setRange('custom'); setCFrom(isoDay(new Date(t.getFullYear() - 1, t.getMonth() + 1, 1))); setCTo(''); }
+  }, [period]);
   const [dates, setDates] = useState<number[] | null>(null);
   const [from, to] = bounds(range, cFrom, cTo);
   const key = `${from.getTime()}-${to.getTime()}`;
@@ -83,7 +90,7 @@ function CompletedChart({ orgId, uid, tick, reports }: { orgId: string; uid: str
 
   return (<>
     <div className="cc-head">
-      <div><h3 id="an-h">{uid ? 'My completed tasks' : 'Completed by the team'}</h3><small className="muted">{dates === null ? 'Loading…' : `${total} in ${title.toLowerCase()}`}</small></div>
+      <div><h3 id="an-h">{uid ? 'My completed tasks' : 'Completed by the team'}</h3><small className="muted">{dates === null ? 'Loading…' : `${total} in ${range === 'custom' ? title : title.toLowerCase()}`}</small></div>
       {/* employees can't open Reports; the link would only bounce them back here */}
       {reports && <Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link>}
     </div>
@@ -153,6 +160,9 @@ export default function Dashboard() {
   const [d, setD] = useState<any>(null);
   const [error, setError] = useState('');
   const [tick, setTick] = useState(0);
+  // remembered per browser
+  const [period, setPeriodState] = useState<Period>(() => { try { const v = localStorage.getItem('tt-dash-period'); return v === 'month' || v === 'all' ? v : 'week'; } catch { return 'week'; } });
+  const setPeriod = (p: Period) => { setPeriodState(p); try { localStorage.setItem('tt-dash-period', p); } catch { /* storage blocked */ } };
 
   // live: reload when any task in this org changes (and on the clock every 2 minutes, so "due today" stays right)
   useLive(['tt_tasks', 'tt_task_assignees'], () => setTick((n) => n + 1));
@@ -174,36 +184,31 @@ export default function Dashboard() {
       try {
         const [sum, myAll, next, current, mine] = await Promise.all([
           rpc('tt_org_summary', { p_org: orgId, p_day_start: start.toISOString(), p_day_end: end.toISOString() }),
-          fetchAll(() => myTasks('id, status, due_date').order('id')).then((data) => ({ data })),
+          fetchAll(() => myTasks('id, status, due_date, completed_at').order('id')).then((data) => ({ data })),
           myTasks('id, title, status, due_date').not('status', 'in', OPEN).gte('due_date', now.toISOString()).order('due_date').limit(1),
           supabase.from('tt_tasks').select('id, title, status, tt_task_assignees(user_id)').eq('org_id', orgId).is('archived_at', null)
             .in('status', ['started', 'pending', 'not_yet_started']).order('updated_at', { ascending: false }).limit(100),
           supabase.from('tt_tasks').select('id, title, status, due_date, tt_task_assignees!inner(user_id)').eq('org_id', orgId).eq('tt_task_assignees.user_id', uid)
             .is('archived_at', null).not('status', 'in', OPEN).order('due_date', { nullsFirst: false }).limit(4),
         ]);
-        // every number on this page is the signed-in person's own tasks (a platform admin's: the organization's)
-        const own = { done: 0, cycle: 0, active: 0, pending: 0, open: 0, overdue: 0, dueToday: 0, waiting: 0 };
-        for (const r of (myAll.data ?? []) as any[]) {
-          if (r.status === 'completed' || r.status === 'completed_cycle') { own.done++; if (r.status === 'completed_cycle') own.cycle++; continue; }
-          own.open++;
-          if (r.status === 'started') own.active++; else own.pending++;
-          if (r.status === 'pending') own.waiting++;
-          if (r.due_date) { const due = Date.parse(r.due_date); if (due < now.getTime()) own.overdue++; if (due >= start.getTime() && due < end.getTime()) own.dueToday++; }
-        }
         // one "currently working on" task per person, most recently updated first
         const working = new Map<string, any>();
         for (const t of current.data ?? []) for (const a of t.tt_task_assignees) if (!working.has(a.user_id)) working.set(a.user_id, t);
         setD({
           sum, next: next.data?.[0], mine: mine.data ?? [],
           team: (sum.workload as any[]).filter((w) => w.open).slice(0, 4).map((w) => ({ ...w, task: working.get(w.user_id) })),
-          ...own,
+          // every number is the signed-in person's own tasks (a platform admin's: the organization's), counted for the period below
+          rows: myAll.data ?? [],
         });
       } catch (x) { setError((x as Error).message); }
     })();
   }, [orgId, uid, tick, all]);
 
+  // recounted when the filter changes, without reloading; the clock tick keeps "overdue" and "due today" current
+  const c = useMemo(() => countTasks(d?.rows ?? [], period), [d, period, tick]); // eslint-disable-line react-hooks/exhaustive-deps
   if (error) return <div className="card"><p role="alert">{error}</p></div>;
   if (!d) return <DashSkeleton />;
+  const span = period === 'week' ? 'this week' : period === 'month' ? 'this month' : '';
 
   return (
     <>
@@ -211,6 +216,12 @@ export default function Dashboard() {
         <div>
           <h2 className="page-title">Dashboard</h2>
           <p className="page-sub">{all ? `How ${membership!.org_name} is doing today, across every task.` : 'What needs your attention today.'}</p>
+          <div className="dash-period">
+            <div className="cc-ranges" role="group" aria-label="Show tasks for">
+              {PERIODS.map(([p, l]) => <button key={p} type="button" aria-pressed={period === p} onClick={() => setPeriod(p)}>{l}</button>)}
+            </div>
+            <small className="muted" aria-live="polite">{span ? `Tasks due ${span}; Completed counts tasks finished ${span}.` : 'Every task, whenever it is due.'}</small>
+          </div>
         </div>
         <div className="page-actions">
           {canAssign && <Link to="/tasks?new=1" className="pill-btn"><Plus size={16} aria-hidden="true" />Add task</Link>}
@@ -219,13 +230,13 @@ export default function Dashboard() {
       </div>
 
       <div className="dash">
-        <div className="a-k1"><Kpi feature title={all ? 'Open tasks' : 'My open tasks'} value={d.open} note={`${d.active} started`} to={tasks} /></div>
-        <div className="a-k2"><Kpi title="Overdue" value={d.overdue} note={d.overdue ? 'Past their due date' : 'Everything is on time'} to={`${tasks}?view=overdue`} /></div>
-        <div className="a-k3"><Kpi title="Due today" value={d.dueToday} note="Before midnight" to={`${tasks}?view=due_today`} /></div>
-        <div className="a-k4"><Kpi title="Pending" value={d.waiting} note="Waiting on something" to={`${tasks}?view=pending`} /></div>
+        <div className="a-k1"><Kpi feature title={all ? 'Open tasks' : 'My open tasks'} value={c.open} note={`${c.active} started`} to={tasks} /></div>
+        <div className="a-k2"><Kpi title="Overdue" value={c.overdue} note={c.overdue ? 'Past their due date' : 'Everything is on time'} to={`${tasks}?view=overdue`} /></div>
+        <div className="a-k3"><Kpi title="Due today" value={c.dueToday} note="Before midnight" to={`${tasks}?view=due_today`} /></div>
+        <div className="a-k4"><Kpi title="Pending" value={c.waiting} note="Waiting on something" to={`${tasks}?view=pending`} /></div>
 
         <section className="card a-an" aria-labelledby="an-h">
-          <CompletedChart orgId={orgId} uid={all ? null : uid} tick={tick} reports={can(membership!.role, 'report:read')} />
+          <CompletedChart orgId={orgId} uid={all ? null : uid} tick={tick} reports={can(membership!.role, 'report:read')} period={period} />
         </section>
 
         <section className="card a-re" aria-labelledby="re-h">
@@ -257,14 +268,14 @@ export default function Dashboard() {
 
         <section className="card a-pg" aria-labelledby="pg-h">
           <h3 id="pg-h">{all ? 'Task progress' : 'My task progress'}</h3>
-          <Gauge done={d.done} active={d.active} pending={d.pending} />
+          <Gauge done={c.done} active={c.active} pending={c.pending} />
         </section>
 
         <section className="card esc-card a-es" aria-labelledby="es-h">
           <LiquidBg tone="deep" />
           <h3 id="es-h">Completed</h3>
-          <b className="esc-num"><CountUp value={d.done} /></b>
-          <p>{d.cycle} this cycle · {d.done - d.cycle} permanently</p>
+          <b className="esc-num"><CountUp value={c.done} /></b>
+          <p>{span ? `Finished ${span}: ` : ''}{c.cycle} this cycle · {c.done - c.cycle} permanently</p>
           <Link to={`${tasks}?view=completed`} className="round-btn" aria-label={all ? 'Open completed tasks' : 'Open my completed tasks'}><ArrowUpRight size={20} aria-hidden="true" /></Link>
         </section>
       </div>

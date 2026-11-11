@@ -24,7 +24,7 @@ async function names(db: Db, ids: (string | null | undefined)[]) {
   ]);
   // emails go to organization members, who never see who the platform admins are
   const hidden = new Set((pa ?? []).map((p: any) => p.user_id as string));
-  return new Map((data ?? []).map((p: any) => [p.user_id as string, hidden.has(p.user_id) ? 'Taskify admin' : (p.full_name || p.email) as string]));
+  return new Map((data ?? []).map((p: any) => [p.user_id as string, hidden.has(p.user_id) ? 'Taskify' : (p.full_name || p.email) as string]));
 }
 
 async function ctxFor(db: Db, orgId: string, cache: Map<string, Ctx>): Promise<Ctx> {

@@ -31,7 +31,7 @@ export default function Onboarding() {
       <div className="login" role="status">
         <h1>Waiting for approval</h1>
         <p className="muted auth-sub">
-          Thanks for creating <b>{latest.name}</b>. A Taskify admin reviews every new organization, and it will be approved within 24 hours.
+          Thanks for creating <b>{latest.name}</b>. The Taskify team reviews every new organization, and it will be approved within 24 hours.
           Please wait. We'll email <b>{session?.user.email}</b> as soon as it's ready.
         </p>
         <button type="button" onClick={checkAgain} disabled={checking}>{checking ? 'Checking…' : 'Check again'}</button>
@@ -60,7 +60,7 @@ export default function Onboarding() {
       ) : (
         <form className="login" onSubmit={submit}>
           <h1>Create your organization</h1>
-          <p className="muted auth-sub">You will be its admin and can invite your team once it's approved. A Taskify admin approves new organizations within 24 hours.</p>
+          <p className="muted auth-sub">You will be its admin and can invite your team once it's approved. The Taskify team approves new organizations within 24 hours.</p>
           <label>Organization name<input name="name" required maxLength={120} /></label>
           <label>URL slug<input name="slug" required pattern="[a-z0-9][a-z0-9-]{1,40}" placeholder="my-company" /></label>
           <label>Time zone<ZoneSelect /></label>

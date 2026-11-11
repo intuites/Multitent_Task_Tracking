@@ -85,11 +85,11 @@ export function usePeople(orgId: string) {
     if (loaded && !asked.current.has(id)) {
       asked.current.add(id);
       // readable for platform admins; members can't read profiles outside their organization, and never learn who
-      // a platform admin is: they see "Taskify admin" (migration 0045), anyone else they can't see "Removed member"
+      // a platform admin is: they see just "Taskify" (migrations 0045, 0050), anyone else they can't see "Removed member"
       (async () => {
         const { data } = await supabase.from('tt_profiles').select('full_name, email').eq('user_id', id).maybeSingle();
         const pa = data ? false : (await supabase.rpc('tt_is_platform_admin_id', { p_user: id })).data === true;
-        setOthers((o) => ({ ...o, [id]: data?.full_name || data?.email || (pa ? 'Taskify admin' : 'Removed member') }));
+        setOthers((o) => ({ ...o, [id]: data?.full_name || data?.email || (pa ? 'Taskify' : 'Removed member') }));
       })();
     }
     return '…';

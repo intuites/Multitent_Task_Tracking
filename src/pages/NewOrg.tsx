@@ -56,7 +56,7 @@ export default function NewOrg() {
           <p className="page-sub">
             {platformAdmin
               ? "It’s ready straight away. Switch between organizations from the name at the top of the sidebar."
-              : "You’ll be its admin. A Taskify admin approves new organizations within 24 hours."}
+              : "You’ll be its admin. The Taskify team approves new organizations within 24 hours."}
           </p>
         </div>
       </div>

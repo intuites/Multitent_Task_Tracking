@@ -139,8 +139,8 @@ export default function Login() {
             <span className="auth-who-av" aria-hidden="true">
               {known.photo ? <img src={known.photo} alt="" onError={(e) => { e.currentTarget.remove(); }} /> : null}{initials(known.name || known.login!)}
             </span>
-            <span className="auth-who-text"><b>{known.name || known.login}</b><small>{known.login}</small></span>
-            <button type="button" className="link" onClick={notYou}>Not you?</button>
+            <span className="auth-who-text"><b>{known.name || known.login}</b>
+              <small><span>{known.login}</span><button type="button" className="link" onClick={notYou}>Not you?</button></small></span>
           </div>
         ) : (
           <label className="auth-email">{signIn ? 'Email or username' : 'Work email'}

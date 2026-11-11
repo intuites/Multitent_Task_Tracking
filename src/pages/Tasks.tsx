@@ -5,8 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
-import { Badge, Due, fetchAll, fileStamp, isOpen as isOpenStatus, label, saveBlob, usePeople } from '../lib/ui';
-import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
+import { Badge, Due, isOpen as isOpenStatus, label, usePeople } from '../lib/ui';
 import { ListSkeleton } from '../components/Skeleton';
 import { ask } from '../components/Dialog';
 import NewTaskForm from '../components/NewTaskForm';
@@ -21,7 +20,6 @@ export default function Tasks({ mode }: { mode: Mode }) {
   const { membership, session } = useAuth();
   const orgId = membership!.org_id, uid = session!.user.id;
   const canWrite = can(membership!.role, 'task:write');
-  const canReport = can(membership!.role, 'report:read'); // exports are reports: admins only
   const { active, name } = usePeople(orgId);
   const [params, setParams] = useSearchParams();
   const [rows, setRows] = useState<any[]>([]);
@@ -101,18 +99,6 @@ export default function Tasks({ mode }: { mode: Mode }) {
   useEffect(() => { load(); }, [load]);
   useLive(['tt_tasks', 'tt_task_assignees'], () => load(true));
 
-  // exports cover every task matching the current view and filters, not just this page
-  async function exportAs(f: ExportFormat) {
-    try {
-      const all = await fetchAll(() => query());
-      const r = await import('../lib/reportWorkbook');
-      const view_ = `${label(view)} view${priority ? `, ${label(priority)} priority` : ''}${q.trim() ? `, matching “${q.trim()}”` : ''}`;
-      const who = `${membership!.org_name} · ${view_}`, file = fileStamp(`${membership!.org_name}_${title}`);
-      const dept = (t: any) => t.departments?.name ?? 'No department';
-      if (f === 'xlsx') saveBlob(`${file}.xlsx`, r.taskListWorkbook(title, who, all, label, dept, name));
-      else (await import('../lib/printReport')).printReport(r.taskListPdf(title, who, all, label, dept, name));
-    } catch (x) { setError((x as Error).message); }
-  }
 
 
   async function bulk(patch: object) {
@@ -145,7 +131,6 @@ export default function Tasks({ mode }: { mode: Mode }) {
       <div className="row">
         <h2>{title}</h2>
         <span className="row-actions">
-          {canReport && <ExportMenu onExport={exportAs} disabled={!total} />}
           {canWrite && <button onClick={() => setShowForm(true)}>New task</button>}
         </span>
       </div>

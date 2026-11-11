@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, CheckCircle2, Clock, Hourglass, Layers, PieChart, Repeat, Users, X, type LucideIcon } from 'lucide-react';
+import { BarChart3, CheckCircle2, Clock, Download, Hourglass, Layers, PieChart, Repeat, Users, X, type LucideIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { pickName } from '../lib/names';
 import { useAuth } from '../lib/auth';
 import { TASK_STATUSES } from '../../api/_lib/taskStatus';
 import { fetchAll, fileStamp, isOpen, isOverdue, label, saveBlob, usePeople } from '../lib/ui';
-import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
+import ReportExport, { type ExportChoice } from '../components/ReportExport';
 import { ListSkeleton } from '../components/Skeleton';
 import { CountUp } from '../components/Liquid';
 
@@ -21,6 +21,7 @@ const REPORTS: { id: Report; name: string; icon: LucideIcon; bar?: string; max?:
   { id: 'recurring_tasks', name: 'Recurring', icon: Repeat, bar: 'Occurrences' },
 ];
 const STATUSES = TASK_STATUSES.filter((s) => s !== 'escalation');
+const TASK_COLS = 'id, org_id, title, description, created_by, parent_task_id, status, priority, department_id, due_date, start_date, created_at, completed_at, recurrence_parent_id, tt_task_assignees(user_id)';
 
 function Ring({ pct }: { pct: number }) {
   return (
@@ -51,7 +52,8 @@ function BarList({ rows, by, value, max }: { rows: Row[]; by: string; value: str
 }
 
 export default function Reports() {
-  const { membership, session } = useAuth();
+  const { membership, memberships, session } = useAuth();
+  const [exporting, setExporting] = useState(false);
   const orgId = membership!.org_id;
   const { people, name } = usePeople(orgId);
   const [report, setReport] = useState<Report>('task_completion');
@@ -64,7 +66,7 @@ export default function Reports() {
   useEffect(() => {
     (async () => {
       const [t, d] = await Promise.all([
-        fetchAll(() => supabase.from('tt_tasks').select('id, title, status, priority, department_id, due_date, start_date, created_at, completed_at, recurrence_parent_id, tt_task_assignees(user_id)').eq('org_id', orgId).order('id')).then((data) => ({ data, error: null }), (e) => ({ data: [], error: e as Error })),
+        fetchAll(() => supabase.from('tt_tasks').select(TASK_COLS).eq('org_id', orgId).order('id')).then((data) => ({ data, error: null }), (e) => ({ data: [], error: e as Error })),
         supabase.from('tt_departments').select('id, name').eq('org_id', orgId).order('name'),
       ]);
       const err = [t, d].find((x) => x.error)?.error;
@@ -74,8 +76,10 @@ export default function Reports() {
   }, [orgId]);
 
   const inRange = (d?: string | null) => (!from || (d ?? '') >= from) && (!to || (d ?? '') <= to + 'T23:59:59');
-  const tasks = useMemo(() => (data?.t ?? []).filter((t: any) => inRange(t.created_at) && (!dept || t.department_id === dept) &&
-    (!status || t.status === status) && (!priority || t.priority === priority) && (!emp || t.tt_task_assignees.some((a: any) => a.user_id === emp))),
+  // here: also the department and employee filters, which only mean something in this organization
+  const match = (t: any, here = true) => inRange(t.created_at) && (!status || t.status === status) && (!priority || t.priority === priority) &&
+    (!here || ((!dept || t.department_id === dept) && (!emp || t.tt_task_assignees.some((a: any) => a.user_id === emp))));
+  const tasks = useMemo(() => (data?.t ?? []).filter((t: any) => match(t)),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [data, from, to, dept, status, priority, emp]);
 
@@ -122,16 +126,30 @@ export default function Reports() {
   const rate = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
   const filtered = !!(from || to || dept || emp || status || priority);
   const clear = () => { setFrom(''); setTo(''); setDept(''); setEmp(''); setStatus(''); setPriority(''); };
-  // both formats cover the filtered tasks
-  async function exportAs(f: ExportFormat) {
-    try {
-      const r = await import('../lib/reportWorkbook');
-      const fl = [from && `from ${from}`, to && `to ${to}`, dept && (data.d.find((x: any) => x.id === dept)?.name ?? ''), emp && name(emp), status && label(status), priority && `${label(priority)} priority`].filter(Boolean);
-      const input = { org: membership!.org_name, filters: fl.length ? `Filters: ${fl.join(', ')}` : 'All tasks', tasks, depts: data.d, people, label };
-      const file = fileStamp(`${membership!.org_name}_report`);
-      if (f === 'xlsx') saveBlob(`${file}.xlsx`, r.reportWorkbook(input));
-      else (await import('../lib/printReport')).printReport(r.reportPdf(input));
-    } catch (x) { setError((x as Error).message); }
+  const platform = !!membership!.platform;
+  const fl = (here: boolean) => {
+    const f = [from && `from ${from}`, to && `to ${to}`, here && dept && (data?.d.find((x: any) => x.id === dept)?.name ?? ''), here && emp && name(emp), status && label(status), priority && `${label(priority)} priority`].filter(Boolean);
+    return f.length ? `Filters: ${f.join(', ')}` : 'All tasks';
+  };
+  // the filtered tasks of this organization, or (platform admins) of the organizations picked
+  async function exportAs({ parts, format, orgIds }: ExportChoice) {
+    const r = await import('../lib/reportWorkbook');
+    const pdf = format === 'pdf' ? (await import('../lib/printReport')).printReport : null;
+    if (orgIds.length === 1 && orgIds[0] === orgId) {
+      const input = { org: membership!.org_name, filters: fl(true), tasks, depts: data.d, people, label, parts, all: data.t };
+      if (pdf) pdf(r.reportPdf(input)); else saveBlob(`${fileStamp(`${membership!.org_name}_report`)}.xlsx`, r.reportWorkbook(input));
+      return;
+    }
+    // reads go through RLS, which lets platform admins see every organization
+    const [orgs, members, profiles, depts, all] = await Promise.all([
+      fetchAll(() => supabase.from('tt_organizations').select('id, name, created_at').in('id', orgIds).order('id')),
+      fetchAll(() => supabase.from('tt_org_members').select('org_id, user_id, role, active').in('org_id', orgIds).order('org_id').order('user_id')),
+      fetchAll(() => supabase.from('tt_profiles').select('user_id, full_name, email').order('user_id')),
+      fetchAll(() => supabase.from('tt_departments').select('id, org_id, name').in('org_id', orgIds).order('id')),
+      fetchAll(() => supabase.from('tt_tasks').select(TASK_COLS).in('org_id', orgIds).is('archived_at', null).order('id')),
+    ]);
+    const input = { orgs, members, profiles, depts, tasks: all.filter((t: any) => match(t, false)), all, label, parts, filters: fl(false) };
+    if (pdf) pdf(r.platformPdf(input)); else saveBlob(`${fileStamp(orgs.length === 1 ? `${orgs[0].name}_report` : 'Taskify_organizations')}.xlsx`, r.platformWorkbook(input));
   }
   const val = (m: string) => Number(rows.find((r) => r.Metric === m)?.Value ?? 0);
 
@@ -143,9 +161,13 @@ export default function Reports() {
           <p className="page-sub">How work is moving across {membership!.org_name}. Filters apply to every report.</p>
         </div>
         <div className="page-actions">
-          <ExportMenu onExport={exportAs} disabled={!data} />
+          <button type="button" className="pill-btn" onClick={() => setExporting(true)} disabled={!data}><Download size={16} aria-hidden="true" />Export</button>
         </div>
       </div>
+      <ReportExport open={exporting} onClose={() => setExporting(false)} onExport={exportAs} current={orgId}
+        orgs={platform ? memberships.map((m) => ({ id: m.org_id, name: m.org_name })) : undefined}
+        note={!filtered ? 'Covers every task. To narrow it, set filters on the page first.'
+          : `Uses the filters on screen: ${fl(true).replace(/^Filters: /, '')}.${platform && (dept || emp) ? ` Department and employee filters apply to ${membership!.org_name} only.` : ''}`} />
 
       <div className="rp-kpis">
         <div className="rp-kpi"><span className="rp-ico"><BarChart3 size={18} aria-hidden="true" /></span><small>Tasks in scope</small><b><CountUp value={tasks.length} /></b></div>

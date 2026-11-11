@@ -52,6 +52,20 @@ describe('xlsx writer', () => {
     if (process.env.XLSX_OUT) writeFileSync(process.env.XLSX_OUT.replace('.xlsx', '.html'), html);
   });
 
+  it('exports only the parts picked, and the task list has description, creator and subtasks', async () => {
+    const people = [{ id: 'u1', name: 'Priya', email: 'p@x.com', role: 'admin' }];
+    const base = { status: 'started', priority: 'low', department_id: null, due_date: null, created_at: day(-1), completed_at: null, tt_task_assignees: [] };
+    const tasks = [{ ...base, id: 'p', title: 'Parent', description: 'Fix the invoice run', created_by: 'u1' },
+      { ...base, id: 'c1', title: 'Child 1', parent_task_id: 'p', status: 'completed' }, { ...base, id: 'c2', title: 'Child 2', parent_task_id: 'p' }];
+    const text = new TextDecoder().decode(new Uint8Array(await reportWorkbook({ org: 'ABC', filters: 'All tasks', tasks, depts: [], people, label, parts: ['tasks'] }).arrayBuffer()));
+    expect(text).toContain('name="All tasks"');
+    expect(text).not.toContain('name="Summary"');
+    for (const v of ['Description', 'Created by', 'Subtasks done', 'Fix the invoice run', '1 of 2']) expect(text).toContain(v);
+    const pdf = reportPdf({ org: 'ABC', filters: 'All tasks', tasks, depts: [], people, label, parts: ['people'] });
+    expect(pdf.kpis).toEqual([]);
+    expect(pdf.sections.map((s) => s.title)).toEqual(['People']);
+  });
+
   it('builds the platform workbook with one sheet per organization and safe, unique sheet names', async () => {
     const orgs = ['Apple Inc', 'ABC Pvt Ltd', 'Northwind: East/West', 'Apple Inc'].map((name, i) => ({ id: `o${i}`, name, created_at: day(-100 * (i + 1)) }));
     const members = orgs.flatMap((o, i) => [0, 1, 2].map((k) => ({ org_id: o.id, user_id: `u${i}${k}`, role: ['admin', 'employee', 'employee'][k], active: true })));

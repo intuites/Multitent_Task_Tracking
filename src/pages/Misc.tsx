@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { deleteAccount } from '../lib/deleteAccount';
 import { Link } from 'react-router-dom';
-import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
 import { supabase } from '../lib/supabase';
 import { pickName } from '../lib/names';
 import { useAuth } from '../lib/auth';
-import { fetchAll, fileStamp, fmtTime, label, NO_ESC, rpc, saveBlob, usePeople } from '../lib/ui';
+import { fetchAll, fmtTime, label, NO_ESC, rpc, usePeople } from '../lib/ui';
 import { ask } from '../components/Dialog';
 import { ListSkeleton } from '../components/Skeleton';
 import { Building2, FolderKanban, History, ListChecks, Users } from 'lucide-react';
@@ -148,30 +147,11 @@ export function Platform() {
   const waiting = (orgs ?? []).filter((o) => o.status === 'pending');
   const shown = (orgs ?? []).filter((o) => !q || o.name.toLowerCase().includes(q.toLowerCase()));
   const fresh = (orgs ?? []).filter((o) => isNewOrg(o, seen));
-  // every organization side by side; reads go through RLS, which lets platform admins see all organizations
-  async function exportAs(f: ExportFormat) {
-    setMsg(null);
-    try {
-      const [orgs, members, profiles, depts, tasks] = await Promise.all([
-        fetchAll(() => supabase.from('tt_organizations').select('id, name, created_at').order('id')),
-        fetchAll(() => supabase.from('tt_org_members').select('org_id, user_id, role, active').order('org_id').order('user_id')),
-        fetchAll(() => supabase.from('tt_profiles').select('user_id, full_name, email').order('user_id')),
-        fetchAll(() => supabase.from('tt_departments').select('id, org_id, name').order('id')),
-        fetchAll(() => supabase.from('tt_tasks').select('id, org_id, title, status, priority, department_id, due_date, start_date, created_at, completed_at, tt_task_assignees(user_id)').is('archived_at', null).order('id')),
-      ]);
-      const r = await import('../lib/reportWorkbook');
-      const input = { orgs, members, profiles, depts, tasks, label }, file = fileStamp('Taskify_all_organizations');
-      if (f === 'xlsx') saveBlob(`${file}.xlsx`, r.platformWorkbook(input));
-      else (await import('../lib/printReport')).printReport(r.platformPdf(input));
-      setMsg({ kind: 'ok', text: `Exported ${orgs.length} organizations and ${tasks.length} tasks.` });
-    } catch (e) { setMsg({ kind: 'error', text: (e as Error).message }); }
-  }
   return (
     <>
       <div className="page-head">
         <div><h2 className="page-title">Admin site</h2><p className="page-sub">Everything across the CRM. Platform admins can open and manage every organization.</p></div>
         <div className="page-actions">
-          <ExportMenu onExport={exportAs} label="Export report" />
           <Link to="/organizations/new" className="pill-btn ghost">New organization</Link>
         </div>
       </div>

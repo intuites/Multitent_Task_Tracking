@@ -4,8 +4,7 @@ import { supabase } from '../lib/supabase';
 import { pickName } from '../lib/names';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
-import { Badge, fetchAll, fileStamp, label, loadInvites, loadPeople, rpc, saveBlob, type Person } from '../lib/ui';
-import ExportMenu, { type ExportFormat } from '../components/ExportMenu';
+import { Badge, fetchAll, label, loadInvites, loadPeople, rpc, type Person } from '../lib/ui';
 import { Link, useLocation } from 'react-router-dom';
 import { ask } from '../components/Dialog';
 import { Avatar } from '../components/Frame';
@@ -101,15 +100,6 @@ export default function Employees() {
     for (const p of Object.values(m)) p.onTime = p.done ? Math.round(((p.done - p.late) / p.done) * 100) : null;
     return m;
   }, [tasks]);
-  // the organization report (its People sheet / section is this table) as Excel or PDF
-  async function exportPerf(f: ExportFormat) {
-    try {
-      const [r, d] = await Promise.all([import('../lib/reportWorkbook'), supabase.from('tt_departments').select('id, name').eq('org_id', orgId).order('name')]);
-      const input = { org: membership!.org_name, filters: 'All tasks', tasks, depts: d.data ?? [], people: (people ?? []).map((p) => ({ id: p.id, name: p.name, email: p.email, role: p.role })), label };
-      if (f === 'xlsx') saveBlob(`${fileStamp(`${membership!.org_name}_performance`)}.xlsx`, r.reportWorkbook(input));
-      else (await import('../lib/printReport')).printReport(r.reportPdf(input));
-    } catch (x) { fail((x as Error).message); }
-  }
   const perfOf = (id: string): Perf => perf[id] ?? { assigned: 0, open: 0, done: 0, overdue: 0, onTime: null, last30: 0 };
 
   const shown = (people ?? []).filter((p) => (!roleFilter || p.role === roleFilter) && (!q || `${p.name} ${p.email}`.toLowerCase().includes(q.toLowerCase())));
@@ -195,8 +185,7 @@ export default function Employees() {
               <tbody>{byRole.map((x) => <tr key={x.r}><td><span className="prio">{label(x.r)}</span></td><td>{x.people}</td><td>{x.open}</td><td>{x.done}</td><td className={x.overdue ? 'overdue' : ''}>{x.overdue}</td><td>{x.onTime === null ? '—' : `${x.onTime}%`}</td></tr>)}</tbody></table>
           </section>
           <section className="card" aria-labelledby="pi-h">
-            <div className="panel-head"><h3 id="pi-h">Everyone</h3>
-              <ExportMenu onExport={exportPerf} label="Export" /></div>
+            <div className="panel-head"><h3 id="pi-h">Everyone</h3></div>
             <table className="emp-table"><thead><tr><th>Person</th><th>Role</th><th>Assigned</th><th>Completed</th><th>Overdue</th><th>On time</th><th>Progress</th></tr></thead>
               <tbody>{[...perfRows].sort((a, b) => b.s.done - a.s.done).map(({ p, s }) => (
                 <tr key={p.id} className={p.active ? '' : 'inactive'}>

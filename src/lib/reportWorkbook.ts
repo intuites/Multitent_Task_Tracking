@@ -2,11 +2,15 @@ import { buildXlsx, COLORS, colName, type Cell, type Chart, type Sheet, type Sty
 import type { PdfReport } from './printReport';
 
 export interface Task { id: string; org_id?: string; title: string; status: string; priority: string; department_id: string | null; due_date: string | null; start_date?: string | null;
-  created_at: string; completed_at: string | null; tt_task_assignees: { user_id: string }[] }
+  created_at: string; completed_at: string | null; tt_task_assignees: { user_id: string }[]; description?: string | null; created_by?: string | null; parent_task_id?: string | null }
 export interface Person { id: string; name: string; email: string; role: string }
 export interface Dept { id: string; name: string }
 type Label = (s: string) => string;
-interface Input { org: string; filters: string; tasks: Task[]; depts: Dept[]; people: Person[]; label: Label }
+/** the parts an export can include; left out, all of them */
+export type Part = 'summary' | 'people' | 'depts' | 'tasks';
+/** all: every task, filters ignored, so subtask counts include subtasks the filters hide */
+interface Input { org: string; filters: string; tasks: Task[]; depts: Dept[]; people: Person[]; label: Label; parts?: Part[]; all?: Task[] }
+const wants = (parts?: Part[]) => (p: Part) => !parts || parts.includes(p);
 
 const DONE = ['completed', 'completed_cycle'];
 const STATUSES = ['not_yet_started', 'started', 'pending', 'completed_cycle', 'completed'];
@@ -28,6 +32,12 @@ export const stats = (list: Task[]) => {
     done30: list.filter((t) => t.completed_at && Date.parse(t.completed_at) >= since).length,
     new30: list.filter((t) => Date.parse(t.created_at) >= since).length };
 };
+/** "2 of 5" subtasks completed, per parent task */
+function subtasksDone(pool: Task[]) {
+  const m = new Map<string, [number, number]>();
+  for (const t of pool) if (t.parent_task_id) { const x = m.get(t.parent_task_id) ?? [0, 0]; x[1]++; if (isDone(t)) x[0]++; m.set(t.parent_task_id, x); }
+  return (t: Task) => { const x = m.get(t.id); return x ? `${x[0]} of ${x[1]}` : ''; };
+}
 const head = (cols: string[]): Cell[] => cols.map((c) => ({ v: c, s: 'head' as Style }));
 const pct = (v: number): Cell => ({ v, s: 'pct' });
 const zebra = (i: number) => ({ tx: (i % 2 ? 'zText' : 'text') as Style, nm: (i % 2 ? 'zNum' : 'num') as Style, dt: (i % 2 ? 'zDate' : 'date') as Style });
@@ -131,30 +141,31 @@ function deptSheet({ org, filters, tasks, depts }: Input): Sheet {
 }
 
 /** Every task, newest first, colour-coded, with filters. orgOf adds an Organization column. */
-function taskSheet(tasks: Task[], who: string, filters: string, label: Label, deptName: (t: Task) => string, personName: (id: string) => string, orgOf?: (t: Task) => string): Sheet {
-  const cols = [...(orgOf ? ['Organization'] : []), 'Task', 'Status', 'Priority', 'Department', 'Assigned to', 'Created', 'Starts', 'Due', 'Completed', 'Overdue'];
+function taskSheet(tasks: Task[], who: string, filters: string, label: Label, deptName: (t: Task) => string, personName: (id: string) => string, subs: (t: Task) => string, orgOf?: (t: Task) => string): Sheet {
+  const cols = [...(orgOf ? ['Organization'] : []), 'Task', 'Description', 'Status', 'Priority', 'Department', 'Assigned to', 'Created by', 'Created', 'Starts', 'Due', 'Completed', 'Overdue', 'Subtasks done'];
   const ban = banner('All tasks', who, filters, cols.length);
   const top = ban.rows.length;
   ban.rows.push(head(cols), ...[...tasks].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((t, i): Cell[] => {
     const z = zebra(i), od = overdue(t);
-    return [...(orgOf ? [{ v: orgOf(t), s: z.tx }] : []), { v: t.title, s: z.tx }, { v: label(t.status), s: STATUS_STYLE[t.status] ?? z.tx },
+    return [...(orgOf ? [{ v: orgOf(t), s: z.tx }] : []), { v: t.title, s: z.tx }, { v: (t.description ?? '').slice(0, 32000), s: z.tx }, { v: label(t.status), s: STATUS_STYLE[t.status] ?? z.tx },
       { v: label(t.priority), s: t.priority === 'urgent' ? 'badText' : z.tx }, { v: deptName(t), s: z.tx },
-      { v: t.tt_task_assignees.map((a) => personName(a.user_id)).join(', ') || 'Unassigned', s: z.tx },
-      { v: d(t.created_at), s: z.dt }, { v: d(t.start_date), s: z.dt }, { v: d(t.due_date), s: z.dt }, { v: d(t.completed_at), s: z.dt }, { v: od ? 'Yes' : 'No', s: od ? 'bad' : z.nm }];
+      { v: t.tt_task_assignees.map((a) => personName(a.user_id)).join(', ') || 'Unassigned', s: z.tx }, { v: t.created_by ? personName(t.created_by) : '', s: z.tx },
+      { v: d(t.created_at), s: z.dt }, { v: d(t.start_date), s: z.dt }, { v: d(t.due_date), s: z.dt }, { v: d(t.completed_at), s: z.dt }, { v: od ? 'Yes' : 'No', s: od ? 'bad' : z.nm },
+      { v: subs(t), s: z.tx }];
   }));
-  return { name: 'All tasks', rows: ban.rows, merges: ban.merges, tall: [0], freeze: top + 1, widths: [...(orgOf ? [22] : []), 44, 20, 13, 20, 30, 14, 14, 14, 15, 12],
+  return { name: 'All tasks', rows: ban.rows, merges: ban.merges, tall: [0], freeze: top + 1, widths: [...(orgOf ? [22] : []), 44, 50, 20, 13, 20, 30, 22, 14, 14, 14, 15, 12, 14],
     filter: { row: top, cols: cols.length, last: top + tasks.length } };
 }
 
 /** Organization report as a styled, multi-sheet Excel workbook with charts. */
 export function reportWorkbook(input: Input): Blob {
-  const { org, filters, tasks, depts, people, label } = input;
+  const { org, filters, tasks, depts, people, label } = input, want = wants(input.parts);
   const name = (id: string) => people.find((p) => p.id === id)?.name ?? 'Former member';
   return buildXlsx([
-    summarySheet(input, 'Summary'),
-    peopleSheet(people.map((p) => ({ p, s: stats(tasks.filter((t) => t.tt_task_assignees.some((a) => a.user_id === p.id))) })), org, filters, label),
-    deptSheet(input),
-    taskSheet(tasks, org, filters, label, (t) => depts.find((x) => x.id === t.department_id)?.name ?? 'No department', name),
+    ...(want('summary') ? [summarySheet(input, 'Summary')] : []),
+    ...(want('people') ? [peopleSheet(people.map((p) => ({ p, s: stats(tasks.filter((t) => t.tt_task_assignees.some((a) => a.user_id === p.id))) })), org, filters, label)] : []),
+    ...(want('depts') ? [deptSheet(input)] : []),
+    ...(want('tasks') ? [taskSheet(tasks, org, filters, label, (t) => depts.find((x) => x.id === t.department_id)?.name ?? 'No department', name, subtasksDone(input.all ?? tasks))] : []),
   ]);
 }
 
@@ -166,6 +177,10 @@ export interface PlatformInput {
   depts: (Dept & { org_id: string })[];
   tasks: (Task & { org_id: string })[];
   label: Label;
+  /** the filters applied, shown under each title */
+  filters?: string;
+  parts?: Part[];
+  all?: Task[];
 }
 
 // Excel sheet names: max 31 chars, no []:*?/\ and unique
@@ -182,8 +197,8 @@ function sheetNamer(taken: string[]) {
 
 /** Whole platform: organizations compared side by side, monthly trend per organization, a people leaderboard,
  *  one dashboard sheet per organization, and every task. */
-export function platformWorkbook({ orgs, members, profiles, depts, tasks, label }: PlatformInput): Blob {
-  const who = 'All organizations', filters = `${orgs.length} organizations`;
+export function platformWorkbook({ orgs, members, profiles, depts, tasks, label, filters: fl, parts, all: pool }: PlatformInput): Blob {
+  const want = wants(parts), who = orgs.length === 1 ? orgs[0].name : `${orgs.length} organizations`, filters = fl ?? 'All tasks';
   const prof = new Map(profiles.map((p) => [p.user_id, p]));
   const personName = (id: string) => prof.get(id)?.full_name || prof.get(id)?.email || 'Former member';
   const orgName = new Map(orgs.map((o) => [o.id, o.name]));
@@ -260,9 +275,12 @@ export function platformWorkbook({ orgs, members, profiles, depts, tasks, label 
 
   // ---------- every task ----------
   const deptName = new Map(depts.map((x) => [x.id, x.name]));
-  const taskList = taskSheet(tasks, who, filters, label, (t) => (t.department_id && deptName.get(t.department_id)) || 'No department', personName, (t) => orgName.get(t.org_id!) ?? '');
+  const taskList = taskSheet(tasks, who, filters, label, (t) => (t.department_id && deptName.get(t.department_id)) || 'No department', personName, subtasksDone(pool ?? tasks), (t) => orgName.get(t.org_id!) ?? '');
+  // every organization's departments in one sheet, each named with its organization
+  const deptList = deptSheet({ org: who, filters, tasks, label, people: [], depts: depts.map((x) => ({ id: x.id, name: `${x.name} (${orgName.get(x.org_id) ?? ''})` })) });
 
-  return buildXlsx([overview, trend, leaderboard, ...orgSheets, taskList]);
+  return buildXlsx([...(want('summary') ? [overview, trend] : []), ...(want('people') ? [leaderboard] : []), ...(want('depts') ? [deptList] : []),
+    ...(want('summary') ? orgSheets : []), ...(want('tasks') ? [taskList] : [])]);
 }
 
 // ======================= PDF (print) versions of the same reports =======================
@@ -271,33 +289,35 @@ const pc = (v: number) => `${Math.round(v * 100)}%`;
 const split = (s: ReturnType<typeof stats>) => [{ value: s.done, color: '3F9D6B', name: 'Completed' }, { value: s.open - s.overdue, color: 'F2B134', name: 'Open' }, { value: s.overdue, color: 'E06C5A', name: 'Overdue' }];
 const stamp = () => new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
-export function reportPdf({ org, filters, tasks, depts, people, label }: Input): PdfReport {
-  const all = stats(tasks);
+export function reportPdf({ org, filters, tasks, depts, people, label, parts, all: pool }: Input): PdfReport {
+  const all = stats(tasks), want = wants(parts);
   const name = (id: string) => people.find((p) => p.id === id)?.name ?? 'Former member';
   const ppl = people.map((p) => ({ p, s: stats(tasks.filter((t) => t.tt_task_assignees.some((a) => a.user_id === p.id))) })).filter((x) => x.s.total).sort((a, b) => b.s.done - a.s.done);
   const byDept = deptStats(tasks, depts);
   const late = tasks.filter(overdue).sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''));
   return {
     title: `Task report — ${org}`, subtitle: `${filters} · generated ${stamp()}`,
-    kpis: [['Tasks in scope', all.total], ['Completed', all.done], ['Open', all.open], ['Overdue', all.overdue], ['Completion rate', pc(all.rate)], ['On time', pc(all.onTime)],
-      ['Done in 30 days', all.done30], ['Created in 30 days', all.new30]],
+    kpis: want('summary') ? [['Tasks in scope', all.total], ['Completed', all.done], ['Open', all.open], ['Overdue', all.overdue], ['Completion rate', pc(all.rate)], ['On time', pc(all.onTime)],
+      ['Done in 30 days', all.done30], ['Created in 30 days', all.new30]] : [],
     sections: [
-      { title: 'Tasks by status', bars: STATUSES.map((s) => ({ label: label(s), value: tasks.filter((t) => t.status === s).length, color: STATUS_COLOR[s] })) },
-      { title: 'Departments', stacked: byDept.map((x) => ({ label: x.name, parts: split(x.s) })),
-        columns: ['Department', 'Tasks', 'Open', 'Completed', 'Overdue', 'Completion', 'On time'], rows: byDept.map((x) => [x.name, x.s.total, x.s.open, x.s.done, x.s.overdue, pc(x.s.rate), pc(x.s.onTime)]) },
-      { title: 'People', stacked: ppl.slice(0, 20).map((x) => ({ label: x.p.name, parts: split(x.s) })),
-        columns: ['Person', 'Role', 'Assigned', 'Open', 'Completed', 'Overdue', 'Completion', 'On time'], rows: ppl.map(({ p, s }) => [p.name, label(p.role), s.total, s.open, s.done, s.overdue, pc(s.rate), pc(s.onTime)]) },
-      { title: 'Priority', bars: PRIORITIES.map((p) => ({ label: label(p), value: tasks.filter((t) => t.priority === p).length, color: p === 'urgent' ? 'E06C5A' : p === 'high' ? 'F2B134' : '3F9D6B' })) },
-      { title: 'Completed per month (last 12 months)', bars: months().map((m) => ({ label: monthName(m), value: tasks.filter((t) => inMonth(t.completed_at, m)).length, color: '1B5E3B' })) },
-      { title: `Overdue tasks (${late.length})`, columns: ['Task', 'Status', 'Priority', 'Due', 'Assigned to'],
-        rows: late.slice(0, 200).map((t) => [t.title, label(t.status), label(t.priority), fmtDay(t.due_date), t.tt_task_assignees.map((a) => name(a.user_id)).join(', ') || 'Unassigned']),
-        note: late.length > 200 ? `Showing 200 of ${late.length}. The Excel export lists every task.` : undefined },
+      ...(want('summary') ? [{ title: 'Tasks by status', bars: STATUSES.map((s) => ({ label: label(s), value: tasks.filter((t) => t.status === s).length, color: STATUS_COLOR[s] })) }] : []),
+      ...(want('depts') ? [{ title: 'Departments', stacked: byDept.map((x) => ({ label: x.name, parts: split(x.s) })),
+        columns: ['Department', 'Tasks', 'Open', 'Completed', 'Overdue', 'Completion', 'On time'], rows: byDept.map((x) => [x.name, x.s.total, x.s.open, x.s.done, x.s.overdue, pc(x.s.rate), pc(x.s.onTime)]) }] : []),
+      ...(want('people') ? [{ title: 'People', stacked: ppl.slice(0, 20).map((x) => ({ label: x.p.name, parts: split(x.s) })),
+        columns: ['Person', 'Role', 'Assigned', 'Open', 'Completed', 'Overdue', 'Completion', 'On time'], rows: ppl.map(({ p, s }) => [p.name, label(p.role), s.total, s.open, s.done, s.overdue, pc(s.rate), pc(s.onTime)]) }] : []),
+      ...(want('summary') ? [
+        { title: 'Priority', bars: PRIORITIES.map((p) => ({ label: label(p), value: tasks.filter((t) => t.priority === p).length, color: p === 'urgent' ? 'E06C5A' : p === 'high' ? 'F2B134' : '3F9D6B' })) },
+        { title: 'Completed per month (last 12 months)', bars: months().map((m) => ({ label: monthName(m), value: tasks.filter((t) => inMonth(t.completed_at, m)).length, color: '1B5E3B' })) },
+        { title: `Overdue tasks (${late.length})`, columns: ['Task', 'Status', 'Priority', 'Due', 'Assigned to'],
+          rows: late.slice(0, 200).map((t) => [t.title, label(t.status), label(t.priority), fmtDay(t.due_date), t.tt_task_assignees.map((a) => name(a.user_id)).join(', ') || 'Unassigned']),
+          note: late.length > 200 ? `Showing 200 of ${late.length}. The Excel export lists every task.` : undefined }] : []),
+      ...(want('tasks') ? [taskTable(tasks, label, (t) => depts.find((x) => x.id === t.department_id)?.name ?? 'No department', name, subtasksDone(pool ?? tasks))] : []),
     ],
   };
 }
 
-export function platformPdf({ orgs, members, profiles, depts, tasks, label }: PlatformInput): PdfReport {
-  const all = stats(tasks);
+export function platformPdf({ orgs, members, profiles, depts, tasks, label, filters, parts, all: pool }: PlatformInput): PdfReport {
+  const all = stats(tasks), want = wants(parts);
   const prof = new Map(profiles.map((p) => [p.user_id, p]));
   const orgName = new Map(orgs.map((o) => [o.id, o.name]));
   const per = orgs.map((o) => ({ o, s: stats(tasks.filter((t) => t.org_id === o.id)), m: members.filter((x) => x.org_id === o.id && x.active).length,
@@ -305,44 +325,32 @@ export function platformPdf({ orgs, members, profiles, depts, tasks, label }: Pl
   const people = members.filter((m) => m.active).map((m) => ({ m, s: stats(tasks.filter((t) => t.org_id === m.org_id && t.tt_task_assignees.some((a) => a.user_id === m.user_id))) }))
     .filter((x) => x.s.total).sort((a, b) => b.s.done - a.s.done).slice(0, 50);
   return {
-    title: 'Platform report — every organization', subtitle: `${orgs.length} organizations · generated ${stamp()}`,
-    kpis: [['Organizations', orgs.length], ['Active members', new Set(members.filter((m) => m.active).map((m) => m.user_id)).size], ['Tasks', all.total], ['Completed', all.done],
-      ['Open', all.open], ['Overdue', all.overdue], ['Completion rate', pc(all.rate)], ['On time', pc(all.onTime)]],
+    title: `Platform report — ${orgs.length === 1 ? orgs[0].name : `${orgs.length} organizations`}`, subtitle: `${filters ?? 'All tasks'} · generated ${stamp()}`,
+    kpis: want('summary') ? [['Organizations', orgs.length], ['Active members', new Set(members.filter((m) => m.active).map((m) => m.user_id)).size], ['Tasks', all.total], ['Completed', all.done],
+      ['Open', all.open], ['Overdue', all.overdue], ['Completion rate', pc(all.rate)], ['On time', pc(all.onTime)]] : [],
     sections: [
-      { title: 'Completion rate by organization', bars: per.map((x) => ({ label: x.o.name, value: Math.round(x.s.rate * 100), suffix: '%', color: '1B5E3B' })) },
-      { title: 'Workload by organization', stacked: per.map((x) => ({ label: x.o.name, parts: split(x.s) })) },
-      { title: 'Organizations ranked', columns: ['#', 'Organization', 'Members', 'Departments', 'Tasks', 'Open', 'Completed', 'Overdue', 'Completion', 'On time', 'Done 30d'],
-        rows: per.map((x, i) => [i + 1, x.o.name, x.m, x.d, x.s.total, x.s.open, x.s.done, x.s.overdue, pc(x.s.rate), pc(x.s.onTime), x.s.done30]) },
-      { title: 'Platform: completed per month', bars: months().map((m) => ({ label: monthName(m), value: tasks.filter((t) => inMonth(t.completed_at, m)).length, color: '3F9D6B' })) },
-      { title: 'Top 50 people across organizations', columns: ['Person', 'Organization', 'Role', 'Assigned', 'Completed', 'Overdue', 'Completion'],
-        rows: people.map(({ m, s }) => [prof.get(m.user_id)?.full_name || prof.get(m.user_id)?.email || 'Member', orgName.get(m.org_id) ?? '', label(m.role), s.total, s.done, s.overdue, pc(s.rate)]) },
+      ...(want('summary') ? [
+        { title: 'Completion rate by organization', bars: per.map((x) => ({ label: x.o.name, value: Math.round(x.s.rate * 100), suffix: '%', color: '1B5E3B' })) },
+        { title: 'Workload by organization', stacked: per.map((x) => ({ label: x.o.name, parts: split(x.s) })) },
+        { title: 'Organizations ranked', columns: ['#', 'Organization', 'Members', 'Departments', 'Tasks', 'Open', 'Completed', 'Overdue', 'Completion', 'On time', 'Done 30d'],
+          rows: per.map((x, i) => [i + 1, x.o.name, x.m, x.d, x.s.total, x.s.open, x.s.done, x.s.overdue, pc(x.s.rate), pc(x.s.onTime), x.s.done30]) },
+        { title: 'Platform: completed per month', bars: months().map((m) => ({ label: monthName(m), value: tasks.filter((t) => inMonth(t.completed_at, m)).length, color: '3F9D6B' })) }] : []),
+      ...(want('people') ? [{ title: 'Top 50 people across organizations', columns: ['Person', 'Organization', 'Role', 'Assigned', 'Completed', 'Overdue', 'Completion'],
+        rows: people.map(({ m, s }) => [prof.get(m.user_id)?.full_name || prof.get(m.user_id)?.email || 'Member', orgName.get(m.org_id) ?? '', label(m.role), s.total, s.done, s.overdue, pc(s.rate)]) }] : []),
+      ...(want('depts') ? [{ title: 'Departments', columns: ['Department', 'Organization', 'Tasks', 'Open', 'Completed', 'Overdue', 'Completion'],
+        rows: orgs.flatMap((o) => deptStats(tasks.filter((t) => t.org_id === o.id), depts.filter((x) => x.org_id === o.id)).map((x) => [x.name, o.name, x.s.total, x.s.open, x.s.done, x.s.overdue, pc(x.s.rate)])) }] : []),
+      ...(want('tasks') ? [taskTable(tasks, label, (t) => depts.find((x) => x.id === t.department_id)?.name ?? 'No department',
+        (id) => prof.get(id)?.full_name || prof.get(id)?.email || 'Former member', subtasksDone(pool ?? tasks), (t) => orgName.get(t.org_id!) ?? '')] : []),
     ],
   };
 }
 
-/** A plain task list (what a Tasks / My Tasks view shows) as Excel and PDF. */
-export function taskListWorkbook(title: string, who: string, tasks: Task[], label: Label, deptName: (t: Task) => string, personName: (id: string) => string): Blob {
-  const sheet = taskSheet(tasks, who, title, label, deptName, personName);
-  const all = stats(tasks);
-  const sum = banner(title, who, `${tasks.length} tasks`, 6);
-  const { charts, block } = stack(sum.rows);
-  block('Tasks by status', ['Status', 'Tasks'], STATUSES.map((s) => [{ v: label(s), s: STATUS_STYLE[s] }, tasks.filter((t) => t.status === s).length]),
-    (a, b) => ({ type: 'pie', title: 'Tasks by status', colors: STATUSES.map((s) => STATUS_COLOR[s]), cats: { col: 0, from: a, to: b }, at: { col: 3, row: a - 2, w: 8, h: 16 },
-      series: [{ name: 'Tasks', vals: { col: 1, from: a, to: b }, color: COLORS.green }] }));
-  block('Key numbers', ['Measure', 'Value'], [[{ v: 'Tasks', s: 'kpiLabel' }, { v: all.total, s: 'kpiNum' }], [{ v: 'Completed', s: 'kpiLabel' }, { v: all.done, s: 'kpiNum' }],
-    [{ v: 'Open', s: 'kpiLabel' }, { v: all.open, s: 'kpiNum' }], [{ v: 'Overdue', s: 'kpiLabel' }, { v: all.overdue, s: 'kpiNum' }], [{ v: 'Completion rate', s: 'kpiLabel' }, { v: all.rate, s: 'kpiPct' }]]);
-  return buildXlsx([{ name: 'Summary', rows: sum.rows, charts, merges: sum.merges, tall: [0], widths: [26, 12, 4, 12, 12, 12, 12, 12, 12, 12, 12] }, { ...sheet, name: 'Tasks' }]);
-}
-
-export function taskListPdf(title: string, who: string, tasks: Task[], label: Label, deptName: (t: Task) => string, personName: (id: string) => string): PdfReport {
-  const all = stats(tasks);
-  return {
-    title, subtitle: `${who} · ${tasks.length} tasks · generated ${stamp()}`,
-    kpis: [['Tasks', all.total], ['Completed', all.done], ['Open', all.open], ['Overdue', all.overdue]],
-    sections: [
-      { title: 'Tasks by status', bars: STATUSES.map((s) => ({ label: label(s), value: tasks.filter((t) => t.status === s).length, color: STATUS_COLOR[s] })) },
-      { title: 'Tasks', columns: ['Task', 'Status', 'Priority', 'Department', 'Assigned to', 'Due', 'Overdue'],
-        rows: tasks.map((t) => [t.title, label(t.status), label(t.priority), deptName(t), t.tt_task_assignees.map((a) => personName(a.user_id)).join(', ') || 'Unassigned', fmtDay(t.due_date), overdue(t) ? 'Yes' : 'No']) },
-    ],
-  };
+/** The full task list as a PDF table; long lists stop at 500 rows (the Excel export has every task). */
+function taskTable(tasks: Task[], label: Label, deptName: (t: Task) => string, personName: (id: string) => string, subs: (t: Task) => string, orgOf?: (t: Task) => string) {
+  const list = [...tasks].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const short = (s?: string | null) => (s && s.length > 140 ? `${s.slice(0, 139)}…` : s ?? '');
+  return { title: `All tasks (${list.length})`, columns: [...(orgOf ? ['Organization'] : []), 'Task', 'Description', 'Status', 'Priority', 'Department', 'Assigned to', 'Created by', 'Due', 'Subtasks done'],
+    rows: list.slice(0, 500).map((t) => [...(orgOf ? [orgOf(t)] : []), t.title, short(t.description), label(t.status), label(t.priority), deptName(t),
+      t.tt_task_assignees.map((a) => personName(a.user_id)).join(', ') || 'Unassigned', t.created_by ? personName(t.created_by) : '', fmtDay(t.due_date), subs(t)]),
+    note: list.length > 500 ? `Showing 500 of ${list.length}. The Excel export lists every task.` : undefined };
 }

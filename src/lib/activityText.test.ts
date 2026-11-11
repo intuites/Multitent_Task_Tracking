@@ -25,6 +25,8 @@ group('activity sentences', () => {
     expect(say({ entity_type: 'organization', action: 'settings_updated' })).toBe('updated organization settings');
     expect(say({ entity_type: 'organization', action: 'role_changed', detail: { user: 'u2', to: 'admin' } })).toBe('changed Priya Shah’s role to Admin');
     expect(say({ entity_type: 'organization', action: 'member_invited', detail: { role: 'employee' } })).toBe('invited a new employee');
+    expect(say({ entity_type: 'member', entity_id: 'u2', action: 'photo_changed_by_admin' })).toBe('changed Priya Shah’s profile photo');
+    expect(say({ entity_type: 'member', entity_id: 'u2', action: 'photo_removed_by_admin' })).toBe('removed Priya Shah’s profile photo');
     expect(say({ entity_type: 'project', action: 'deleted', detail: { name: 'Abdul' } })).toBe('deleted project “Abdul”');
     expect(say({ entity_type: 'client', action: 'created' })).toBe('added a client');
     expect(say({ entity_type: 'client', action: 'something_new' })).toBe('something new on a client');

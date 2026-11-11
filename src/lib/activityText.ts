@@ -50,6 +50,9 @@ export function describe(r: LogRow, person: (id?: string | null) => string, task
       case 'role_changed': return { verb: `changed ${who}’s role${d.to ? ` to ${label(d.to)}` : ''}`, category: 'people' };
       case 'member_deactivated': return { verb: `deactivated ${who}`, category: 'people' };
       case 'member_activated': return { verb: `reactivated ${who}`, category: 'people' };
+      case 'photo_changed_by_admin': return { verb: `changed ${who}’s profile photo`, category: 'people' };
+      case 'photo_removed_by_admin': return { verb: `removed ${who}’s profile photo`, category: 'people' };
+      case 'profile_edited_by_admin': return { verb: `edited ${who}’s details`, category: 'people' };
       default: return { verb: r.entity_type === 'member' ? `${lower(r.action)} for ${who}` : lower(r.action), category: r.entity_type === 'member' ? 'people' : 'org' };
     }
   }

@@ -232,7 +232,7 @@ export function Departments({ say }: { say: (m: Msg) => void }) {
     if (!(await ask({ title: `Delete ${d.name}?`, message: 'Its members stay in the organization and its tasks are kept without a department.', confirmLabel: 'Delete department', danger: true })).ok) return;
     run(supabase.from('tt_departments').delete().eq('id', d.id), `Deleted ${d.name}.`);
   }
-  const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? 'Former member';
+  const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? 'Removed member';
 
   return (<>
     <div className="card dept-new">

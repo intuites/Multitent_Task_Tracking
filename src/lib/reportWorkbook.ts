@@ -160,7 +160,7 @@ function taskSheet(tasks: Task[], who: string, filters: string, label: Label, de
 /** Organization report as a styled, multi-sheet Excel workbook with charts. */
 export function reportWorkbook(input: Input): Blob {
   const { org, filters, tasks, depts, people, label } = input, want = wants(input.parts);
-  const name = (id: string) => people.find((p) => p.id === id)?.name ?? 'Former member';
+  const name = (id: string) => people.find((p) => p.id === id)?.name ?? 'Removed member';
   return buildXlsx([
     ...(want('summary') ? [summarySheet(input, 'Summary')] : []),
     ...(want('people') ? [peopleSheet(people.map((p) => ({ p, s: stats(tasks.filter((t) => t.tt_task_assignees.some((a) => a.user_id === p.id))) })), org, filters, label)] : []),
@@ -200,7 +200,7 @@ function sheetNamer(taken: string[]) {
 export function platformWorkbook({ orgs, members, profiles, depts, tasks, label, filters: fl, parts, all: pool }: PlatformInput): Blob {
   const want = wants(parts), who = orgs.length === 1 ? orgs[0].name : `${orgs.length} organizations`, filters = fl ?? 'All tasks';
   const prof = new Map(profiles.map((p) => [p.user_id, p]));
-  const personName = (id: string) => prof.get(id)?.full_name || prof.get(id)?.email || 'Former member';
+  const personName = (id: string) => prof.get(id)?.full_name || prof.get(id)?.email || 'Removed member';
   const orgName = new Map(orgs.map((o) => [o.id, o.name]));
   const tasksOf = (id: string) => tasks.filter((t) => t.org_id === id);
   const peopleOf = (id: string): Person[] => members.filter((m) => m.org_id === id && m.active)
@@ -291,7 +291,7 @@ const stamp = () => new Date().toLocaleString('en-US', { dateStyle: 'medium', ti
 
 export function reportPdf({ org, filters, tasks, depts, people, label, parts, all: pool }: Input): PdfReport {
   const all = stats(tasks), want = wants(parts);
-  const name = (id: string) => people.find((p) => p.id === id)?.name ?? 'Former member';
+  const name = (id: string) => people.find((p) => p.id === id)?.name ?? 'Removed member';
   const ppl = people.map((p) => ({ p, s: stats(tasks.filter((t) => t.tt_task_assignees.some((a) => a.user_id === p.id))) })).filter((x) => x.s.total).sort((a, b) => b.s.done - a.s.done);
   const byDept = deptStats(tasks, depts);
   const late = tasks.filter(overdue).sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''));
@@ -342,7 +342,7 @@ export function platformPdf({ orgs, members, profiles, depts, tasks, label, filt
       ...(want('depts') ? [{ title: 'Departments', columns: ['Department', 'Organization', 'Tasks', 'Open', 'Completed', 'Overdue', 'Completion'],
         rows: orgs.flatMap((o) => deptStats(tasks.filter((t) => t.org_id === o.id), depts.filter((x) => x.org_id === o.id)).map((x) => [x.name, o.name, x.s.total, x.s.open, x.s.done, x.s.overdue, pc(x.s.rate)])) }] : []),
       ...(want('tasks') ? [taskTable(tasks, label, (t) => depts.find((x) => x.id === t.department_id)?.name ?? 'No department',
-        (id) => prof.get(id)?.full_name || prof.get(id)?.email || 'Former member', subtasksDone(pool ?? tasks), (t) => orgName.get(t.org_id!) ?? '')] : []),
+        (id) => prof.get(id)?.full_name || prof.get(id)?.email || 'Removed member', subtasksDone(pool ?? tasks), (t) => orgName.get(t.org_id!) ?? '')] : []),
     ],
   };
 }

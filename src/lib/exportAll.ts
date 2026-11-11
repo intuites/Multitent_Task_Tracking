@@ -19,7 +19,7 @@ export async function exportEverything(orgId: string, orgName: string, format: '
     supabase.from('tt_departments').select('id, name, created_at').eq('org_id', orgId).order('name').then((r) => r.data ?? []),
   ]);
   const name = new Map(people.map((p) => [p.id, p.name]));
-  const who = (u?: string | null) => (u ? name.get(u) ?? 'Former member' : '');
+  const who = (u?: string | null) => (u ? name.get(u) ?? 'Removed member' : '');
   const dept = new Map(depts.map((d: any) => [d.id, d.name]));
   const title = new Map(tasks.map((t: any) => [t.id, t.title]));
 

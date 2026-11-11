@@ -23,7 +23,7 @@ export function ActivityLogs() {
   const orgId = membership!.org_id;
   const zone = safeZone(membership!.time_zone);
   const { people, name: rawName, photo } = usePeople(orgId);
-  const name = (id?: string | null) => { const n = rawName(id); return n === 'Former member' ? 'a former member' : n; }; // reads inside a sentence
+  const name = (id?: string | null) => { const n = rawName(id); return n === 'Removed member' ? 'a removed member' : n; }; // reads inside a sentence
   const [rows, setRows] = useState<LogRow[] | null>(null);
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState('');

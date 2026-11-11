@@ -40,46 +40,49 @@ function table(s: PdfSection) {
   // the long text columns get the room; the rest size to their content
   const width: Record<string, string> = { Task: '19%', Description: '25%', 'Assigned to': '12%' };
   // a short table moves to the next page whole rather than leaving a row or two behind
-  return `<table${rows.length <= 15 ? ' class="keep"' : ''}><thead><tr>${s.columns!.map((c, i) => `<th${num[i] ? ' class="n"' : ''}${width[c] && (s.columns!.length > 8) ? ` style="width:${width[c]}"` : ''}>${esc(c)}</th>`).join('')}</tr></thead>
+  return `<table${rows.length <= 15 ? ' class="keep"' : ''}><thead><tr>${s.columns!.map((c, i) => `<th${num[i] ? ' class="n"' : ''}${width[c] && s.columns!.includes('Description') ? ` style="width:${width[c]}"` : ''}>${esc(c)}</th>`).join('')}</tr></thead>
     <tbody>${rows.map((row) => `<tr>${row.map((c, i) => `<td class="${cls(i, c)}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
 // text inside a CSS string (the page footer): no quotes, backslashes or line breaks
 const cssText = (v: string) => v.replace(/["\\\n\r]/g, ' ');
 
 export function reportHtml(r: PdfReport) {
-  // a table with many columns (the full task list) prints landscape so it isn't shrunk to fit
-  const wide = r.sections.some((s) => (s.columns?.length ?? 0) > 8);
-  const sections = r.sections.map((s) => `<section${(s.columns?.length ?? 0) > 8 ? ' class="wide"' : ''}><h2>${esc(s.title)}</h2>${s.bars?.length ? bars(s.bars) : ''}${s.stacked?.length ? stacked(s.stacked) : ''}
+  // a table with many columns (the full task list) prints on landscape pages so it isn't shrunk to fit; the rest stays portrait.
+  // When that table is all there is, every page is landscape (otherwise the title would sit alone on a portrait page).
+  const isWide = (s: PdfSection) => !!s.columns?.includes('Description');
+  const allWide = r.sections.length > 0 && r.sections.every(isWide);
+  const sections = r.sections.map((s) => `<section${isWide(s) ? ' class="wide"' : ''}><h2>${esc(s.title)}</h2>${s.bars?.length ? bars(s.bars) : ''}${s.stacked?.length ? stacked(s.stacked) : ''}
     ${s.columns && s.rows?.length ? table(s) : ''}
     ${s.rows && !s.rows.length ? '<p class="empty">Nothing to show.</p>' : ''}${s.note ? `<p class="note">${esc(s.note)}</p>` : ''}</section>`).join('');
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(r.title)}</title><style>
   :root { --a: ${brandColor()}; --b: color-mix(in oklab, var(--a) 72%, #000); --ink: #1f2a24; --mute: #5b6862; --line: #dfe6e2; }
   /* our own page footer; declaring margin boxes also stops the browser printing its date, title and URL on every page */
-  @page { size: A4${wide ? ' landscape' : ''}; margin: 13mm 12mm 15mm;
+  @page { size: A4${allWide ? ' landscape' : ''}; margin: 13mm 12mm 15mm;
     @top-left { content: ''; } @top-center { content: ''; } @top-right { content: ''; } @bottom-center { content: ''; }
-    @bottom-left { content: "Taskify  |  ${cssText(r.title)}"; font: 9pt "Segoe UI", system-ui, sans-serif; color: #7b8781; }
-    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 9pt "Segoe UI", system-ui, sans-serif; color: #7b8781; } }
+    @bottom-left { content: "Taskify  |  ${cssText(r.title)}"; font: 9.5pt "Segoe UI", system-ui, sans-serif; color: #7b8781; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 9.5pt "Segoe UI", system-ui, sans-serif; color: #7b8781; } }
+  @page wide { size: A4 landscape; } section.wide { page: wide; }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body { margin: 0; font: 10.5pt/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink); }
+  body { margin: 0; font: 11.5pt/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink); }
   header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding: 0 0 10pt; border-bottom: 3px solid var(--b); margin-bottom: 14pt; }
-  header h1 { margin: 0; font-size: 20pt; line-height: 1.2; color: var(--b); } header p { margin: 4pt 0 0; color: var(--mute); font-size: 10pt; }
+  header h1 { margin: 0; font-size: 22pt; line-height: 1.2; color: var(--b); } header p { margin: 4pt 0 0; color: var(--mute); font-size: 11pt; }
   .mark { flex: none; width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, color-mix(in oklab, var(--a) 90%, #000), color-mix(in oklab, var(--a) 55%, #000)); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 17px; }
   .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8pt; margin-bottom: 16pt; break-inside: avoid; }
   .kpi { padding: 9pt 11pt; border-radius: 9px; background: color-mix(in oklab, var(--a) 11%, #fff); }
-  .kpi small { display: block; color: var(--mute); font-size: 9.5pt; } .kpi b { display: block; margin-top: 2pt; font-size: 18pt; line-height: 1.15; color: var(--b); }
+  .kpi small { display: block; color: var(--mute); font-size: 10.5pt; } .kpi b { display: block; margin-top: 2pt; font-size: 20pt; line-height: 1.15; color: var(--b); }
   /* long sections flow onto the next page; a heading never sits alone at the bottom, a chart never splits */
-  section { margin: 0 0 16pt; } h2 { font-size: 13pt; color: var(--b); margin: 0 0 8pt; padding-bottom: 4pt; border-bottom: 1px solid var(--line); break-after: avoid; }
+  section { margin: 0 0 16pt; } h2 { font-size: 14.5pt; color: var(--b); margin: 0 0 8pt; padding-bottom: 4pt; border-bottom: 1px solid var(--line); break-after: avoid; }
   .bars { display: grid; gap: 5pt; margin: 4pt 0 10pt; break-inside: avoid; }
-  .bar { display: grid; grid-template-columns: minmax(130px, 24%) minmax(0, 1fr) 48px; gap: 10px; align-items: center; font-size: 10pt; }
+  .bar { display: grid; grid-template-columns: minmax(130px, 24%) minmax(0, 1fr) 48px; gap: 10px; align-items: center; font-size: 11pt; }
   .bl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .bar b { text-align: right; font-variant-numeric: tabular-nums; }
   .bt { height: 11pt; border-radius: 6px; background: #eef2ef; overflow: hidden; display: block; } .bt i { display: block; height: 100%; border-radius: 6px; }
   .bt.stack { display: flex; background: none; } .bt.stack i { border-radius: 0; } .bt.stack i:first-child { border-radius: 6px 0 0 6px; } .bt.stack i:last-child { border-radius: 0 6px 6px 0; }
-  .legend { display: flex; gap: 16px; color: var(--mute); font-size: 9.5pt; margin: 0 0 8pt; } .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
-  table { width: 100%; border-collapse: collapse; font-size: 10pt; } thead { display: table-header-group; } tr { break-inside: avoid; }
+  .legend { display: flex; gap: 16px; color: var(--mute); font-size: 10.5pt; margin: 0 0 8pt; } .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  table { width: 100%; border-collapse: collapse; font-size: 10.5pt; } thead { display: table-header-group; } tr { break-inside: avoid; }
   th { background: var(--b); color: #fff; text-align: left; font-weight: 600; padding: 5pt 7pt; line-height: 1.25; vertical-align: bottom; }
   td { padding: 3.5pt 7pt; line-height: 1.3; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: break-word; } tr:nth-child(even) td { background: #f5f8f6; }
   table.keep { break-inside: avoid; } .n { text-align: right; font-variant-numeric: tabular-nums; } td.s { white-space: nowrap; }
-  .wide table { font-size: 9pt; } .wide th, .wide td { padding-left: 4.5pt; padding-right: 4.5pt; } .wide td { padding-top: 3pt; padding-bottom: 3pt; }  .note, .empty { color: var(--mute); font-style: italic; margin: 6pt 0 0; }
+  .wide table { font-size: 9.5pt; } .wide th, .wide td { padding-left: 4.5pt; padding-right: 4.5pt; } .wide td { padding-top: 3pt; padding-bottom: 3pt; }  .note, .empty { color: var(--mute); font-style: italic; margin: 6pt 0 0; }
   </style></head><body>
   <header><div><h1>${esc(r.title)}</h1><p>${esc(r.subtitle)}</p></div><span class="mark">T</span></header>
   ${r.kpis.length ? `<div class="kpis">${r.kpis.map(([k, v]) => `<div class="kpi"><small>${esc(k)}</small><b>${esc(v)}</b></div>`).join('')}</div>` : ''}

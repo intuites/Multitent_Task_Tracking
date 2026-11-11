@@ -19,6 +19,8 @@ export default handler('GET', async (req) => {
 
   const started = Date.now();
   const db = admin();
+  // paused tasks whose date has come resume first, so today's reminders include them (migration 0048; an error before it)
+  const resumed = await db.rpc('tt_resume_paused_tasks', { p_limit: 200 });
   const rec = await db.rpc('tt_generate_recurrences', { p_limit: 100 });
   const rem = await db.rpc('tt_generate_reminders', { p_limit: 500 });
   const taskRem = await db.rpc('tt_generate_task_reminders', { p_limit: 500 });
@@ -31,6 +33,7 @@ export default handler('GET', async (req) => {
   // no new email starts after 45 s in all, so the run ends inside Vercel's 60 s limit and the rest go next run
   const emails = await sendQueued(db, queue ?? [], 45_000 - (Date.now() - started));
   return {
+    resumed: resumed.error ? `error: ${resumed.error.message}` : resumed.data,
     recurrences: rec.error ? `error: ${rec.error.message}` : rec.data,
     reminders: rem.error ? `error: ${rem.error.message}` : rem.data,
     task_reminders: taskRem.error ? `error: ${taskRem.error.message}` : taskRem.data,

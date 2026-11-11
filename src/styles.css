@@ -2456,3 +2456,14 @@ h2, h3, h4 { letter-spacing: -0.01em; }
 /* Profile > Appearance: this organization has its own look */
 .ml-scope { margin: 8px 0 0; padding: 8px 12px; border-radius: 10px; background: var(--brand-tint); font-size: var(--fs-sm); }
 .ml-scope .link { min-height: 0; padding: 0 2px; font-size: inherit; }
+
+/* paused tasks (migration 0048): an amber label, and a note on the task page with the resume date */
+.paused-tag { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 2px 9px; border-radius: var(--r-pill); vertical-align: middle;
+  background: var(--warn-bg); color: var(--warn-fg); box-shadow: inset 0 0 0 1px var(--warn-line); font-size: var(--fs-2xs); font-weight: var(--fw-semibold); white-space: nowrap; }
+.td-badges .paused-tag { margin-left: 0; font-size: var(--fs-xs); padding: 3px 10px; }
+.paused-note { display: flex; align-items: center; gap: 12px; margin: 0 0 var(--space-3); padding: 12px 14px; border-radius: 14px;
+  background: var(--warn-bg); color: var(--warn-fg); box-shadow: inset 0 0 0 1px var(--warn-line); }
+.paused-note > svg { flex: none; }
+.paused-note p { flex: 1; margin: 0; line-height: 1.5; }
+.paused-note .pill-btn { flex: none; }
+@media (max-width: 640px) { .paused-note { flex-wrap: wrap; } }

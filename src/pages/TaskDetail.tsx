@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Archive, ArchiveRestore, ArrowLeft, CalendarClock, Layers, Pencil, Plus, Send, Trash2, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, CalendarClock, Layers, PauseCircle, Pencil, PlayCircle, Plus, Send, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { pickName } from '../lib/names';
 import { useAuth } from '../lib/auth';
@@ -17,6 +17,9 @@ import { emailText, loadEmails, type ExtraEmail } from '../components/MemberEmai
 
 const CYCLES: [string, string][] = [['daily', 'Daily'], ['weekdays', 'Weekdays'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['semiannual', 'Every 6 months'], ['yearly', 'Yearly']];
 const toDateInput = (d?: string | null) => (d ? new Date(d).toISOString().slice(0, 10) : '');
+// a pause date is a calendar day ('2026-11-28'): read it as local midnight, not UTC, so it never shows the day before
+const pauseDay = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+const tomorrow = () => { const x = new Date(); x.setDate(x.getDate() + 1); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
 
 export default function TaskDetail() {
   const { id } = useParams();
@@ -168,12 +171,21 @@ export default function TaskDetail() {
     } catch (x) { setError((x as Error).message); }
   };
   const overdue = isOverdue(t);
+  // pausing: admins and platform admins only; the database checks it again and resumes the task on the date (migration 0048)
+  const paused: string | null = t.paused_until ?? null;
+  const canPause = canAssign && !t.archived_at && isOpen(t.status);
+  const pause = async () => {
+    const r = await ask({ title: 'Pause this task?', icon: <PauseCircle size={22} />, confirmLabel: 'Pause task', input: 'Resume on', inputType: 'date', inputMin: tomorrow(),
+      message: `Everyone assigned is told it's on hold and when it comes back. Reminders and due-date emails stop until then, and on that date it resumes by itself.` });
+    if (r.ok && r.value) run(async () => { await rpc('tt_pause_task', { p_task: id, p_until: r.value }); kickEmails(); });
+  };
+  const resume = () => run(async () => { await rpc('tt_resume_task', { p_task: id }); kickEmails(); });
   const dueIn = t.due_date ? Math.round((new Date(t.due_date).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 864e5) : null;
   const dueNote = dueIn === null ? 'No due date' : ['completed', 'completed_cycle'].includes(t.status) ? `Due ${fmt(t.due_date)}`
     : dueIn < 0 ? `Overdue by ${-dueIn} day${dueIn === -1 ? '' : 's'}` : dueIn === 0 ? 'Due today' : `Due in ${dueIn} day${dueIn === 1 ? '' : 's'}`;
   const timeline = [
     ...d.history.map((h: any) => ({ at: h.changed_at, who: h.changed_by, text: <>{h.from_status ? <>{label(h.from_status)} → </> : 'Created as '}<b>{label(h.to_status)}</b>{h.reason && <> · “{h.reason}”</>}</>, kind: 'status' })),
-    ...d.activity.filter((a: any) => a.action !== 'status_changed').map((a: any) => ({ at: a.created_at, who: a.actor_id, text: <>{label(a.action)}{a.detail?.title && <> · {a.detail.title}</>}</>, kind: 'act' })),
+    ...d.activity.filter((a: any) => a.action !== 'status_changed').map((a: any) => ({ at: a.created_at, who: a.actor_id, text: <>{a.action === 'paused' && a.detail?.until ? <>Paused until {pauseDay(a.detail.until)}</> : a.action === 'resumed' ? (a.detail?.auto ? 'Resumed on its date' : 'Resumed') : label(a.action)}{a.detail?.title && <> · {a.detail.title}</>}</>, kind: 'act' })),
   ].sort((a, b) => b.at.localeCompare(a.at));
 
   return (
@@ -183,10 +195,12 @@ export default function TaskDetail() {
 
       <header className={`card td-hero ${overdue ? 'is-overdue' : ''}`}>
         <div className="td-hero-top">
-          <div className="td-badges"><Badge v={t.status} /><span className={`prio prio-${t.priority}`}>{label(t.priority)} priority</span>{t.archived_at && <span className="prio">Archived</span>}</div>
+          <div className="td-badges"><Badge v={t.status} /><span className={`prio prio-${t.priority}`}>{label(t.priority)} priority</span>{t.archived_at && <span className="prio">Archived</span>}{paused && <span className="paused-tag"><PauseCircle size={13} aria-hidden="true" />Paused</span>}</div>
           {canAssign && (
             <div className="td-actions">
               <button type="button" className="pill-btn ghost" onClick={() => setEdit(!edit)}><Pencil size={15} aria-hidden="true" />{edit ? 'Cancel edit' : 'Edit'}</button>
+              {paused ? <button type="button" className="pill-btn ghost" onClick={resume}><PlayCircle size={15} aria-hidden="true" />Resume now</button>
+                : canPause && <button type="button" className="pill-btn ghost" onClick={pause}><PauseCircle size={15} aria-hidden="true" />Pause</button>}
               {t.archived_at
                 ? <button type="button" className="pill-btn ghost" onClick={() => run(() => must(supabase.from('tt_tasks').update({ archived_at: null }).eq('id', id!)))}><ArchiveRestore size={15} aria-hidden="true" />Restore</button>
                 : <button type="button" className="pill-btn ghost danger-text" onClick={() => confirmRun('Archive this task?', `“${t.title}” will be hidden from task lists, the calendar and the dashboard. You can restore it from the Archived view.`, 'Archive task',
@@ -200,6 +214,11 @@ export default function TaskDetail() {
           {t.departments && <span><Layers size={15} aria-hidden="true" />{t.departments.name}</span>}
         </div>
       </header>
+      {paused && (
+        <div className="paused-note" role="status"><PauseCircle size={18} aria-hidden="true" />
+          <p><b>Paused until {pauseDay(paused)}.</b> It resumes by itself that day and everyone assigned is told. Until then there are no reminders or due-date emails{canAssign ? '' : ', and only an admin can change its status'}.</p>
+          {canAssign && <button type="button" className="pill-btn ghost" onClick={resume}><PlayCircle size={15} aria-hidden="true" />Resume now</button>}
+        </div>)}
       {error && <p role="alert" className="form-alert">{error}</p>}
       {stale && <p role="status" className="note">Someone else just updated this task. It refreshes when you close the form you have open.</p>}
 
@@ -295,7 +314,7 @@ export default function TaskDetail() {
             <h3 id="tl-h">History</h3>
             {timeline.length === 0 ? <p className="muted">No changes recorded yet.</p> : (
               <ol className="timeline">{timeline.map((x, i) => (
-                <li key={i} className={x.kind}><span className="tl-dot" aria-hidden="true" /><p>{x.text}</p><small>{name(x.who)} · {fmtTime(x.at)}</small></li>))}</ol>)}
+                <li key={i} className={x.kind}><span className="tl-dot" aria-hidden="true" /><p>{x.text}</p><small>{x.who ? name(x.who) : 'Taskify'} · {fmtTime(x.at)}</small></li>))}</ol>)}
           </section>
         </div>
 
@@ -304,6 +323,8 @@ export default function TaskDetail() {
             <h3 id="st-h">Status</h3>
             {t.status === 'completed' && !canAssign ? (
               <p className="note">Completed permanently. This task is closed; only an admin can reopen it.</p>
+            ) : paused && !canAssign ? (
+              <p className="note">Paused until {pauseDay(paused)}. You can change the status again once it resumes.</p>
             ) : canStatus ? (
               <form className="stack" onSubmit={changeStatus}>
                 <select aria-label="New status" value={to} onChange={(e) => setToSel(e.target.value)} required disabled={!nexts.length}>{nexts.map((s) => <option key={s} value={s}>{s === 'completed' ? 'Completed permanently' : s === 'completed_cycle' ? 'Completed this cycle' : label(s)}</option>)}</select>

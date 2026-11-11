@@ -26,6 +26,9 @@ export function describe(r: LogRow, person: (id?: string | null) => string, task
       case 'approval_requested': return t('asked for approval on');
       case 'approval_approved': return t('approved');
       case 'approval_rejected': return t('sent back');
+      // a pause date is a calendar day: read it as local midnight so it never shows the day before
+      case 'paused': return t('paused', d.until ? ` until ${new Date(`${d.until}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : undefined);
+      case 'resumed': return t('resumed', d.auto ? ' on schedule' : undefined);
       case 'recurrence_set': {
         const unit = UNIT[d.frequency] ?? d.frequency;
         return t('set', unit ? ` to repeat every ${Number(d.every) > 1 ? `${d.every} ${unit}s` : unit}` : ' to repeat');

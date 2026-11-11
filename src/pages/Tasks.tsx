@@ -177,7 +177,7 @@ export default function Tasks({ mode }: { mode: Mode }) {
                       {kids.length > 0 && <button type="button" className="sub-count" onClick={() => toggle(t.id)} title="Subtasks done"><ListTree size={13} aria-hidden="true" />{done}/{kids.length}</button>}
                     </span>
                   </td>
-                  <td><Badge v={t.status} /></td><td className="col-opt">{label(t.priority)}</td>
+                  <td><Badge v={t.status} />{t.paused_until && <span className="paused-tag" title={`Paused until ${new Date(`${t.paused_until}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}>Paused</span>}</td><td className="col-opt">{label(t.priority)}</td>
                   <td>{names(t)}</td><td className="col-opt">{t.departments?.name ?? '—'}</td>
                   <td><Due t={t} /></td>
                 </tr>

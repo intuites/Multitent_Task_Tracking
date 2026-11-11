@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlarmClock, AtSign, BadgeCheck, BellOff, CalendarClock, Check, CheckCheck, Eye, MessageSquare, RefreshCw, UserPlus,
+  AlarmClock, AtSign, BadgeCheck, BellOff, CalendarClock, Check, CheckCheck, Eye, MessageSquare, PauseCircle, PlayCircle, RefreshCw, UserPlus,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -21,6 +21,8 @@ const TYPES: Record<string, TypeInfo> = {
   task_completed: { label: 'Task completed', hint: 'A task you lead, manage or follow is done', icon: BadgeCheck, tone: 'ok' },
   task_comment: { label: 'New comments', hint: 'Replies on your tasks', icon: MessageSquare, tone: 'brand' },
   task_mention: { label: 'Mentions', hint: 'Someone @mentions you in a comment', icon: AtSign, tone: 'brand' },
+  task_paused: { label: 'Task paused', hint: 'An admin puts your task on hold, with the date it resumes', icon: PauseCircle, tone: 'warn' },
+  task_resumed: { label: 'Task resumed', hint: 'A paused task of yours is active again', icon: PlayCircle, tone: 'ok' },
   task_reminder: { label: 'Reminders', hint: 'The reminders set on your tasks', icon: AlarmClock, tone: 'warn' },
   review_requested: { label: 'Review requests', hint: 'A task is ready for review', icon: Eye, tone: 'brand' },
   deadline_upcoming: { label: 'Due soon', hint: 'Within the next 24 hours', icon: CalendarClock, tone: 'warn' },
@@ -32,7 +34,7 @@ const TYPES: Record<string, TypeInfo> = {
 };
 const GROUPS: [string, string[]][] = [
   // only what Taskify actually sends; each switch is read by the database before anything is queued (tt_notify)
-  ['Tasks', ['task_assigned', 'task_assignment_changed', 'task_status', 'task_completed', 'task_comment', 'task_mention']],
+  ['Tasks', ['task_assigned', 'task_assignment_changed', 'task_status', 'task_completed', 'task_comment', 'task_mention', 'task_paused', 'task_resumed']],
   ['Deadlines', ['task_reminder', 'deadline_upcoming', 'due_today', 'task_overdue']],
 ];
 const fallback: TypeInfo = { label: 'Update', hint: '', icon: RefreshCw, tone: 'brand' };

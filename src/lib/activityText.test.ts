@@ -14,6 +14,10 @@ group('activity sentences', () => {
     expect(say({ action: 'recurrence_set', detail: { every: 10, frequency: 'daily' } })).toBe('set Fix login to repeat every 10 days');
     expect(say({ action: 'recurrence_set', detail: { every: 1, frequency: 'weekly' } })).toBe('set Fix login to repeat every week');
     expect(say({ entity_id: 'gone', action: 'created' })).toBe('created a task');
+    // the pause date is a calendar day, so it reads the same in every time zone
+    expect(say({ action: 'paused', detail: { until: '2026-11-28' } })).toBe('paused Fix login until Nov 28, 2026');
+    expect(say({ action: 'resumed', detail: { auto: true } })).toBe('resumed Fix login on schedule');
+    expect(say({ action: 'resumed', detail: {} })).toBe('resumed Fix login');
     expect(describe(row({}), person, title).target?.to).toBe('/tasks/t1');
     expect(describe(row({ entity_id: 'gone' }), person, title).target?.to).toBe(''); // deleted task: no link
   });

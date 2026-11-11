@@ -3,7 +3,8 @@ import { AlertTriangle, HelpCircle } from 'lucide-react';
 
 /** choices: pick one of these (the first starts selected) before confirming; the result's value is the chosen one. */
 interface Choice { value: string; label: string; hint?: string; icon?: ReactNode }
-interface Opts { title?: string; message: string; confirmLabel?: string; input?: string; danger?: boolean; icon?: ReactNode; choices?: Choice[] }
+/** input: a labelled field to fill in; inputType 'date' (with inputMin) asks for a date instead of text. */
+interface Opts { title?: string; message: string; confirmLabel?: string; input?: string; inputType?: 'text' | 'date'; inputMin?: string; danger?: boolean; icon?: ReactNode; choices?: Choice[] }
 interface Result { ok: boolean; value: string }
 type Pending = Opts & { resolve: (r: Result) => void };
 
@@ -25,7 +26,7 @@ export function DialogHost() {
           <span className={p.danger ? 'dlg-ico danger' : 'dlg-ico'} aria-hidden="true">{p.icon ?? (p.danger ? <AlertTriangle size={22} /> : <HelpCircle size={22} />)}</span>
           <h2 id="dlg-title">{p.title ?? 'Please confirm'}</h2>
           <p className="dlg-msg">{p.message}</p>
-          {p.input && <label>{p.input}<input name="v" autoFocus /></label>}
+          {p.input && <label>{p.input}<input name="v" type={p.inputType ?? 'text'} min={p.inputMin} required={p.inputType === 'date'} autoFocus /></label>}
           {p.choices && (
             <fieldset className="dlg-choices">
               <legend className="sr-only">{p.title ?? 'Choose one'}</legend>

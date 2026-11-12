@@ -446,3 +446,7 @@
 :where(.ss-stage :is(.ss-fly__lift, .ss-expand__face)) > :is(svg, img):not(html):not(body):not(head) {
   max-width: 100%;
 }
+
+/* Taskify addition: measure.ts flattens 3D tilts around a stage while it measures (unlayered, so it wins) */
+[data-ss-still] { transition: none !important; }
+[data-ss-flat] { transform: none !important; translate: none !important; rotate: none !important; scale: none !important; }

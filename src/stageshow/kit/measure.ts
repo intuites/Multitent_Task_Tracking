@@ -33,9 +33,35 @@ export const contains = (outer: Rect, inner: Rect) =>
 // aims true
 export const drawnScale = (root: HTMLElement | null, fallback: number) => (root?.offsetWidth && root.getBoundingClientRect().width / root.offsetWidth) || fallback || 1
 
+// Taskify addition: a stage under a 3D tilt (any ancestor marked data-ss-tilt) would measure its
+// projected boxes. Its tilts are switched off (transform and transition, so nothing animates) for the
+// rest of this task's synchronous measuring, and put back in a microtask, before the next paint:
+// transform first with a style flush, then the transition, so putting it back starts no transition.
+const flat = new Set<HTMLElement>()
+function flatten(root: HTMLElement) {
+  let found = false
+  for (let a = root.parentElement; a; a = a.parentElement) {
+    if (!a.hasAttribute('data-ss-tilt') || flat.has(a)) continue
+    a.setAttribute('data-ss-still', '')
+    a.setAttribute('data-ss-flat', '')
+    flat.add(a)
+    found = true
+  }
+  if (found && flat.size) queueMicrotask(unflatten)
+}
+function unflatten() {
+  if (!flat.size) return
+  const all = [...flat]
+  flat.clear()
+  all.forEach((a) => a.removeAttribute('data-ss-flat'))
+  void all[0].offsetWidth
+  all.forEach((a) => a.removeAttribute('data-ss-still'))
+}
+
 // Reuse one stage read while measuring a collection of targets. A fresh
 // snapshot on each pass still includes parent Camera/Phone transforms.
 export function stageSpace(root: HTMLElement, fallback: number) {
+  flatten(root)
   const bounds = root.getBoundingClientRect()
   return { left: bounds.left, top: bounds.top, scale: (root.offsetWidth && bounds.width / root.offsetWidth) || fallback || 1, borderX: root.clientLeft, borderY: root.clientTop }
 }

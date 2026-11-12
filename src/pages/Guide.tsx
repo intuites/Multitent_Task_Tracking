@@ -1,73 +1,39 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, BarChart3, BellRing, Building2, CalendarDays, CopyPlus, Layers, LayoutDashboard, ListChecks, RotateCcw, ShieldCheck, type LucideIcon,
+  ArrowRight, BarChart3, Building2, CalendarDays, CopyPlus, Layers, LayoutDashboard, ListChecks, RotateCcw, ShieldCheck, type LucideIcon,
 } from 'lucide-react';
 import { LiquidBg, reducedMotion } from '../components/Liquid';
 import { ThemeToggle } from '../components/Frame';
 import GuideHeroDemo from '../components/GuideHeroDemo';
+import { DEMOS } from '../components/GuideDemos';
 
-interface Feature { id: string; icon: LucideIcon; name: string; line: string; steps: string[]; visual: ReactNode }
+interface Feature { id: string; icon: LucideIcon; name: string; line: string; steps: string[] }
 const css = (v: Record<string, string | number>) => v as React.CSSProperties;
-
-const Flow = () => (
-  <div className="gv-flow">
-    {['Not yet started', 'Started', 'Pending', 'Completed this cycle', 'Completed'].map((s, i) => <span key={s} className="gv-step" style={css({ '--i': i })}>{s}</span>)}
-    <span className="gv-side">Any step can change to any other.</span>
-  </div>
-);
-const DashMock = () => (
-  <div className="gv-dash">
-    <div className="gv-kpi feat"><small>Open tasks</small><b>24</b></div><div className="gv-kpi"><small>Overdue</small><b>3</b></div>
-    <div className="gv-bars">{[30, 55, 40, 80, 62, 20, 12].map((h, i) => <i key={i} style={css({ height: `${h}%`, '--i': i })} />)}</div>
-  </div>
-);
-const CycleMock = () => (
-  <div className="gv-cycle">
-    <div className="gv-orbit"><span className="gv-orbit-ring" /><RotateCcw size={26} /><b>Monthly</b><small>Reopens on the 1st</small></div>
-    <div className="gv-chips">{['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Every 6 months', 'Yearly'].map((c, i) => <span key={c} style={css({ '--i': i })}>{c}</span>)}</div>
-    <div className="gv-bell"><BellRing size={16} />Reminder · Every weekday at 9:00 AM ET</div>
-  </div>
-);
-const ListMock = ({ rows }: { rows: [string, string][] }) => (
-  <div className="gv-list">{rows.map(([a, b], i) => <div key={a} className="gv-row" style={css({ '--i': i })}><b>{a}</b><span>{b}</span></div>)}</div>
-);
-const CalMock = () => (
-  <div className="gv-cal">{Array.from({ length: 21 }, (_, i) => <span key={i} className={i === 9 ? 'today' : [4, 12, 17].includes(i) ? 'has' : ''} style={css({ '--i': i })}>{i + 1}</span>)}</div>
-);
-const AssignMock = () => (
-  <div className="gv-stack">
-    <div className="gv-timeline"><span>Organization</span><span>Department</span><span>Member</span></div>
-    <ListMock rows={[['Finance', '4 members'], ['Operations', '7 members'], ['Sales', '5 members']]} />
-  </div>
-);
 
 const FEATURES: Feature[] = [
   { id: 'organizations', icon: Building2, name: 'Organizations', line: 'Whoever creates an organization is its admin. Nobody outside it can see its data.',
-    steps: ['Create your organization; you become its admin.', 'Invite members as admin or employee.', 'Another organization never sees your people, departments or tasks.'],
-    visual: <ListMock rows={[['Acme Corp', 'Only Acme’s members'], ['Northwind', 'Only Northwind’s members'], ['Globex', 'Only Globex’s members']]} /> },
+    steps: ['Create your organization; you become its admin.', 'Invite members as admin or employee.', 'Another organization never sees your people, departments or tasks.'] },
   { id: 'departments', icon: Layers, name: 'Departments', line: 'Group your members into departments, then assign work in three picks.',
-    steps: ['Open Employees → Departments and choose the organization.', 'Add departments and the members in each.', 'When creating a task: organization, department, member.'], visual: <AssignMock /> },
+    steps: ['Open Employees → Departments and choose the organization.', 'Add departments and the members in each.', 'When creating a task: organization, department, member.'] },
   { id: 'dashboard', icon: LayoutDashboard, name: 'Dashboard', line: 'See what needs attention today the moment you sign in.',
-    steps: ['Counts for open, overdue, due-today and pending work.', 'Click any card to open that list of tasks.'], visual: <DashMock /> },
+    steps: ['Counts for open, overdue, due-today and pending work.', 'Switch the period: this week, this month or all time.', 'Click any card to open that list of tasks.'] },
   { id: 'tasks', icon: ListChecks, name: 'Tasks and subtasks', line: 'Every task follows one clear path, and big work splits into subtasks.',
-    steps: ['Pick the organization, then the department, then a member of that department.', 'Add subtasks, each with its own owner and date.', 'Mark it Future if the work starts later.'], visual: <Flow /> },
+    steps: ['Pick the organization, then the department, then a member of that department.', 'Add subtasks, each with its own owner and date.', 'Mark it Future if the work starts later.'] },
   { id: 'reminders', icon: RotateCcw, name: 'Reminders and cycles', line: 'Recurring work reopens by itself, and reminders keep it moving.',
-    steps: ['Set a reminder: once, daily, weekly, monthly, quarterly, every 6 months or yearly.', 'Mark it Completed this cycle; it reopens on the next cycle day.', 'Completed permanently stops every reminder.'], visual: <CycleMock /> },
+    steps: ['Set a reminder: once, daily, weekly, monthly, quarterly, every 6 months or yearly.', 'Mark it Completed this cycle; it reopens on the next cycle day.', 'Completed permanently stops every reminder.'] },
   { id: 'templates', icon: CopyPlus, name: 'Task templates', line: 'Set up repeat work once, then create it in one click.',
-    steps: ['Save the title, departments, assignee and subtasks as a template.', 'Use it to create the task and all its subtasks together.'],
-    visual: <ListMock rows={[['Client onboarding', '5 subtasks'], ['Monthly invoice run', '3 subtasks'], ['New hire setup', '4 subtasks']]} /> },
+    steps: ['Save the title, departments, assignee and subtasks as a template.', 'Use it to create the task and all its subtasks together.'] },
   { id: 'calendar', icon: CalendarDays, name: 'Calendar', line: 'Deadlines and start dates by month.',
-    steps: ['Filter by person, priority or status.', 'Click a day to see its plan.'], visual: <CalMock /> },
+    steps: ['Filter by person, priority or status.', 'Click a day to see its plan.'] },
   { id: 'roles', icon: ShieldCheck, name: 'Roles', line: 'Two roles inside every organization, plus the platform team outside them.',
-    steps: ['Admins manage members, departments and settings, and create and assign tasks to anyone.', 'Employees work on the tasks given to them and update their status.', 'Platform admins sit outside every organization and look after all of them.'],
-    visual: <ListMock rows={[['Admin', 'People, departments, tasks, settings'], ['Employee', 'Works on their tasks'], ['Platform admin', 'Looks after every organization']]} /> },
+    steps: ['Admins manage members, departments and settings, and create and assign tasks to anyone.', 'Employees work on the tasks given to them and update their status.', 'Platform admins sit outside every organization and look after all of them.'] },
   { id: 'reports', icon: BarChart3, name: 'Reports', line: 'Completion, workload, departments and overdue work, ready to export.',
-    steps: ['Pick a report and filter it.', 'Export it to Excel (with charts) or PDF.'], visual: <DashMock /> },
+    steps: ['Pick a report and filter it.', 'Export it to Excel (with charts) or PDF.'] },
 ];
 const HEADLINE = 'Assign work. Track it. Get it done on time.';
 
-/** Pointer-driven tilt / spotlight / parallax, written as CSS variables once per frame. Skipped on touch and reduced motion. */
+/** Pointer-driven tilt, written as CSS variables once per frame on the nearest [data-fx]. Skipped on touch and reduced motion. */
 function usePointerFx(root: React.RefObject<HTMLElement>) {
   useEffect(() => {
     const el = root.current;
@@ -75,14 +41,11 @@ function usePointerFx(root: React.RefObject<HTMLElement>) {
     let raf = 0, last: PointerEvent | null = null;
     const frame = () => {
       raf = 0;
-      const e = last!, t = e.target as Element;
-      const hit = t.closest<HTMLElement>('[data-fx]');
+      const e = last!, hit = (e.target as Element).closest<HTMLElement>('[data-fx]');
       if (!hit) return;
-      const r = hit.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
-      hit.style.setProperty('--mx', `${(x * 100).toFixed(1)}%`);
-      hit.style.setProperty('--my', `${(y * 100).toFixed(1)}%`);
-      hit.style.setProperty('--px', (x - 0.5).toFixed(3));
-      hit.style.setProperty('--py', (y - 0.5).toFixed(3));
+      const r = hit.getBoundingClientRect();
+      hit.style.setProperty('--px', ((e.clientX - r.left) / r.width - 0.5).toFixed(3));
+      hit.style.setProperty('--py', ((e.clientY - r.top) / r.height - 0.5).toFixed(3));
     };
     const move = (e: PointerEvent) => { last = e; if (!raf) raf = requestAnimationFrame(frame); };
     const out = (e: PointerEvent) => {
@@ -99,13 +62,19 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
   const rootRef = useRef<HTMLDivElement>(null);
   usePointerFx(rootRef);
   const [active, setActive] = useState(FEATURES[0].id);
-  // highlight the feature currently in view
+  // the feature in view drives the pinned 3D screen
   useEffect(() => {
     const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && setActive(e.target.id)), { rootMargin: '-45% 0px -50% 0px' });
     FEATURES.forEach((f) => { const el = document.getElementById(f.id); if (el) io.observe(el); });
     return () => io.disconnect();
   }, []);
-  // slide the liquid pill under the active link and keep it in view inside the scrolling bar
+  // phones show each demo inline instead of the pinned screen
+  const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 900px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)'), on = () => setNarrow(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
   const navRef = useRef<HTMLElement>(null);
   const [ind, setInd] = useState({ x: 0, w: 0 });
   useLayoutEffect(() => {
@@ -115,6 +84,8 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
     nav.scrollTo({ left: btn.offsetLeft - nav.clientWidth / 2 + btn.offsetWidth / 2, behavior: 'smooth' });
   }, [active]);
   const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const idx = FEATURES.findIndex((f) => f.id === active);
+  const Active = DEMOS[active];
 
   return (
     <div ref={rootRef} className={standalone ? 'guide standalone' : 'guide'}>
@@ -126,7 +97,7 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
         </header>
       )}
 
-      <section className="g-hero" data-fx>
+      <section className="g-hero" data-fx data-ss-tilt>
         <LiquidBg tone="deep" />
         <span className="g-orb" aria-hidden="true" />
         <div className="g-hero-copy">
@@ -138,7 +109,13 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
             {standalone ? <a href="/" className="pill-btn g-ghost">Sign in</a> : <Link to="/" className="pill-btn g-ghost">Back to dashboard</Link>}
           </div>
         </div>
-        <div className="g-hero-art" aria-hidden="true"><GuideHeroDemo /></div>
+        <div className="g-hero-art" aria-hidden="true">
+          {/* the demo on a tilted plane, with two screens stacked behind it in depth */}
+          <div className="g-plane" data-ss-tilt>
+            <span className="g-depth d2" /><span className="g-depth d1" />
+            <GuideHeroDemo />
+          </div>
+        </div>
       </section>
 
       <nav className="g-nav" aria-label="Features" ref={navRef}>
@@ -151,33 +128,61 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
         <span className="g-progress" aria-hidden="true" />
       </nav>
 
-      {/* scrollytelling: explanations scroll on the left, one pinned 3D app window on the right switches to the feature being read */}
+      {/* scrollytelling: explanations scroll on the left; one pinned 3D screen on the right plays the feature being read */}
       <section className="g-story" aria-label="Features in detail">
         <div className="g-story-steps">
-          {FEATURES.map((f) => (
-            <article key={f.id} id={f.id} className={`g-step ${active === f.id ? 'on' : ''}`} aria-labelledby={`${f.id}-h`}>
-              <span className="g-ico"><f.icon size={22} aria-hidden="true" /></span>
-              <h2 id={`${f.id}-h`}>{f.name}</h2>
-              <p className="g-line">{f.line}</p>
-              <ol className="g-steps">{f.steps.map((s) => <li key={s}>{s}</li>)}</ol>
-              <div className="g-step-visual" aria-hidden="true"><div className="gv">{f.visual}</div></div>
-            </article>
-          ))}
+          {FEATURES.map((f, i) => {
+            const Demo = DEMOS[f.id];
+            return (
+              <article key={f.id} id={f.id} className={`g-step ${active === f.id ? 'on' : ''}`} aria-labelledby={`${f.id}-h`}>
+                <span className="g-num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+                <span className="g-ico"><f.icon size={22} aria-hidden="true" /></span>
+                <h2 id={`${f.id}-h`}>{f.name}</h2>
+                <p className="g-line">{f.line}</p>
+                <ol className="g-steps">{f.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+                {narrow && <div className="g-step-visual" aria-hidden="true"><div className="g-card3d" data-ss-tilt data-fx><Demo /></div></div>}
+              </article>
+            );
+          })}
         </div>
-        <div className="g-stage" aria-hidden="true">
-          <div className="g-window" data-fx>
-            <div className="g-win-bar"><i /><i /><i /><span key={active} className="g-win-title">{FEATURES.find((f) => f.id === active)?.name}</span></div>
-            <div className="g-win-body">
-              {FEATURES.filter((f) => f.id === active).map((f) => <div key={f.id} className="g-screen gv">{f.visual}<span className="gv-sheen" /></div>)}
+        {!narrow && (
+          <div className="g-stage" aria-hidden="true">
+            <div className="g-device" data-fx data-ss-tilt>
+              <span className="g-depth d2" /><span className="g-depth d1" />
+              <div key={active} className="g-flip" data-ss-tilt><Active /></div>
             </div>
+            <div className="g-dots"><span className="g-count">{String(idx + 1).padStart(2, '0')} / {String(FEATURES.length).padStart(2, '0')}</span>{FEATURES.map((f) => <span key={f.id} className={active === f.id ? 'on' : ''} />)}</div>
           </div>
-          <div className="g-dots">{FEATURES.map((f) => <span key={f.id} className={active === f.id ? 'on' : ''} />)}</div>
+        )}
+      </section>
+
+      {/* every feature on one turning ring */}
+      <section className="g-ring-wrap" aria-labelledby="g-ring-h">
+        <h2 id="g-ring-h">Everything in one place</h2>
+        <p className="g-line">Nine parts of Taskify, one sign-in. Pick any to jump to it.</p>
+        <div className="g-ring-scene">
+          <ul className="g-ring" style={css({ '--n': FEATURES.length })}>
+            {FEATURES.map((f, i) => (
+              <li key={f.id} style={css({ '--i': i })}>
+                <button type="button" className="g-ring-card" onClick={() => go(f.id)}>
+                  <span className="g-ico"><f.icon size={20} aria-hidden="true" /></span>
+                  <b>{f.name}</b>
+                  <span>{f.line}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
       <section className="g-end" data-fx>
         <LiquidBg />
         <span className="g-orb end" aria-hidden="true" />
+        <div className="g-stack" aria-hidden="true">
+          {([['Quarterly VAT filing', 'Started', 'b-started'], ['Monthly invoice run', 'Completed', 'b-completed'], ['Client onboarding', 'Not yet started', '']] as const).map(([t, st, b], i) => (
+            <span key={t} className="g-stack-card" style={css({ '--i': i })}><b>{t}</b><span className={`badge ${b}`}>{st}</span></span>
+          ))}
+        </div>
         <h2>Ready when you are.</h2>
         {standalone ? <a href="/" className="pill-btn light g-shine">Sign in to Taskify</a> : <Link to="/" className="pill-btn light g-shine">Go to dashboard</Link>}
       </section>

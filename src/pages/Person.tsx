@@ -1,8 +1,9 @@
 import TabThumb from '../components/TabThumb';
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  Activity, ArrowLeft, Briefcase, Building, Camera, CheckCircle2, Clock, Gauge, ListChecks, Mail, MapPin, Palette, Phone, ShieldCheck, Trash2, UserMinus, X,
+  Activity, AlertTriangle, ArrowLeft, Building, Camera, CheckCircle2, ChevronDown, Clock, Gauge, ListChecks, Mail, MapPin, Palette, Pencil, Phone, Plus, ShieldCheck,
+  Trash2, UserMinus, X,
 } from 'lucide-react';
 import { deleteAccount } from '../lib/deleteAccount';
 import { deletePhotoFile, photoProblem, uploadPhoto } from '../lib/photo';
@@ -17,12 +18,16 @@ import { Avatar } from '../components/Frame';
 import { CountUp, LiquidBg } from '../components/Liquid';
 import { PageSkeleton } from '../components/Skeleton';
 import { loadEmails, MemberEmails, type ExtraEmail } from '../components/MemberEmails';
+import { describe, type LogRow } from '../lib/activityText';
+import { Toggle } from '../stageshow/kit/controls';
+import { Toast } from '../stageshow/kit/parts';
+import './person.css';
 
-type Tab = 'overview' | 'tasks' | 'details' | 'access' | 'look' | 'activity';
+type Tab = 'overview' | 'tasks' | 'look' | 'activity';
 const DONE = ['completed', 'completed_cycle'];
 const isDone = (s: string) => DONE.includes(s);
 
-/** Full profile of one member, for admins. */
+/** One member's page, for admins: everything about them on Overview, and every change made where it's read. */
 export default function PersonPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -30,21 +35,26 @@ export default function PersonPage() {
   const orgId = membership!.org_id, myRole = membership!.role, uid = session!.user.id;
   const admin = can(myRole, 'members:manage');
   const [person, setPerson] = useState<Person | null | undefined>(undefined);
+  const [people, setPeople] = useState<Person[]>([]);
   const [pr, setPr] = useState<any>({});
   const [tasks, setTasks] = useState<any[]>([]);
   const [dm, setDm] = useState<string[]>([]);
   const [creator, setCreator] = useState<string | null>(null);
   const [depts, setDepts] = useState<any[]>([]);
-  const [acts, setActs] = useState<any[]>([]);
+  const [acts, setActs] = useState<LogRow[]>([]);
   const [tab, setTab] = useState<Tab>('overview');
   const [taskFilter, setTaskFilter] = useState<'open' | 'done' | 'overdue' | 'all'>('open');
-  const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [toast, setToast] = useState<{ kind: 'ok' | 'error'; text: string; n: number } | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState('');
   const [extras, setExtras] = useState<ExtraEmail[]>([]);
   const [sentTo, setSentTo] = useState(''); // '' = every address, 'primary', or an extra address
+  const detailsRef = useRef<HTMLElement>(null);
 
   const load = useCallback(async () => {
     const ppl = await loadPeople(orgId, true);
+    setPeople(ppl);
     setPerson(ppl.find((p) => p.id === id) ?? null);
     // the address column only exists after migration 0035, which is also when anyone can have extra addresses
     const ex = (await loadEmails(orgId, [id!])).get(id!) ?? [];
@@ -59,9 +69,11 @@ export default function PersonPage() {
       supabase.from('tt_organizations').select('*').eq('id', orgId).maybeSingle(),
     ]);
     setCreator(o.data?.created_by ?? null);
-    setPr(p.data ?? {}); setTasks(t.data ?? []); setDm((m.data ?? []).map((x: any) => x.department_id)); setDepts(d.data ?? []); setActs(a.data ?? []);
+    setPr(p.data ?? {}); setTasks(t.data ?? []); setDm((m.data ?? []).map((x: any) => x.department_id)); setDepts(d.data ?? []); setActs((a.data ?? []) as LogRow[]);
   }, [orgId, id]);
   useEffect(() => { load(); }, [load]);
+  // a confirmation slides up and leaves by itself; errors stay until the next action
+  useEffect(() => { if (toast?.kind !== 'ok') return; const t = setTimeout(() => setToast(null), 3600); return () => clearTimeout(t); }, [toast]);
 
   const stats = useMemo(() => {
     const now = Date.now(), month = now - 30 * 864e5;
@@ -90,10 +102,12 @@ export default function PersonPage() {
   const canEdit = admin;
   // the organization's creator always stays an active admin (enforced in the database too)
   const isCreator = person.id === creator;
+  const lockedAccess = isMe || isCreator;
   const myDepts = depts.filter((d) => dm.includes(d.id));
-  const ok = (text: string) => { setMsg({ kind: 'ok', text }); load(); };
-  const fail = (text: string) => setMsg({ kind: 'error', text });
+  const ok = (text: string) => { setToast({ kind: 'ok', text, n: Date.now() }); load(); };
+  const fail = (text: string) => setToast({ kind: 'error', text, n: Date.now() });
   const log = (action: string, detail: object) => supabase.from('tt_activity_logs').insert({ org_id: orgId, actor_id: uid, entity_type: 'member', entity_id: person.id, action, detail });
+  const first = person.name.split(' ')[0];
 
   // an admin adds, changes or removes this person's photo (file: null removes it). The database decides who may (migration 0049).
   const setPhoto = async (file: File | null) => {
@@ -105,7 +119,7 @@ export default function PersonPage() {
       const url = file ? await uploadPhoto(person.id, file) : null;
       try { await rpc('tt_admin_set_photo', { p_org: orgId, p_user: person.id, p_url: url }); } catch (x) { await deletePhotoFile(url); throw x; }
       await deletePhotoFile(old);
-      ok(file ? `Photo updated. ${person.name} and everyone else see it in Taskify.` : 'Photo removed. Their initials show instead.');
+      ok(file ? 'Photo updated everywhere in Taskify.' : 'Photo removed. Their initials show instead.');
     } catch (x) {
       const m = (x as Error).message;
       fail(/row-level security|tt_admin_set_photo|schema cache/i.test(m)
@@ -116,30 +130,37 @@ export default function PersonPage() {
   const saveDetails = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget), g = (k: string) => String(f.get(k) ?? '');
+    setBusy('details');
     try {
       await rpc('tt_admin_update_profile', { p_org: orgId, p_user: person.id, p_full_name: g('full_name'), p_job_title: g('job_title'), p_department: g('department'), p_phone: g('phone'), p_location: g('location') });
-      ok('Details saved.');
+      setEditing(false); ok('Details saved.');
     } catch (x) { fail(/function/i.test((x as Error).message) ? 'Editing other people needs database update 0016.' : (x as Error).message); }
+    setBusy('');
   };
   const setRole = async (r: string) => {
+    if (r === person.role) return;
+    setBusy('role');
     const { error } = await supabase.from('tt_org_members').update({ role: r }).eq('org_id', orgId).eq('user_id', person.id);
+    setBusy('');
     if (error) return fail(error.message);
     await log('role_changed', { user: person.id, to: r }); ok(`${person.name} is now ${label(r)}.`);
   };
   const setActive = async (on: boolean) => {
     if (!on && !(await ask({ title: `Deactivate ${person.name}?`, message: 'They lose access immediately. Their tasks stay in place.', confirmLabel: 'Deactivate', danger: true })).ok) return;
+    setBusy('active');
     const { error } = await supabase.from('tt_org_members').update({ active: on }).eq('org_id', orgId).eq('user_id', person.id);
+    setBusy('');
     if (error) return fail(error.message);
     await log(on ? 'member_activated' : 'member_deactivated', { user: person.id }); ok(on ? 'Access restored.' : 'Access removed.');
   };
   const joinDept = async (deptId: string) => {
     const { error } = await supabase.from('tt_department_members').insert({ department_id: deptId, user_id: person.id, org_id: orgId });
-    if (error) fail(error.message); else ok('Added to the department.');
+    if (error) fail(error.message); else ok(`Added to ${depts.find((d) => d.id === deptId)?.name ?? 'the department'}.`);
   };
   const leaveDept = async (d: any) => {
     if (!(await ask({ title: `Remove from ${d.name}?`, message: `${person.name}'s tasks stay assigned.`, confirmLabel: 'Remove', danger: true })).ok) return;
     const { error } = await supabase.from('tt_department_members').delete().eq('department_id', d.id).eq('user_id', person.id);
-    if (error) fail(error.message); else ok('Removed from the department.');
+    if (error) fail(error.message); else ok(`Removed from ${d.name}.`);
   };
   const removeFromOrg = async () => {
     if (!(await ask({ title: `Remove ${person.name} from ${membership!.org_name}?`, message: 'They lose access right away and leave every department. Their tasks, comments and history stay. You can invite them again later.', confirmLabel: 'Remove person', danger: true })).ok) return;
@@ -149,15 +170,14 @@ export default function PersonPage() {
     await log('member_removed', { user: person.id });
     navigate('/employees', { replace: true });
   };
+  const editDetails = () => { setTab('overview'); setEditing(true); setTimeout(() => detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); };
 
   const TABS: { id: Tab; name: string; icon: typeof Gauge; n?: number }[] = [
     { id: 'overview', name: 'Overview', icon: Gauge },
     { id: 'tasks', name: 'Tasks', icon: ListChecks, n: stats.open },
-    { id: 'details', name: 'Details', icon: Briefcase },
-    ...(admin ? [{ id: 'access' as Tab, name: 'Access & departments', icon: ShieldCheck }] : []),
+    { id: 'activity', name: 'Activity', icon: Activity },
     // platform admins can set anyone's appearance (database: tt_platform_set_look); your own is in Profile
     ...(membership!.platform && !isMe ? [{ id: 'look' as Tab, name: 'Appearance', icon: Palette }] : []),
-    { id: 'activity', name: 'Activity', icon: Activity },
   ];
   const now = Date.now();
   const addrOf = (t: any): string => t.tt_task_assignees?.[0]?.email ?? 'primary';
@@ -167,9 +187,15 @@ export default function PersonPage() {
   const shownTasks = sentTo ? byStatus.filter((t) => addrOf(t) === sentTo) : byStatus;
   const maxW = Math.max(1, ...stats.weeks);
   const pct = stats.assigned ? Math.round((stats.done / stats.assigned) * 100) : 0;
+  const nameOf = (pid?: string | null) => (pid === person.id ? person.name : people.find((p) => p.id === pid)?.name ?? 'someone');
+  const titleOf = (tid: string) => tasks.find((t) => t.id === tid)?.title;
+  const DETAILS: [string, string, string, typeof Mail][] = [
+    ['full_name', 'Full name', pr.full_name ?? '', Building], ['job_title', 'Job title', pr.job_title ?? '', Building],
+    ['department', 'Department', pr.department ?? '', Building], ['phone', 'Phone', pr.phone ?? '', Phone], ['location', 'Location', pr.location ?? '', MapPin],
+  ];
 
   return (
-    <div className="person">
+    <div className="person ps2">
       <Link to="/employees" className="back-link"><ArrowLeft size={16} aria-hidden="true" />All people</Link>
 
       <header className="card pf-hero ps-hero">
@@ -191,10 +217,11 @@ export default function PersonPage() {
             <div className="pf-chips">
               <span className="pf-chip strong">{label(person.role)}</span>
               <span className="pf-chip"><span className={`ps-dot ${person.active ? 'on' : ''}`} />{person.active ? 'Active' : 'Inactive'}</span>
-              {person.email && <a className="pf-chip" href={`mailto:${person.email}`}><Mail size={13} aria-hidden="true" />{person.email}</a>}
-              {pr.phone && <span className="pf-chip"><Phone size={13} aria-hidden="true" />{pr.phone}</span>}
-              {pr.location && <span className="pf-chip"><MapPin size={13} aria-hidden="true" />{pr.location}</span>}
-              {pr.department && <span className="pf-chip"><Building size={13} aria-hidden="true" />{pr.department}</span>}
+              {myDepts.map((d) => <span key={d.id} className="pf-chip"><Building size={13} aria-hidden="true" />{d.name}</span>)}
+            </div>
+            <div className="ps-actions">
+              {person.email && <a className="pill-btn light sm" href={`mailto:${person.email}`}><Mail size={14} aria-hidden="true" />Email {first}</a>}
+              {canEdit && <button type="button" className="pill-btn g-ghost sm" onClick={editDetails}><Pencil size={14} aria-hidden="true" />Edit details</button>}
             </div>
           </div>
         </div>
@@ -202,8 +229,6 @@ export default function PersonPage() {
           <b><CountUp value={pct} />%</b><small>completed</small>
         </div>
       </header>
-
-      {msg && <p key={msg.text} role={msg.kind === 'error' ? 'alert' : 'status'} className={`auth-msg ${msg.kind}`}>{msg.kind === 'error' ? <X size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}<span>{msg.text}</span></p>}
 
       <div className="pf-stats ps-stats">
         {([['Assigned', stats.assigned, ListChecks], ['Open', stats.open, Clock], ['Completed', stats.done, CheckCircle2], ['Overdue', stats.overdue, Clock]] as const).map(([k, v, Icon], i) => (
@@ -222,31 +247,117 @@ export default function PersonPage() {
 
       <div key={tab} className="pf-panel">
         {tab === 'overview' && (
-          <div className="pf-grid">
-            <section className="card" aria-labelledby="ov-perf">
-              <h3 id="ov-perf">Performance</h3>
-              <ul className="ps-kv">
-                <li><small>On time</small><b>{stats.onTime === null ? '—' : `${stats.onTime}%`}</b></li>
-                <li><small>Done in 30 days</small><b>{stats.last30}</b></li>
-                <li><small>Started</small><b>{stats.started}</b></li>
-                <li><small>Not started or pending</small><b>{stats.pending}</b></li>
-              </ul>
-              <h4 className="ps-sub">Completed per week</h4>
-              <div className="ps-weeks" role="img" aria-label={`Completed per week, oldest first: ${stats.weeks.join(', ')}`}>
-                {stats.weeks.map((w, i) => <span key={i} style={{ '--i': i } as React.CSSProperties}><i style={{ height: `${w ? Math.max(10, (w / maxW) * 100) : 4}%` }} className={w ? '' : 'zero'} /><small>{i === 7 ? 'This wk' : `${7 - i}w`}</small></span>)}
-              </div>
-            </section>
+          <div className="ps-grid">
             <div className="pf-col">
-              <section className="card" aria-labelledby="ov-next">
+              {/* details: read here, edited here */}
+              <section ref={detailsRef} className="card ps-card" aria-labelledby="dt-h">
+                <div className="panel-head"><h3 id="dt-h">Details</h3>
+                  {canEdit && !editing && <button type="button" className="pill-btn ghost sm" onClick={() => setEditing(true)}><Pencil size={14} aria-hidden="true" />Edit</button>}</div>
+                {editing ? (
+                  <form className="ps-edit" onSubmit={saveDetails} key={pr.updated_at ?? 'x'}>
+                    <label>Full name<input name="full_name" defaultValue={pr.full_name ?? ''} maxLength={120} autoFocus /></label>
+                    <label>Job title<input name="job_title" defaultValue={pr.job_title ?? ''} maxLength={120} /></label>
+                    <label>Department<select name="department" defaultValue={pr.department ?? ''}><option value="">None</option>
+                      {[...new Set([...depts.map((d) => d.name), ...(pr.department ? [pr.department] : [])])].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
+                    <label>Phone<input name="phone" type="tel" defaultValue={pr.phone ?? ''} maxLength={40} /></label>
+                    <label>Location<input name="location" defaultValue={pr.location ?? ''} maxLength={120} /></label>
+                    <label>Email<input value={person.email} disabled readOnly /><small className="muted">People change their sign-in email from their own profile.</small></label>
+                    <span className="ps-edit-actions">
+                      <button type="submit" disabled={busy === 'details'}><CheckCircle2 size={15} aria-hidden="true" />{busy === 'details' ? 'Saving…' : 'Save details'}</button>
+                      <button type="button" className="pill-btn ghost" onClick={() => setEditing(false)}>Cancel</button>
+                    </span>
+                  </form>
+                ) : (
+                  <dl className="ps-read">
+                    {DETAILS.map(([k, l, v]) => <div key={k}><dt>{l}</dt><dd>{v || <span className="muted">Not set</span>}</dd></div>)}
+                    <div><dt>Email</dt><dd><a href={`mailto:${person.email}`}>{person.email}</a></dd></div>
+                    {pr.bio && <div><dt>About</dt><dd className="ps-bio">{pr.bio}</dd></div>}
+                  </dl>
+                )}
+              </section>
+
+              <section className="card ps-card" aria-labelledby="em-h">
+                <h3 id="em-h">Email addresses</h3>
+                <p className="muted ps-note">When you create a task for {isMe ? 'yourself' : first}, you can pick which address gets its emails.</p>
+                <MemberEmails orgId={orgId} userId={person.id} primary={person.email} canEdit={admin || isMe} onChange={load} />
+              </section>
+
+              <section className="card ps-card" aria-labelledby="ov-perf">
+                <h3 id="ov-perf">Performance</h3>
+                <ul className="ps-kv">
+                  <li><small>On time</small><b>{stats.onTime === null ? '—' : `${stats.onTime}%`}</b></li>
+                  <li><small>Done in 30 days</small><b>{stats.last30}</b></li>
+                  <li><small>Started</small><b>{stats.started}</b></li>
+                  <li><small>Not started or pending</small><b>{stats.pending}</b></li>
+                </ul>
+                <h4 className="ps-sub">Completed per week</h4>
+                <div className="ps-weeks" role="img" aria-label={`Completed per week, oldest first: ${stats.weeks.join(', ')}`}>
+                  {stats.weeks.map((w, i) => <span key={i} style={{ '--i': i } as React.CSSProperties}><i style={{ height: `${w ? Math.max(10, (w / maxW) * 100) : 4}%` }} className={w ? '' : 'zero'} /><small>{i === 7 ? 'This wk' : `${7 - i}w`}</small></span>)}
+                </div>
+              </section>
+            </div>
+
+            <div className="pf-col">
+              {admin && (
+                <section className="card ps-card" aria-labelledby="ac-h">
+                  <h3 id="ac-h"><ShieldCheck size={16} aria-hidden="true" />Access</h3>
+                  <div className="ps-field">
+                    <span className="ps-label">Role</span>
+                    <div className="seg ps-role" role="group" aria-label="Role" aria-disabled={lockedAccess || undefined}>
+                      <TabThumb />
+                      {['employee', 'admin'].map((r) => (
+                        <button key={r} type="button" aria-pressed={person.role === r} disabled={lockedAccess || busy === 'role'} onClick={() => setRole(r)}>{label(r)}</button>
+                      ))}
+                    </div>
+                    <small className="muted">{ROLE_TEXT[person.role as keyof typeof ROLE_TEXT]?.blurb}</small>
+                  </div>
+                  <div className="ps-field ps-switch-row">
+                    <span><span className="ps-label">Can sign in</span><small className="muted">{person.active ? 'Has access to this organization.' : 'Access is off. Tasks stay assigned.'}</small></span>
+                    <button type="button" role="switch" aria-checked={person.active} aria-label={person.active ? `Deactivate ${person.name}` : `Activate ${person.name}`}
+                      className="ps-switch" disabled={lockedAccess || busy === 'active'} onClick={() => setActive(!person.active)}><Toggle on={person.active} aria-hidden="true" /></button>
+                  </div>
+                  {lockedAccess && <p className="muted ps-note">{isCreator ? `${isMe ? 'You' : person.name} created this organization, so ${isMe ? 'you stay' : 'they stay'} an active admin.` : "You can't change your own role or access."}</p>}
+                  <div className="ps-field">
+                    <span className="ps-label">Departments</span>
+                    <ul className="ps-chips">
+                      {myDepts.map((d) => <li key={d.id}>{d.name}<button type="button" aria-label={`Remove from ${d.name}`} onClick={() => leaveDept(d)}><X size={13} aria-hidden="true" /></button></li>)}
+                      {depts.length > myDepts.length && (
+                        <li className="ps-add"><Plus size={13} aria-hidden="true" />
+                          <select aria-label="Add to a department" value="" onChange={(e) => e.target.value && joinDept(e.target.value)}>
+                            <option value="">Add to a department</option>{depts.filter((d) => !dm.includes(d.id)).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          </select></li>)}
+                    </ul>
+                    {myDepts.length === 0 && <small className="muted">Not in any department yet.</small>}
+                  </div>
+                </section>
+              )}
+
+              <section className="card ps-card" aria-labelledby="ov-next">
                 <div className="panel-head"><h3 id="ov-next">Up next</h3><button type="button" className="mini-link" onClick={() => setTab('tasks')}>All tasks</button></div>
                 {tasks.filter((t) => !isDone(t.status)).length === 0 ? <p className="muted">Nothing open right now.</p> : (
                   <ul className="pf-tasks">{tasks.filter((t) => !isDone(t.status)).slice(0, 5).map((t) => (
                     <li key={t.id}><Link to={`/tasks/${t.id}`}><b>{t.title}</b><span className="ps-meta"><Badge v={t.status} /><Due t={t} /></span></Link></li>))}</ul>)}
               </section>
-              <section className="card" aria-labelledby="ov-teams">
-                <h3 id="ov-teams">Departments</h3>
-                {myDepts.length === 0 ? <p className="muted">Not in any department.</p> : <ul className="pp-chips">{myDepts.map((d) => <li key={d.id}>{d.name}</li>)}</ul>}
-              </section>
+
+              {!isMe && canEdit && (!isCreator || membership!.platform) && (
+                <details className="card ps-card ps-danger">
+                  <summary><AlertTriangle size={16} aria-hidden="true" /><span>Danger zone</span><ChevronDown size={16} className="ps-chev" aria-hidden="true" /></summary>
+                  {!isCreator && (
+                    <div className="ps-danger-row">
+                      <span><b>Remove from {membership!.org_name}</b><small className="muted">They lose access right away. Their tasks, comments and history stay.</small></span>
+                      <button type="button" className="pill-btn ghost sm danger-text" onClick={removeFromOrg}><UserMinus size={14} aria-hidden="true" />Remove</button>
+                    </div>)}
+                  {(membership!.platform || person.role === 'employee') && (
+                    <div className="ps-danger-row">
+                      <span><b>Delete account</b><small className="muted">Deletes {first}'s login, with their comments, assignments and history. Tasks and files they created stay.
+                        {!membership!.platform && ' Only for employees who belong to this organization alone.'}</small></span>
+                      <button type="button" className="pill-btn ghost sm danger-text" onClick={async () => {
+                        try { if (await deleteAccount({ id: person.id, name: person.name, email: person.email })) navigate('/employees', { replace: true }); }
+                        catch (x) { fail((x as Error).message); }
+                      }}><Trash2 size={14} aria-hidden="true" />Delete</button>
+                    </div>)}
+                </details>
+              )}
             </div>
           </div>
         )}
@@ -272,82 +383,29 @@ export default function PersonPage() {
           </section>
         )}
 
-        {tab === 'details' && (
-          <section className="card" aria-labelledby="dt-h">
-            <h3 id="dt-h">Details</h3>
-            <form className="gf-grid ps-form" onSubmit={saveDetails} key={pr.updated_at ?? 'x'}>
-              <label>Full name<input name="full_name" defaultValue={pr.full_name ?? ''} maxLength={120} disabled={!canEdit} /></label>
-              <label>Job title<input name="job_title" defaultValue={pr.job_title ?? ''} maxLength={120} disabled={!canEdit} /></label>
-              <label>Department<select name="department" defaultValue={pr.department ?? ''} disabled={!canEdit}><option value="">None</option>
-                {[...new Set([...depts.map((d) => d.name), ...(pr.department ? [pr.department] : [])])].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
-              <label>Phone<input name="phone" type="tel" defaultValue={pr.phone ?? ''} maxLength={40} disabled={!canEdit} /></label>
-              <label>Location<input name="location" defaultValue={pr.location ?? ''} maxLength={120} disabled={!canEdit} /></label>
-              <label>Email<input value={person.email} disabled readOnly /></label>
-              {pr.bio && <p className="pf-bio ps-bio">{pr.bio}</p>}
-              {canEdit ? <span className="gf-actions"><button type="submit"><CheckCircle2 size={15} aria-hidden="true" />Save details</button></span>
-                : <p className="muted">Only admins can change these details.</p>}
-            </form>
-            <h4 className="ps-sub" id="dt-em">Email addresses</h4>
-            <p className="muted">When you create a task for {isMe ? 'yourself' : person.name}, you can pick which address gets its emails.</p>
-            <MemberEmails orgId={orgId} userId={person.id} primary={person.email} canEdit={admin || isMe} onChange={load} />
-          </section>
-        )}
-
         {tab === 'look' && membership!.platform && !isMe && (
           <MyLook person={{ id: person.id, name: person.name, prefs: pr.prefs ?? {} }} onSaved={load} />
-        )}
-
-        {tab === 'access' && admin && (
-          <div className="pf-grid">
-            <section className="card" aria-labelledby="ac-h">
-              <h3 id="ac-h">Role and access</h3>
-              <p className="muted">{ROLE_TEXT[person.role as keyof typeof ROLE_TEXT]?.blurb}</p>
-              {isMe || isCreator ? <p className="muted">{isCreator ? `${isMe ? 'You' : person.name} created this organization, so ${isMe ? 'you stay' : 'they stay'} an active admin.` : "You can't change your own role or access."}</p> : (
-                <div className="pp-row">
-                  <label>Role<select value={person.role} onChange={(e) => setRole(e.target.value)}>
-                    {['employee', 'admin'].map((r) => <option key={r} value={r}>{label(r)}</option>)}</select></label>
-                  <button type="button" className={`pill-btn ghost ${person.active ? 'danger-text' : ''}`} onClick={() => setActive(!person.active)}>{person.active ? 'Deactivate' : 'Activate'}</button>
-                </div>)}
-            </section>
-            <section className="card" aria-labelledby="tm-h">
-              <h3 id="tm-h">Departments</h3>
-              {myDepts.length === 0 ? <p className="muted">Not in any department.</p> : (
-                <ul className="pp-chips">{myDepts.map((d) => <li key={d.id}>{d.name}<button type="button" aria-label={`Remove from ${d.name}`} onClick={() => leaveDept(d)}><X size={13} aria-hidden="true" /></button></li>)}</ul>)}
-              {depts.length > myDepts.length && (
-                <select aria-label="Add to department" value="" onChange={(e) => e.target.value && joinDept(e.target.value)}>
-                  <option value="">+ Add to a department</option>{depts.filter((d) => !dm.includes(d.id)).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>)}
-            </section>
-            {!isMe && !isCreator && canEdit && (
-              <section className="card ps-danger" aria-labelledby="dz-h">
-                <h3 id="dz-h">Remove from organization</h3>
-                <p className="muted">They lose access right away. Their tasks, comments and history stay.</p>
-                <button type="button" className="pill-btn ghost danger-text" onClick={removeFromOrg}><UserMinus size={15} aria-hidden="true" />Remove {person.name}</button>
-              </section>)}
-            {!isMe && (membership!.platform || (admin && person.role === 'employee')) && (
-              <section className="card ps-danger" aria-labelledby="del-h">
-                <h3 id="del-h">Delete account</h3>
-                <p className="muted">Deletes {person.name}'s login, with their comments, assignments and history. Tasks and files they created stay.
-                  {!membership!.platform && ' Admins can delete employees who belong only to this organization; for anyone else, use Remove from organization.'}</p>
-                <button type="button" className="pill-btn ghost danger-text" onClick={async () => {
-                  try { if (await deleteAccount({ id: person.id, name: person.name, email: person.email })) navigate('/employees', { replace: true }); }
-                  catch (x) { fail((x as Error).message); }
-                }}><Trash2 size={15} aria-hidden="true" />Delete {person.name}'s account</button>
-              </section>)}
-          </div>
         )}
 
         {tab === 'activity' && (
           <section className="card" aria-labelledby="act-h">
             <h3 id="act-h">Recent activity</h3>
             {acts.length === 0 ? <p className="muted">No activity recorded yet.</p> : (
-              <ul className="timeline">{acts.map((a) => (
-                <li key={a.id}><span className="tl-dot" aria-hidden="true" /><span><b>{label(a.action)}</b>{a.entity_type === 'task' && <> · <Link to={`/tasks/${a.entity_id}`}>open task</Link></>}
-                  <small className="muted"> {fmtTime(a.created_at)}</small></span></li>))}</ul>)}
+              <ul className="timeline">{acts.map((a) => {
+                const s = describe(a, nameOf, titleOf);
+                return (
+                  <li key={a.id}><span className="tl-dot" aria-hidden="true" /><span>{first} {s.verb}{s.target && <> {s.target.to ? <Link to={s.target.to}>{s.target.text}</Link> : s.target.text}</>}{s.rest}
+                    <small className="muted"> · {fmtTime(a.created_at)}</small></span></li>);
+              })}</ul>)}
           </section>
         )}
       </div>
       <p className="muted ps-foot">Member of {membership!.org_name}{pr.created_at ? ` since ${fmt(pr.created_at)}` : ''}.</p>
+
+      {/* confirmations slide up from the foot of the window and leave by themselves (stageshow Toast) */}
+      <Toast show={!!toast} className={`ps-toast ${toast?.kind ?? ''}`} icon={toast?.kind === 'error' ? <X size={15} /> : <CheckCircle2 size={15} />}
+        action={toast?.kind === 'error' ? <button type="button" className="ps-toast-x" aria-label="Dismiss" onClick={() => setToast(null)}><X size={14} aria-hidden="true" /></button> : undefined}
+        data-n={toast?.n}>{toast?.text ?? ''}</Toast>
     </div>
   );
 }

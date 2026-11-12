@@ -2465,3 +2465,49 @@ dialog:has(> .dp) { overflow: visible; }
   dialog[open]::backdrop { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
   @keyframes cine-dialog { from { opacity: 0; transform: translateY(24px) scale(.94); filter: blur(8px); } }
 }
+
+/* ───────── dashboard 3D: cards tilt toward the pointer and lift (Dashboard.tsx useTilt sets rotate/translate), a glare follows it,
+   numbers sit raised and drift against the tilt, cards fold in, the gauge swings up and the bars stand up from the floor. */
+.dash { perspective: 1600px; }
+.dash > [class^="a-k"] { perspective: 900px; }
+.dash .kpi, .dash > .card { transition: transform .45s var(--ease), box-shadow .45s var(--ease), rotate .5s var(--ease), translate .5s var(--ease); }
+.dash .kpi[data-tilt], .dash > .card[data-tilt] { transition: transform .45s var(--ease), box-shadow .45s var(--ease), rotate .12s linear, translate .3s var(--ease);
+  box-shadow: 0 30px 50px -28px color-mix(in srgb, color-mix(in oklab, var(--accent-n) 50%, var(--black)) 45%, transparent); z-index: 2; }
+.dash > .card { position: relative; }
+.dash > .card::before { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .35s var(--ease);
+  background: radial-gradient(420px circle at var(--gx, 50%) var(--gy, 50%), color-mix(in srgb, var(--white) 14%, transparent), transparent 60%); mix-blend-mode: soft-light; }
+.dash > .card[data-tilt]::before { opacity: 1; }
+/* raised figures: a short extrusion under the digits, and they drift against the tilt like they float above the card */
+.dash .kpi b, .dash .esc-num, .dash .gauge-num b { transition: translate .3s var(--ease);
+  text-shadow: 0 1px 0 color-mix(in srgb, currentColor 70%, var(--black)), 0 2px 0 color-mix(in srgb, currentColor 55%, var(--black)), 0 3px 0 color-mix(in srgb, currentColor 40%, var(--black)), 0 10px 16px rgb(0 0 0 / .18); }
+.dash [data-tilt] .kpi-head, .dash [data-tilt] > b, .dash [data-tilt] .esc-num { translate: calc(var(--dx, 0) * -10px) calc(var(--dy, 0) * -8px); }
+.dash .kpi .go { transition: transform .2s ease-out, translate .3s var(--ease); }
+.dash [data-tilt] .go { translate: calc(var(--dx, 0) * -14px) calc(var(--dy, 0) * -12px); }
+/* bars: shaded like columns */
+.cc-bars .bar { position: relative; }
+.cc-bars .bar::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--white) 24%, transparent), transparent 42%, rgb(0 0 0 / .16)); }
+.gauge { perspective: 700px; }
+.cc-bars .bar-stack { perspective: 500px; }
+.dash .team { perspective: 700px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* cards fold up into place, one after another (rotate/translate, so the existing transform animations still run) */
+  .content .dash > :not(.sk-card) { animation: dash-in .5s var(--ease) both, dash-fold .9s var(--settle, var(--ease)) backwards;
+    animation-delay: calc(var(--n, 0) * 50ms), calc(var(--n, 0) * 70ms); }
+  @supports (animation-timeline: view()) {
+    .content .dash > :not(.sk-card) { animation: dash-in .5s var(--ease) both, dash-flow linear both, dash-fold .9s var(--settle, var(--ease)) backwards;
+      animation-timeline: auto, view(), auto; animation-range: normal, entry 0% exit 100%, normal; animation-delay: calc(var(--n, 0) * 50ms), 0s, calc(var(--n, 0) * 70ms); }
+  }
+  .gauge svg { transform-origin: 50% 100%; animation: gauge-swing 1.1s var(--settle, var(--ease)) .25s backwards; }
+  .cc-bars .bar { animation: bar-grow .9s var(--settle) both, bar-stand 1s var(--settle) both; animation-delay: calc(var(--i, 0) * 70ms + .1s); transform-origin: bottom; }
+  .dash .team li { animation: row-flip .7s var(--settle, var(--ease)) backwards; transform-origin: 50% 0; }
+  .dash .team li:nth-child(2) { animation-delay: 80ms; } .dash .team li:nth-child(3) { animation-delay: 160ms; } .dash .team li:nth-child(4) { animation-delay: 240ms; }
+}
+@keyframes dash-fold { from { rotate: x 28deg; translate: 0 26px -90px; } }
+@keyframes gauge-swing { from { rotate: x 75deg; opacity: 0; } }
+@keyframes bar-stand { from { rotate: x -80deg; } }
+@keyframes row-flip { from { rotate: x -70deg; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .dash .kpi, .dash > .card, .dash .kpi b, .dash .esc-num, .dash .gauge-num b { transition: none !important; }
+}

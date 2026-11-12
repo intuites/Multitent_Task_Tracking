@@ -11,6 +11,39 @@ import { DashSkeleton } from '../components/Skeleton';
 import { useLive } from '../lib/live';
 import { countTasks, PERIODS, type Period } from '../lib/dashPeriod';
 
+/** 3D: the card under the pointer tilts toward it and lifts. Uses the `rotate` and `translate` properties, so it never
+ *  fights the cards' `transform` animations. Skipped on touch and reduced motion. */
+function useTilt(root: React.RefObject<HTMLElement>, ready: boolean) {
+  useEffect(() => {
+    const el = root.current;
+    if (!el || !ready || window.matchMedia('(prefers-reduced-motion: reduce)').matches || !window.matchMedia('(pointer: fine)').matches) return;
+    let raf = 0, last: PointerEvent | null = null, cur: HTMLElement | null = null;
+    const reset = (c: HTMLElement) => { c.style.rotate = ''; c.style.translate = ''; c.removeAttribute('data-tilt'); };
+    const frame = () => {
+      raf = 0;
+      const e = last!, hit = (e.target as Element).closest<HTMLElement>('.dash .kpi, .dash > .card');
+      if (cur && cur !== hit) reset(cur);
+      cur = hit;
+      if (!hit) return;
+      const r = hit.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+      // big cards tilt less, so their text stays readable
+      const max = r.width > 500 ? 4 : 9, ang = Math.hypot(x, y) * 2 * max;
+      hit.style.rotate = `${(-y).toFixed(3)} ${x.toFixed(3)} 0 ${ang.toFixed(2)}deg`;
+      hit.style.translate = '0 0 24px';
+      hit.style.setProperty('--gx', `${((x + 0.5) * 100).toFixed(1)}%`);
+      hit.style.setProperty('--gy', `${((y + 0.5) * 100).toFixed(1)}%`);
+      hit.style.setProperty('--dx', x.toFixed(3));
+      hit.style.setProperty('--dy', y.toFixed(3));
+      hit.setAttribute('data-tilt', '');
+    };
+    const move = (e: PointerEvent) => { last = e; if (!raf) raf = requestAnimationFrame(frame); };
+    const leave = () => { if (cur) reset(cur); cur = null; };
+    el.addEventListener('pointermove', move, { passive: true });
+    el.addEventListener('pointerleave', leave);
+    return () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerleave', leave); cancelAnimationFrame(raf); if (cur) reset(cur); };
+  }, [root, ready]);
+}
+
 const OPEN = '(completed,completed_cycle)';
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -213,6 +246,8 @@ export default function Dashboard() {
 
   // recounted when the filter changes, without reloading; the clock tick keeps "overdue" and "due today" current
   const c = useMemo(() => countTasks(d?.rows ?? [], period), [d, period, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dashRef = useRef<HTMLDivElement>(null);
+  useTilt(dashRef, !!d);
   if (error) return <div className="card"><p role="alert">{error}</p></div>;
   if (!d) return <DashSkeleton />;
   const span = period === 'week' ? 'this week' : period === 'month' ? 'this month' : '';
@@ -238,7 +273,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="dash">
+      <div className="dash" ref={dashRef}>
         <div className="a-k1"><Kpi feature title={all ? 'Open tasks' : 'My open tasks'} value={c.open} note={span ? `Due ${span} · ${c.active} started` : `${c.active} started`} to={tasks} /></div>
         <div className="a-k2"><Kpi title="Overdue" value={c.overdue} note={c.overdue ? 'Past their due date' : 'Everything is on time'} to={`${tasks}?view=overdue`} /></div>
         <div className="a-k3"><Kpi title="Due today" value={c.dueToday} note="Before midnight" to={`${tasks}?view=due_today`} /></div>

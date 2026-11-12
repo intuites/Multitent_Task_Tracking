@@ -2483,16 +2483,3 @@ dialog:has(> .dp) { overflow: visible; }
 .pf-cam.rm { right: auto; left: -4px; border: 0; padding: 0; min-height: 0; background: var(--white); }
 .pf-cam.rm:disabled { opacity: .6; cursor: default; }
 .pf-photo.busy .pf-avatar { opacity: .5; transition: opacity .2s; }
-
-/* sidebar: a springy hover. The icon pops and tilts, the label slides a little, both overshoot and settle. */
-:root { --spring: cubic-bezier(.34, 1.56, .64, 1); }
-@supports (transition-timing-function: linear(0, 1)) {
-  :root { --spring: linear(0, .25 6%, .73 14%, 1.06 24%, 1.12 30%, 1.06 38%, .98 48%, .99 58%, 1); }
-}
-.side-link svg { transition: transform .55s var(--spring), color .25s; }
-.side-link > span:not(.count) { transition: transform .55s var(--spring); }
-.side-link:hover svg { transform: translateX(3px) scale(1.18) rotate(-8deg); }
-.side-link:hover > span:not(.count) { transform: translateX(4px); }
-.side-link:active svg { transform: translateX(2px) scale(.92); transition-duration: .12s; }
-.side.collapsed .side-link:hover svg { transform: scale(1.2) rotate(-8deg); }
-@media (prefers-reduced-motion: reduce) { .side-link > span:not(.count), .side-link svg { transition: none !important; transform: none !important; } }

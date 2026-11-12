@@ -2424,8 +2424,10 @@ h2, h3, h4 { letter-spacing: -0.01em; }
 .paused-note p { flex: 1; margin: 0; line-height: 1.5; }
 .paused-note .pill-btn { flex: none; }
 @media (max-width: 640px) { .paused-note { flex-wrap: wrap; } }
-/* a date picker opened inside a dialog floats over its edge instead of making the dialog scroll */
-dialog:has(> .dp) { overflow: visible; }
+/* a date picker opened inside a dialog floats over its edge instead of making the dialog scroll. Not the New task window: it
+   scrolls, so switching it to visible jumped it back to the top, and fields further down (Starts on, Starting, Repeat until)
+   left the screen, which closes the picker the moment it opens. It has no blur or transform, so the picker floats free anyway. */
+dialog:not(.nt-sheet):has(> .dp) { overflow: visible; }
 /* a person's page: admins also get a remove button on the photo's other corner; the photo dims while it saves */
 .pf-cam.rm { right: auto; left: -4px; border: 0; padding: 0; min-height: 0; background: var(--white); }
 .pf-cam.rm:disabled { opacity: .6; cursor: default; }

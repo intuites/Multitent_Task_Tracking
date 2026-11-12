@@ -4,7 +4,10 @@ import { supabase } from '../lib/supabase';
 import { pickName } from '../lib/names';
 import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
-import { dateToTs, label, loadPeople, rpc, type Person } from '../lib/ui';
+import { dateToTs, fmtDay, label, loadPeople, rpc, type Person } from '../lib/ui';
+import { Avatar } from './Frame';
+import { Count, Swap } from '../stageshow/kit/motion';
+import './newTask.css';
 import { emailText, loadEmails, type ExtraEmail } from './MemberEmails';
 
 interface Sub { title: string; department_id: string; assignee_id: string; due: string }
@@ -50,6 +53,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
   const [remind, setRemind] = useState(true), [freq, setFreq] = useState('daily'), [time, setTime] = useState('09:00');
   const [rStart, setRStart] = useState(nyToday), [every, setEvery] = useState(2);
   const [future, setFuture] = useState(false), [startOn, setStartOn] = useState('');
+  const [due, setDue] = useState(''); // mirrored for the preview; the form still reads due_date itself
   const [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const [extras, setExtras] = useState<ExtraEmail[]>([]), [sendTo, setSendTo] = useState(''); // '' = primary
   useEffect(() => {
@@ -144,8 +148,11 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
   }
 
   const deptPeople = inDept(dept);
+  const who = people.find((p) => p.id === assignee);
   return (
     <form className="nt" onSubmit={submit}>
+      <div className="nt-main">
+      <h4 className="nt-sec"><span aria-hidden="true">1</span>Who does it</h4>
       <div className="nt-row">
         <label>Organization<select value={orgId} onChange={(e) => setOrgId(e.target.value)} required><option value="">Select organization</option>{writable.map((m) => <option key={m.org_id} value={m.org_id}>{m.org_name}</option>)}</select></label>
         <label>Department<select value={dept} onChange={(e) => { setDept(e.target.value); setAssignee(''); }} required disabled={!orgId || !depts.length}>
@@ -168,11 +175,13 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
           <option value="">{orgId ? 'No manager' : 'Select organization first'}</option>{people.map((p) => <option key={p.id} value={p.id}>{pickName(p, people, uid)}</option>)}</select></label>
       </div>
       <small className="muted nt-help">The lead and manager get the completed email and the daily digests for this task.</small>
+      <h4 className="nt-sec"><span aria-hidden="true">2</span>What needs doing</h4>
       <label>Task title<input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={200} placeholder="What needs to be done" /></label>
       <label>Task description<textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} placeholder="Enter task details…" /></label>
+      <h4 className="nt-sec"><span aria-hidden="true">3</span>When</h4>
       <div className="nt-row">
         <label>Priority<select value={priority} onChange={(e) => setPriority(e.target.value)} required><option value="">Select priority</option>{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select></label>
-        <label><span>Due date <small className="muted">(optional)</small></span><input type="date" name="due_date" /><small className="muted nt-help">The day the task must be finished. Leave empty for no deadline.</small></label>
+        <label><span>Due date <small className="muted">(optional)</small></span><input type="date" name="due_date" onChange={(e) => setDue(e.target.value)} /><small className="muted nt-help">The day the task must be finished. Leave empty for no deadline.</small></label>
       </div>
       <div className="nt-future">
         <label className="inline"><input type="checkbox" checked={future} onChange={(e) => { setFuture(e.target.checked); if (!e.target.checked) setStartOn(''); }} /> <b>Future task</b> <small className="muted">(optional)</small></label>
@@ -180,6 +189,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
         {future && <label><span>Starts on</span><input type="date" value={startOn} min={tomorrow()} required
           onChange={(e) => { setStartOn(e.target.value); if (e.target.value && rStart < e.target.value) setRStart(e.target.value); }} /></label>}
       </div>
+      <h4 className="nt-sec"><span aria-hidden="true">4</span>Extras</h4>
       <label><span>CC emails <small className="muted">(optional)</small></span><input name="cc" placeholder="someone@company.com, other@company.com" />
         <small className="muted nt-help">Separate with commas.</small></label>
 
@@ -228,6 +238,32 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
           <label>Repeat until<input type="date" name="until" /></label>
         </div>
       </details>
+
+      </div>
+
+      {/* the task as it will look once created, updating as the form is filled in */}
+      <aside className="nt-preview" aria-label="Preview of the new task">
+        <p className="nt-pv-k">Preview</p>
+        <div className="nt-pv-card">
+          <div className="nt-pv-top">
+            <span className="badge b-not_yet_started">{future ? 'Future' : 'Not Yet Started'}</span>
+            {priority && <span className="nt-pv-pri" data-p={priority}>{label(priority)}</span>}
+          </div>
+          <b className="nt-pv-title" data-empty={!title.trim() || undefined}>{title.trim() || 'Task title'}</b>
+          {desc.trim() && <p className="nt-pv-desc">{desc.trim()}</p>}
+          <dl className="nt-pv-meta">
+            <div><dt>Assigned to</dt><dd><Swap id={assignee || 'none'}>{who
+              ? <span className="nt-pv-who"><Avatar name={who.name} url={who.avatar} className="avatar nt-pv-av" />{who.name}</span>
+              : <span className="muted">Not picked yet</span>}</Swap></dd></div>
+            <div><dt>Department</dt><dd>{depts.find((d) => d.id === dept)?.name ?? <span className="muted">—</span>}</dd></div>
+            <div><dt>Due</dt><dd>{due ? fmtDay(due) : <span className="muted">No deadline</span>}</dd></div>
+            {future && <div><dt>Starts</dt><dd>{startOn ? fmtDay(startOn) : <span className="muted">Pick a date</span>}</dd></div>}
+            <div><dt>Reminder</dt><dd>{remind ? `${schedule(freq, rStart, every)} at ${fmt12(time)} ET` : <span className="muted">Off</span>}</dd></div>
+          </dl>
+          {subs.length > 0 && <p className="nt-pv-subs"><b><Count value={subs.length} /></b> sub-task{subs.length > 1 ? 's' : ''}, done one by one</p>}
+        </div>
+        <p className="nt-pv-note">{who ? `${who.name.split(' ')[0]} gets an email as soon as you create it.` : 'Pick who does it to see who is told.'}</p>
+      </aside>
 
       {error && <p role="alert" className="form-alert">{error}</p>}
       <div className="nt-actions">

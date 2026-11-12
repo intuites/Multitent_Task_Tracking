@@ -249,7 +249,7 @@ export default function NewTaskForm({ onDone, onCancel }: { onDone: (orgId: stri
             <span className="badge b-not_yet_started">{future ? 'Future' : 'Not Yet Started'}</span>
             {priority && <span className="nt-pv-pri" data-p={priority}>{label(priority)}</span>}
           </div>
-          <b className="nt-pv-title" data-empty={!title.trim() || undefined}>{title.trim() || 'Task title'}</b>
+          <b className="nt-pv-title" data-empty={!title.trim() || undefined} title={title.trim() || undefined}>{title.trim() || 'Task title'}</b>
           {desc.trim() && <p className="nt-pv-desc">{desc.trim()}</p>}
           <dl className="nt-pv-meta">
             <div><dt>Assigned to</dt><dd><Swap id={assignee || 'none'}>{who

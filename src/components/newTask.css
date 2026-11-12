@@ -20,7 +20,8 @@ form.nt > .form-alert, form.nt > .nt-actions { grid-column: 1 / -1; }
 .nt-pv-pri::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: color-mix(in srgb, var(--muted) 55%, var(--surface)); }
 .nt-pv-pri[data-p="medium"]::before { background: var(--brand); } .nt-pv-pri[data-p="high"]::before { background: color-mix(in srgb, var(--danger) 55%, var(--warn-fg)); }
 .nt-pv-pri[data-p="urgent"]::before { background: var(--danger); }
-.nt-pv-title { font-size: var(--fs-lg); line-height: 1.3; overflow-wrap: anywhere; transition: color .2s; }
+/* two lines at most, ending in an ellipsis; the full title is in the field and in the tooltip */
+.nt-pv-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; font-size: var(--fs-lg); line-height: 1.3; overflow-wrap: anywhere; transition: color .2s; }
 .nt-pv-title[data-empty] { color: var(--muted); font-weight: var(--fw-medium); }
 .nt-pv-desc { margin: -4px 0 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
 .nt-pv-meta { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--text) 7%, transparent); }

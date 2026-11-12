@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -37,7 +37,10 @@ export default function Calendar() {
   const [assignee, setAssignee] = useState('');
   const [priority, setPriority] = useState('');
   const [status, setStatus] = useState('');
-  const [peek, setPeek] = useState<{ ev: Ev; x: number; y: number } | null>(null);
+  const [peek, setPeek] = useState<{ ev: Ev; x: number; y: number; up: boolean } | null>(null);
+  // the quick look waits a moment before it shows (sweeping across the grid shouldn't flash cards) and goes when the bar is left
+  const peekTimer = useRef(0);
+  useEffect(() => () => clearTimeout(peekTimer.current), []);
 
   useEffect(() => {
     const from = new Date(month.getFullYear(), month.getMonth(), 1).toISOString();
@@ -126,10 +129,19 @@ export default function Calendar() {
   const upcoming = (events ?? []).filter((e) => e.hasDue && e.end >= today && !DONE.includes(e.status)).sort((a, b) => a.end.localeCompare(b.end)).slice(0, 5);
   const role = (e: Ev, k: string) => (e.hasDue && e.end === k ? 'Due' : e.hasStart && e.start === k ? 'Starts' : 'Runs');
   const tone = (e: Ev) => (DONE.includes(e.status) ? 'done' : e.hasDue && e.end < today ? 'late' : e.status === 'pending' ? 'wait' : 'open');
-  const show = (ev: Ev, el: HTMLElement) => {
+  const PEEK_W = 230, PEEK_H = 104;
+  const place = (ev: Ev, el: HTMLElement) => {
     const card = el.closest('.cal-card')!.getBoundingClientRect(), r = el.getBoundingClientRect();
-    setPeek({ ev, x: Math.min(r.left - card.left, card.width - 280), y: r.bottom - card.top + 6 });
+    // above the bar when the window has room for it, otherwise below
+    const up = r.top - PEEK_H - 8 > 70;
+    setPeek({ ev, x: Math.max(8, Math.min(r.left - card.left, card.width - PEEK_W - 8)), y: up ? r.top - card.top - 8 : r.bottom - card.top + 8, up });
   };
+  const show = (ev: Ev, el: HTMLElement, now = false) => {
+    clearTimeout(peekTimer.current);
+    if (now) return place(ev, el);
+    peekTimer.current = window.setTimeout(() => place(ev, el), 320);
+  };
+  const hide = () => { clearTimeout(peekTimer.current); setPeek(null); };
 
   return (
     <>
@@ -147,7 +159,7 @@ export default function Calendar() {
       </div>
 
       <div className="cal-layout">
-        <section className="card cal-card" aria-label={`${monthName} calendar`} onMouseLeave={() => setPeek(null)}>
+        <section className="card cal-card" aria-label={`${monthName} calendar`} onMouseLeave={hide}>
           <div className="cal-tools">
             <div className="row filters">
               {can(membership!.role, 'task:write') && <select aria-label="Filter by assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)}><option value="">Any assignee</option>{active.map((p) => <option key={p.id} value={p.id}>{pickName(p, active, session?.user.id)}</option>)}</select>}
@@ -180,7 +192,7 @@ export default function Calendar() {
                 {w.bars.map(({ ev, lane, c0, c1, capS, capE }) => (
                   <Link key={ev.id} to={`/tasks/${ev.id}`} className={`cl-bar ${tone(ev)}${capS ? ' cap-s' : ''}${capE ? ' cap-e' : ''}${c0 === c1 ? ' one' : ''}`}
                     style={{ gridColumn: `${c0 + 1} / ${c1 + 2}`, gridRow: lane + 2 }}
-                    onMouseEnter={(e) => show(ev, e.currentTarget)} onFocus={(e) => show(ev, e.currentTarget)} onBlur={() => setPeek(null)}
+                    onMouseEnter={(e) => show(ev, e.currentTarget)} onMouseLeave={hide} onFocus={(e) => show(ev, e.currentTarget, true)} onBlur={hide}
                     aria-label={`${ev.title}, ${label(ev.status)}${ev.hasStart ? `, starts ${shortDay(ev.start)}` : ''}${ev.hasDue ? `, due ${shortDay(ev.end)}` : ''}`}>
                     {capS && ev.hasStart && ev.start !== ev.end && <i className="cl-start" aria-hidden="true" />}<span>{ev.title}</span>
                   </Link>
@@ -190,7 +202,7 @@ export default function Calendar() {
           </div>
 
           {peek && (
-            <div className="cl-peek" role="tooltip" style={{ left: peek.x, top: peek.y }}>
+            <div className={`cl-peek${peek.up ? ' up' : ''}`} role="tooltip" style={{ left: peek.x, top: peek.y }}>
               <b>{peek.ev.title}</b>
               <span className="cl-peek-row"><Badge v={peek.ev.status} /><span className="cl-pri" data-p={peek.ev.priority}>{label(peek.ev.priority)}</span></span>
               <small>{peek.ev.hasStart && peek.ev.start !== peek.ev.end ? `Starts ${shortDay(peek.ev.start)} · ` : ''}{peek.ev.hasDue ? `Due ${shortDay(peek.ev.end)}` : `Starts ${shortDay(peek.ev.start)}`}</small>

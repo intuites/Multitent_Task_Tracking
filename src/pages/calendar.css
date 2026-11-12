@@ -48,11 +48,15 @@
 .cl-key.wait { background: var(--warn-fg); } .cl-key.late { background: var(--bad-fg); } .cl-key.done { background: color-mix(in srgb, var(--text) 14%, var(--surface)); }
 
 /* the quick look on hover or focus */
-.cl-peek { position: absolute; z-index: 5; display: grid; gap: 6px; width: 270px; padding: 12px 14px; border-radius: 14px; background: var(--surface); pointer-events: none;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 8%, transparent), 0 18px 40px -18px rgb(0 0 0 / .45); animation: fade-in-up .18s var(--ease) both; }
-.cl-peek b { font-size: var(--fs-sm); line-height: 1.35; overflow-wrap: anywhere; }
+.cl-peek { position: absolute; z-index: 5; display: grid; gap: 4px; width: 230px; padding: 10px 12px; border-radius: 12px; background: var(--surface); pointer-events: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent), 0 14px 30px -14px rgb(0 0 0 / .5); animation: cl-peek-in .16s var(--ease) both; }
+/* opening above the bar: its bottom edge sits on the bar */
+.cl-peek.up { translate: 0 -100%; }
+@keyframes cl-peek-in { from { opacity: 0; scale: .97; } }
+.cl-peek b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; font-size: var(--fs-sm); line-height: 1.35; overflow-wrap: anywhere; }
 .cl-peek small { color: var(--muted); font-size: var(--fs-xs); }
-.cl-peek-row { display: flex; align-items: center; gap: 10px; }
+.cl-peek-row { display: flex; align-items: center; gap: 8px; margin: 2px 0; }
+.cl-peek .badge { font-size: var(--fs-3xs); padding: 1px 7px; }
 .cal-card { position: relative; overflow: visible; }
 .cl-pri { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); }
 .cl-pri::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: color-mix(in srgb, var(--muted) 55%, var(--surface)); }

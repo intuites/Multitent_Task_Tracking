@@ -7,7 +7,8 @@ import { useAuth } from '../lib/auth';
 import { fetchAll, fmtTime, label, NO_ESC, rpc, usePeople } from '../lib/ui';
 import { ask } from '../components/Dialog';
 import { ListSkeleton } from '../components/Skeleton';
-import { Building2, FolderKanban, History, ListChecks, Users } from 'lucide-react';
+import { Building2, FolderKanban, History, ListChecks, Trash2, Users } from 'lucide-react';
+import DeleteData from '../components/DeleteData';
 import { byDay, describe, fold, FILTERS, type Category, type LogRow } from '../lib/activityText';
 import { safeZone } from '../lib/greeting';
 import { isNewOrg, markOrgsSeen, NEW_DAYS, onOrgsSeen, seenOrgs } from '../lib/newOrgs';
@@ -118,6 +119,7 @@ export function Platform() {
   const [orgs, setOrgs] = useState<any[] | null>(null);
   const [admins, setAdmins] = useState<any[]>([]);
   const [q, setQ] = useState('');
+  const [cleaning, setCleaning] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const load = async () => {
     try {
@@ -164,8 +166,10 @@ export function Platform() {
         <div><h2 className="page-title">Admin site</h2><p className="page-sub">Everything across the CRM. Platform admins can open and manage every organization.</p></div>
         <div className="page-actions">
           <Link to="/organizations/new" className="pill-btn ghost">New organization</Link>
+          <button type="button" className="pill-btn ghost danger-text" onClick={() => setCleaning(true)} disabled={!orgs?.length}><Trash2 size={16} aria-hidden="true" />Delete data</button>
         </div>
       </div>
+      {cleaning && orgs && <DeleteData orgs={orgs.map((o) => ({ id: o.id, name: o.name }))} start={membership?.org_id} onClose={() => { setCleaning(false); load(); }} />}
       {msg && <p role={msg.kind === 'error' ? 'alert' : 'status'} className={`auth-msg ${msg.kind}`}><span>{msg.text}</span></p>}
       {s && <div className="perf-kpis">{Object.entries(s).map(([k, v], i) => <div key={k} className="perf-kpi" style={{ '--i': i } as React.CSSProperties}><b>{String(v)}</b><small>{label(k.replace(/^tt_/, ''))}</small></div>)}</div>}
 

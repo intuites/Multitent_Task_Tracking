@@ -6,30 +6,22 @@ import { useAuth } from '../lib/auth';
 import { can } from '../../api/_lib/permissions';
 import { Badge, fetchAll, fmt, fmtTime, rpc, usePeople } from '../lib/ui';
 import { Avatar } from '../components/Frame';
-import { CountUp, LiquidBg } from '../components/Liquid';
 import { DashSkeleton } from '../components/Skeleton';
 import { useLive } from '../lib/live';
-import { countTasks, PERIODS, type Period } from '../lib/dashPeriod';
+import { countTasks, periodBounds, PERIODS, type Period } from '../lib/dashPeriod';
+import { Count } from '../stageshow/kit/motion';
+import { Chart, chartPoints } from '../stageshow/kit/chart';
+import './dashboard.css';
 
 const OPEN = '(completed,completed_cycle)';
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-function Kpi({ title, value, note, to, feature }: { title: string; value: number; note: string; to: string; feature?: boolean }) {
-  return (
-    <Link to={to} className={feature ? 'kpi feature' : 'kpi'}>
-      {feature && <LiquidBg />}
-      <span className="kpi-head"><span>{title}</span><span className="go" aria-hidden="true"><ArrowUpRight size={16} /></span></span>
-      <b><CountUp value={value} /></b>
-      <small>{note}</small>
-    </Link>
-  );
-}
 
 type Range = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
 const RANGES: [Range, string][] = [['this_week', 'This week'], ['last_week', 'Last week'], ['this_month', 'This month'], ['last_month', 'Last month'], ['custom', 'Custom']];
 const day0 = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 const addD = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const pct = (n: number, of: number) => (of ? Math.round((n / of) * 100) : 0);
 
 /** [from, to) for a preset range, in the viewer's local time. */
 function bounds(r: Range, cFrom: string, cTo: string): [Date, Date] {
@@ -42,7 +34,7 @@ function bounds(r: Range, cFrom: string, cTo: string): [Date, Date] {
   return f < to ? [f, to] : [to, f];
 }
 
-/** Buckets: a bar per day up to 2 weeks, per week up to ~4 months, otherwise per month. */
+/** Buckets: one per day up to 2 weeks, per week up to ~4 months, otherwise per month. */
 function buckets(from: Date, to: Date) {
   const days = Math.round((to.getTime() - from.getTime()) / 864e5), out: { start: Date; end: Date; label: string; title: string }[] = [];
   const md = (d: Date) => d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
@@ -61,11 +53,25 @@ function buckets(from: Date, to: Date) {
   return out;
 }
 
-// Completed tasks over a chosen range, a labelled bar per day / week / month: the signed-in person's, or (uid null) the whole organization's.
+/** Width of an element, kept current as the layout changes (the kit's Chart draws at a fixed size). */
+function useWidth<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setW(Math.floor(e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w] as const;
+}
+
+// Completed tasks over a chosen range, as a line you can scrub: the signed-in person's, or (uid null) the whole organization's.
 function CompletedChart({ orgId, uid, tick, reports, period }: { orgId: string; uid: string | null; tick: number; reports: boolean; period: Period }) {
   const [range, setRange] = useState<Range>('this_week');
   const [cFrom, setCFrom] = useState(''), [cTo, setCTo] = useState('');
-  // the dashboard filter moves the chart to the same period (all time: the last 12 months, a bar per month); its own tabs still work
+  // the dashboard filter moves the chart to the same period (all time: the last 12 months, one point per month); its own menu still works
   useEffect(() => {
     if (period === 'week') setRange('this_week');
     else if (period === 'month') setRange('this_month');
@@ -76,7 +82,6 @@ function CompletedChart({ orgId, uid, tick, reports, period }: { orgId: string; 
   const key = `${from.getTime()}-${to.getTime()}`;
   useEffect(() => {
     let live = true;
-    setDates(null);
     const q = supabase.from('tt_tasks').select(uid ? 'completed_at, tt_task_assignees!inner(user_id)' : 'completed_at').eq('org_id', orgId);
     (uid ? q.eq('tt_task_assignees.user_id', uid) : q).is('archived_at', null).in('status', ['completed', 'completed_cycle']).gte('completed_at', from.toISOString()).lt('completed_at', to.toISOString()).limit(10000)
       .then(({ data }) => { if (live) setDates((data ?? []).map((r: any) => Date.parse(r.completed_at))); });
@@ -84,16 +89,36 @@ function CompletedChart({ orgId, uid, tick, reports, period }: { orgId: string; 
   }, [orgId, uid, key, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const bs = buckets(from, to), now = Date.now();
-  const counts = bs.map((b) => (dates ?? []).filter((t) => t >= b.start.getTime() && t < b.end.getTime()).length);
-  const max = Math.max(1, ...counts), best = counts.indexOf(Math.max(...counts)), total = counts.reduce((a, b) => a + b, 0);
+  // future buckets are left off the line, so it ends today instead of dropping to zero
+  const past = bs.filter((b) => b.start.getTime() <= now);
+  const counts = past.map((b) => (dates ?? []).filter((t) => t >= b.start.getTime() && t < b.end.getTime()).length);
+  const total = counts.reduce((a, b) => a + b, 0), best = Math.max(0, ...counts);
   const title = range === 'custom' ? `${from.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${addD(to, -1).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : RANGES.find(([r]) => r === range)![1];
+  const [box, w] = useWidth<HTMLDivElement>();
+  const H = 200, top = Math.max(4, Math.ceil(best * 1.25));
+  const data = counts.length > 1 ? counts : [counts[0] ?? 0, counts[0] ?? 0];
+  // the line covers only the days so far, on the same spacing as the full range, so each point sits over its label
+  const PAD = 4, step = bs.length > 1 ? (w - PAD * 2) / (bs.length - 1) : 0;
+  const cw = Math.min(w, PAD * 2 + (data.length - 1) * step || w);
+  const xOf = (i: number) => PAD + i * step;
+  const pts = w ? chartPoints({ data, width: cw, height: H, max: top }) : [];
+  const [hover, setHover] = useState<number | null>(null);
+  const at = hover ?? counts.length - 1;
+  const scrub = (e: React.PointerEvent) => {
+    if (!pts.length) return;
+    const x = e.clientX - e.currentTarget.getBoundingClientRect().left;
+    let i = 0;
+    pts.forEach((p, j) => { if (Math.abs(p.x - x) < Math.abs(pts[i].x - x)) i = j; });
+    setHover(Math.min(i, counts.length - 1));
+  };
 
   return (<>
-    <div className="cc-head">
-      <div><h3 id="an-h">{uid ? 'My completed tasks' : 'Completed by the team'}</h3><small className="muted">{dates === null ? 'Loading…' : `${total} in ${range === 'custom' ? title : title.toLowerCase()}`}</small></div>
-      {/* employees can't open Reports; the link would only bounce them back here */}
-      <span className="cc-tools">
-        {/* the same dropdown style as the page's period filter */}
+    <div className="dx-head">
+      <div>
+        <h3 id="an-h">{uid ? 'My completed tasks' : 'Completed by the team'}</h3>
+        <p className="dx-big"><Count value={dates === null ? 0 : hover === null ? total : counts[at] ?? 0} /><span>{hover === null ? `in ${range === 'custom' ? title : title.toLowerCase()}` : past[at]?.title}</span></p>
+      </div>
+      <span className="dx-tools">
         <label className="dash-period cc-period">
           <CalendarRange size={15} aria-hidden="true" />
           <span className="sr-only">Date range</span>
@@ -101,6 +126,7 @@ function CompletedChart({ orgId, uid, tick, reports, period }: { orgId: string; 
             {RANGES.map(([r, l]) => <option key={r} value={r}>{l}</option>)}
           </select>
         </label>
+        {/* employees can't open Reports; the link would only bounce them back here */}
         {reports && <Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link>}
       </span>
     </div>
@@ -109,51 +135,32 @@ function CompletedChart({ orgId, uid, tick, reports, period }: { orgId: string; 
         <label>From<input type="date" value={cFrom || isoDay(from)} max={isoDay(new Date())} onChange={(e) => setCFrom(e.target.value)} /></label>
         <label>To<input type="date" value={cTo || isoDay(addD(to, -1))} onChange={(e) => setCTo(e.target.value)} /></label>
       </div>)}
-    <div key={key} className={`weekbars cc-bars ${bs.length > 10 ? 'dense' : ''}`} style={{ gridTemplateColumns: `repeat(${bs.length}, 1fr)` }}
-      role="img" aria-label={`Tasks completed, ${title}: ${bs.map((b, i) => `${b.title} ${counts[i]}`).join(', ')}`}>
-      {bs.map((b, i) => {
-        const c = counts[i], future = b.start.getTime() > now, current = b.start.getTime() <= now && now < b.end.getTime();
-        const cls = future ? 'bar future' : c === 0 ? 'bar zero' : current ? 'bar today' : i === best ? 'bar best' : 'bar';
-        return (
-          <div key={b.start.getTime()} className="bar-col" style={{ '--i': i } as React.CSSProperties} title={`${b.title}: ${c} completed`}>
-            <div className="bar-track">
-              <span className="bar-stack" style={{ height: future ? '100%' : c === 0 ? '8%' : `${Math.max(16, (c / max) * 100)}%` }}>
-                {!future && dates !== null && <span className={`bar-val ${current ? 'now' : ''}`}>{c}</span>}
-                <span className={cls} />
-              </span>
-            </div>
-            <span className={`bar-day ${current ? 'now' : ''}`}>{b.label}</span>
-          </div>
-        );
-      })}
+    <div className="dx-plot" ref={box} onPointerMove={scrub} onPointerLeave={() => setHover(null)}
+      role="img" aria-label={`Tasks completed, ${title}: ${past.map((b, i) => `${b.title} ${counts[i]}`).join(', ')}`}>
+      <span className="dx-grid" aria-hidden="true"><i /><i /><i /><i /></span>
+      {w > 0 && <Chart key={`${bs.length}-${data.length}`} data={data} width={cw} height={H} max={top} show={dates !== null} />}
+      {hover !== null && pts[at] && (
+        <span className="dx-scrub" aria-hidden="true" style={{ left: pts[at].x }}>
+          <i style={{ top: pts[at].y }} />
+        </span>
+      )}
+    </div>
+    <div className="dx-axis" aria-hidden="true" data-dense={bs.length > 14 || undefined}>
+      {bs.map((b, i) => <span key={b.start.getTime()} style={{ left: xOf(i) }} data-on={i === at || undefined} data-future={b.start.getTime() > now || undefined}>{b.label}</span>)}
     </div>
   </>);
 }
 
-// Half-donut of completed / in progress / pending, drawn with dash offsets on one arc.
-function Gauge({ done, active, pending }: { done: number; active: number; pending: number }) {
-  const total = done + active + pending;
-  const pct = total ? Math.round((done / total) * 100) : 0;
-  const seg = (n: number) => (total ? (n / total) * 100 : 0);
-  const arc = 'M 20 110 A 90 90 0 0 1 200 110';
-  return (
-    <div className="gauge">
-      <svg viewBox="0 0 220 125" role="img" aria-label={`${pct}% of tasks completed: ${done} completed, ${active} started, ${pending} not started or pending`}>
-        <defs>
-          <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="6" height="6" fill="var(--hatch-bg)" /><line x1="0" y1="0" x2="0" y2="6" stroke="var(--hatch)" strokeWidth="2.5" />
-          </pattern>
-        </defs>
-        <path d={arc} pathLength={100} fill="none" stroke="url(#hatch)" strokeWidth="28" />
-        <path d={arc} pathLength={100} fill="none" stroke="var(--brand-3)" strokeWidth="28" strokeDasharray={`${seg(done) + seg(active)} 100`} />
-        <path d={arc} pathLength={100} fill="none" stroke="var(--brand)" strokeWidth="28" strokeDasharray={`${seg(done)} 100`} />
-      </svg>
-      <div className="gauge-num"><b>{total ? `${pct}%` : '—'}</b><small>{total ? `${done} of ${total} tasks done` : 'No tasks yet'}</small></div>
-      <ul className="legend">
-        <li><i className="sw done" />Completed <b>{done}</b></li><li><i className="sw active" />Started <b>{active}</b></li><li><i className="sw pending" />Pending <b>{pending}</b></li>
-      </ul>
-    </div>
-  );
+const STATUS_PARTS = [['not_yet_started', 'Not yet started'], ['started', 'Started'], ['pending', 'Pending']] as const;
+const PRIORITIES = [['urgent', 'Urgent'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']] as const;
+
+/** Time left until a date, kept current every minute. */
+function useCountdown(iso?: string) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const iv = window.setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(iv); }, []);
+  if (!iso) return '';
+  const m = Math.max(0, Math.round((Date.parse(iso) - now) / 60000)), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60);
+  return d ? `in ${d}d ${h}h` : h ? `in ${h}h ${m % 60}m` : `in ${m} min`;
 }
 
 export default function Dashboard() {
@@ -167,6 +174,7 @@ export default function Dashboard() {
   const [d, setD] = useState<any>(null);
   const [error, setError] = useState('');
   const [tick, setTick] = useState(0);
+  const [updated, setUpdated] = useState<Date | null>(null);
   // remembered per browser
   const [period, setPeriodState] = useState<Period>(() => { try { const v = localStorage.getItem('tt-dash-period'); return v === 'week' || v === 'month' ? v : 'all'; } catch { return 'all'; } });
   const setPeriod = (p: Period) => { setPeriodState(p); try { localStorage.setItem('tt-dash-period', p); } catch { /* storage blocked */ } };
@@ -191,38 +199,62 @@ export default function Dashboard() {
       try {
         const [sum, myAll, next, current, mine] = await Promise.all([
           rpc('tt_org_summary', { p_org: orgId, p_day_start: start.toISOString(), p_day_end: end.toISOString() }),
-          fetchAll(() => myTasks('id, status, due_date, completed_at').order('id')).then((data) => ({ data })),
+          fetchAll(() => myTasks('id, status, priority, due_date, completed_at').order('id')).then((data) => ({ data })),
           myTasks('id, title, status, due_date').not('status', 'in', OPEN).gte('due_date', now.toISOString()).order('due_date').limit(1),
           supabase.from('tt_tasks').select('id, title, status, tt_task_assignees(user_id)').eq('org_id', orgId).is('archived_at', null)
             .in('status', ['started', 'pending', 'not_yet_started']).order('updated_at', { ascending: false }).limit(100),
           supabase.from('tt_tasks').select('id, title, status, due_date, tt_task_assignees!inner(user_id)').eq('org_id', orgId).eq('tt_task_assignees.user_id', uid)
-            .is('archived_at', null).not('status', 'in', OPEN).order('due_date', { nullsFirst: false }).limit(4),
+            .is('archived_at', null).not('status', 'in', OPEN).order('due_date', { nullsFirst: false }).limit(5),
         ]);
         // one "currently working on" task per person, most recently updated first
         const working = new Map<string, any>();
         for (const t of current.data ?? []) for (const a of t.tt_task_assignees) if (!working.has(a.user_id)) working.set(a.user_id, t);
         setD({
           sum, next: next.data?.[0], mine: mine.data ?? [],
-          team: (sum.workload as any[]).filter((w) => w.open).slice(0, 4).map((w) => ({ ...w, task: working.get(w.user_id) })),
+          team: (sum.workload as any[]).filter((w) => w.open).sort((a, b) => b.open - a.open).slice(0, 5).map((w) => ({ ...w, task: working.get(w.user_id) })),
           // every number is the signed-in person's own tasks (a platform admin's: the organization's), counted for the period below
           rows: myAll.data ?? [],
         });
+        setUpdated(new Date());
       } catch (x) { setError((x as Error).message); }
     })();
   }, [orgId, uid, tick, all]);
 
   // recounted when the filter changes, without reloading; the clock tick keeps "overdue" and "due today" current
   const c = useMemo(() => countTasks(d?.rows ?? [], period), [d, period, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+  // open work in the period, split by status and by priority (the same tasks the Open card counts)
+  const split = useMemo(() => {
+    const b = periodBounds(period), s: Record<string, number> = {}, p: Record<string, number> = {};
+    for (const r of (d?.rows ?? []) as any[]) {
+      if (r.status === 'completed' || r.status === 'completed_cycle') continue;
+      if (b && !(r.due_date && Date.parse(r.due_date) >= b[0] && Date.parse(r.due_date) < b[1])) continue;
+      s[r.status] = (s[r.status] ?? 0) + 1;
+      p[r.priority ?? 'medium'] = (p[r.priority ?? 'medium'] ?? 0) + 1;
+    }
+    return { s, p };
+  }, [d, period]);
+  const left = useCountdown(d?.next?.due_date);
   if (error) return <div className="card"><p role="alert">{error}</p></div>;
   if (!d) return <DashSkeleton />;
   const span = period === 'week' ? 'this week' : period === 'month' ? 'this month' : '';
+  const maxP = Math.max(1, ...PRIORITIES.map(([k]) => split.p[k] ?? 0));
+  const rate = pct(c.done, c.done + c.open);
+  const stats: [string, number, string, number, string][] = [
+    [all ? 'Open tasks' : 'My open tasks', c.open, span ? `Due ${span} · ${c.active} started` : `${c.active} started`, pct(c.active, c.open), tasks],
+    ['Overdue', c.overdue, c.overdue ? `${pct(c.overdue, c.open)}% of open work` : 'Everything is on time', pct(c.overdue, c.open), `${tasks}?view=overdue`],
+    ['Due today', c.dueToday, 'Before midnight', pct(c.dueToday, c.open), `${tasks}?view=due_today`],
+    ['Pending', c.waiting, 'Waiting on something', pct(c.waiting, c.open), `${tasks}?view=pending`],
+  ];
 
   return (
-    <>
+    <div className="dx">
       <div className="page-head">
         <div>
           <h2 className="page-title">Dashboard</h2>
-          <p className="page-sub">{all ? `How ${membership!.org_name} is doing today, across every task.` : 'What needs your attention today.'}</p>
+          <p className="page-sub">
+            {all ? `How ${membership!.org_name} is doing today, across every task.` : 'What needs your attention today.'}
+            {updated && <span className="dx-live" title="Updates by itself when a task changes"><i aria-hidden="true" />Live · {updated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>}
+          </p>
         </div>
         <div className="page-actions">
           {/* open, overdue and pending count tasks due in the period; completed counts tasks finished in it */}
@@ -238,56 +270,73 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="dash">
-        <div className="a-k1"><Kpi feature title={all ? 'Open tasks' : 'My open tasks'} value={c.open} note={span ? `Due ${span} · ${c.active} started` : `${c.active} started`} to={tasks} /></div>
-        <div className="a-k2"><Kpi title="Overdue" value={c.overdue} note={c.overdue ? 'Past their due date' : 'Everything is on time'} to={`${tasks}?view=overdue`} /></div>
-        <div className="a-k3"><Kpi title="Due today" value={c.dueToday} note="Before midnight" to={`${tasks}?view=due_today`} /></div>
-        <div className="a-k4"><Kpi title="Pending" value={c.waiting} note="Waiting on something" to={`${tasks}?view=pending`} /></div>
+      <div className="dx-grid-main">
+        {stats.map(([title, v, note, share, to], i) => (
+          <Link key={title} to={to} className="dx-card dx-stat" data-lead={i === 0 || undefined} data-alert={(i === 1 && v > 0) || undefined} style={{ '--n': i } as React.CSSProperties}>
+            <span className="dx-stat-head">{title}<ArrowUpRight size={16} aria-hidden="true" /></span>
+            <b className="dx-fig"><Count value={v} /></b>
+            <span className="dx-meter" aria-hidden="true"><i style={{ width: `${share}%` }} /></span>
+            <small>{note}</small>
+          </Link>
+        ))}
 
-        <section className="card a-an" aria-labelledby="an-h">
+        <section className="dx-card dx-chart" aria-labelledby="an-h" style={{ '--n': 4 } as React.CSSProperties}>
           <CompletedChart orgId={orgId} uid={all ? null : uid} tick={tick} reports={can(membership!.role, 'report:read')} period={period} />
         </section>
 
-        <section className="card a-re" aria-labelledby="re-h">
+        <section className="dx-card dx-split" aria-labelledby="sp-h" style={{ '--n': 5 } as React.CSSProperties}>
+          <h3 id="sp-h">Open work</h3>
+          <p className="dx-big"><Count value={c.open} /><span>{span ? `due ${span}` : 'tasks'}</span></p>
+          <span className="dx-stack" role="img" aria-label={STATUS_PARTS.map(([k, l]) => `${l} ${split.s[k] ?? 0}`).join(', ')}>
+            {STATUS_PARTS.map(([k]) => <i key={k} data-k={k} style={{ flexGrow: split.s[k] ?? 0 }} />)}
+          </span>
+          <ul className="dx-legend">
+            {STATUS_PARTS.map(([k, l]) => <li key={k}><i data-k={k} />{l}<b><Count value={split.s[k] ?? 0} /></b></li>)}
+          </ul>
+          <h4>By priority</h4>
+          <ul className="dx-rank">
+            {PRIORITIES.map(([k, l]) => (
+              <li key={k}><span>{l}</span><span className="dx-bar" aria-hidden="true"><i data-k={k} style={{ width: `${((split.p[k] ?? 0) / maxP) * 100}%` }} /></span><b><Count value={split.p[k] ?? 0} /></b></li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="dx-card dx-next" aria-labelledby="re-h" style={{ '--n': 6 } as React.CSSProperties}>
           <h3 id="re-h">Next deadline</h3>
           {d.next ? (<>
+            <p className="dx-count">{left}</p>
             <p className="remind-title">{d.next.title}</p>
             <p className="remind-time">Due {fmtTime(d.next.due_date)}</p>
             <Link to={`/tasks/${d.next.id}`} className="pill-btn wide"><CalendarClock size={16} aria-hidden="true" />Open task</Link>
           </>) : <p className="muted">No upcoming deadlines.</p>}
         </section>
 
-        <section className="card a-tm" aria-labelledby="tm-h">
+        <section className="dx-card dx-team" aria-labelledby="tm-h" style={{ '--n': 7 } as React.CSSProperties}>
           {canAssign ? (<>
             <div className="panel-head"><h3 id="tm-h">Team at work</h3>{can(membership!.role, 'members:manage') && <Link to="/employees" className="pill-btn ghost sm"><Plus size={14} aria-hidden="true" />Add member</Link>}</div>
             {d.team.length === 0 ? <p className="muted">Nobody has open work assigned.</p> : (
-              <ul className="team">{d.team.map((w: any) => (
+              <ul className="dx-people">{d.team.map((w: any) => (
                 <li key={w.user_id}><Avatar name={name(w.user_id)} url={photo(w.user_id)} />
                   <span className="who"><b>{name(w.user_id)}</b><small>{w.task ? <>Working on <Link to={`/tasks/${w.task.id}`}>{w.task.title}</Link></> : `${w.open} open tasks`}</small></span>
-                  {w.task && <Badge v={w.task.status} />}</li>))}
+                  <span className="dx-load" title={`${w.open} open, ${w.overdue} overdue`}><b>{w.open}</b><small>open</small></span></li>))}
               </ul>)}
           </>) : (<>
             <div className="panel-head"><h3 id="tm-h">My tasks</h3><Link to="/my-tasks" className="mini-link">View all</Link></div>
             {d.mine.length === 0 ? <p className="muted">Nothing assigned to you.</p> : (
-              <ul className="team">{d.mine.map((t: any) => (
+              <ul className="dx-people">{d.mine.map((t: any) => (
                 <li key={t.id}><span className="who"><Link to={`/tasks/${t.id}`}><b>{t.title}</b></Link><small>Due {fmt(t.due_date)}</small></span><Badge v={t.status} /></li>))}
               </ul>)}
           </>)}
         </section>
 
-        <section className="card a-pg" aria-labelledby="pg-h">
-          <h3 id="pg-h">{all ? 'Task progress' : 'My task progress'}</h3>
-          <Gauge done={c.done} active={c.active} pending={c.pending} />
-        </section>
-
-        <section className="card esc-card a-es" aria-labelledby="es-h">
-          <LiquidBg tone="deep" />
-          <h3 id="es-h">Completed</h3>
-          <b className="esc-num"><CountUp value={c.done} /></b>
-          <p>{span ? `Finished ${span}: ` : ''}{c.cycle} this cycle · {c.done - c.cycle} permanently</p>
-          <Link to={`${tasks}?view=completed`} className="round-btn" aria-label={all ? 'Open completed tasks' : 'Open my completed tasks'}><ArrowUpRight size={20} aria-hidden="true" /></Link>
+        <section className="dx-card dx-done" aria-labelledby="es-h" style={{ '--n': 8 } as React.CSSProperties}>
+          <div className="panel-head"><h3 id="es-h">Completed</h3><Link to={`${tasks}?view=completed`} className="mini-link" aria-label={all ? 'Open completed tasks' : 'Open my completed tasks'}>View<ArrowUpRight size={14} aria-hidden="true" /></Link></div>
+          <div className="dx-ring" role="img" aria-label={`${rate}% of tasks done`} style={{ '--p': rate } as React.CSSProperties}>
+            <b><Count value={rate} />%</b><small>done</small>
+          </div>
+          <p className="dx-done-line"><b><Count value={c.done} /></b> {span ? `finished ${span}` : 'finished'} · {c.cycle} this cycle · {c.done - c.cycle} permanently</p>
         </section>
       </div>
-    </>
+    </div>
   );
 }

@@ -1,0 +1,134 @@
+/* Dashboard: a bento grid of quiet cards on the app's own tokens, one accent (the organization's colour), live values that
+   roll when they change (stageshow Count), a scrubbable line (stageshow Chart) and cards that rise in as you scroll. */
+.dx {
+  /* --brand is the palette's text colour, tested at 4.5:1 on surfaces in every brand colour and mode (palette.test.ts) */
+  --ss-accent: var(--brand);
+  --ss-surface: var(--surface);
+  --dx-line: color-mix(in srgb, var(--text) 9%, transparent);
+  --dx-faint: color-mix(in srgb, var(--text) 5%, transparent);
+}
+.dx-grid-main { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+.dx-card { position: relative; min-width: 0; padding: 20px 22px; border-radius: var(--r-card); background: var(--surface); color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--dx-line), 0 1px 2px rgb(0 0 0 / .04); }
+.dx-card h3 { margin: 0; font-size: var(--fs-base); font-weight: var(--fw-title); letter-spacing: -0.01em; }
+.dx-card h4 { margin: 18px 0 10px; font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--muted); }
+
+/* live status beside the subtitle: a real signal (the page refreshes itself on every task change) */
+.dx-live { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; padding: 2px 9px 2px 8px; border-radius: var(--r-pill); vertical-align: 1px;
+  background: var(--ok-bg); color: var(--ok-fg); font-size: var(--fs-2xs); font-weight: var(--fw-semibold); font-style: normal; white-space: nowrap; }
+.dx-live i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* stat cards */
+.dx-stat { grid-column: span 3; display: flex; flex-direction: column; gap: 10px; min-height: 156px; text-decoration: none;
+  transition: transform .35s var(--ease), box-shadow .35s var(--ease); }
+.dx-stat:hover { transform: translateY(-3px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 40%, transparent), 0 18px 34px -22px rgb(0 0 0 / .35); }
+.dx-stat-head { display: flex; justify-content: space-between; align-items: center; font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--muted); }
+.dx-stat-head svg { color: var(--muted); transition: transform .25s var(--ease); }
+.dx-stat:hover .dx-stat-head svg { transform: translate(2px, -2px); color: var(--text); }
+.dx-fig { font-size: var(--fs-6xl); font-weight: var(--fw-bold); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.dx-stat small { margin-top: auto; font-size: var(--fs-xs); color: var(--muted); }
+.dx-meter { display: block; height: 4px; border-radius: 4px; background: var(--dx-faint); overflow: hidden; }
+.dx-meter i { display: block; height: 100%; border-radius: inherit; background: var(--brand); transition: width .9s var(--settle, var(--ease)); }
+/* text on the lead card uses the palette's tested button pair: --brand-ink on --brand-2 (4.5:1) */
+.dx-stat[data-lead] { background: var(--brand-2); color: var(--brand-ink); box-shadow: 0 18px 36px -24px color-mix(in srgb, var(--brand-2) 70%, transparent); }
+.dx-stat[data-lead] .dx-stat-head, .dx-stat[data-lead] .dx-stat-head svg, .dx-stat[data-lead] small { color: var(--brand-ink); }
+.dx-stat[data-lead] .dx-meter { background: color-mix(in srgb, var(--brand-ink) 22%, transparent); }
+.dx-stat[data-lead] .dx-meter i { background: var(--brand-ink); }
+.dx-stat[data-alert] .dx-fig { color: var(--danger); }
+.dx-stat[data-alert] .dx-meter i { background: var(--danger); }
+
+/* the completed line */
+.dx-chart { grid-column: span 8; display: flex; flex-direction: column; }
+.dx-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.dx-tools { display: inline-flex; align-items: center; gap: 12px; }
+.dx-big { display: flex; align-items: baseline; gap: 8px; margin: 8px 0 0; }
+.dx-big .ss-count { font-size: var(--fs-4xl); font-weight: var(--fw-bold); letter-spacing: -0.02em; line-height: 1; }
+.dx-big > span:last-child { font-size: var(--fs-xs); color: var(--muted); }
+.dx-plot { position: relative; height: 200px; margin-top: 18px; touch-action: pan-y; cursor: crosshair; }
+.dx-plot .ss-chart { position: absolute; left: 0; top: 0; }
+.dx-plot .ss-chart__line { stroke-width: 2.25; }
+.dx-grid { position: absolute; inset: 4px 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
+.dx-grid i { height: 1px; background: var(--dx-faint); }
+.dx-grid i:last-child { background: var(--dx-line); }
+.dx-scrub { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--dx-line); pointer-events: none; }
+.dx-scrub i { position: absolute; left: -5px; width: 11px; height: 11px; margin-top: -5.5px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 3px var(--surface); }
+.dx-axis { position: relative; height: 18px; margin-top: 8px; }
+.dx-axis span { position: absolute; top: 0; translate: -50% 0; font-size: var(--fs-2xs); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dx-axis span:first-child { translate: -4px 0; } .dx-axis span:last-child { translate: calc(-100% + 4px) 0; }
+.dx-axis span[data-future] { opacity: .5; }
+.dx-axis span[data-on] { color: var(--text); font-weight: var(--fw-semibold); }
+.dx-axis[data-dense] span:nth-child(even):not([data-on]) { visibility: hidden; }
+
+/* open work split */
+.dx-split { grid-column: span 4; }
+.dx-stack { display: flex; gap: 3px; height: 10px; margin-top: 18px; border-radius: 6px; overflow: hidden; background: var(--dx-faint); }
+.dx-stack i { flex-basis: 0; min-width: 0; transition: flex-grow .9s var(--settle, var(--ease)); }
+.dx [data-k="not_yet_started"] { background: color-mix(in srgb, var(--muted) 45%, var(--surface)); }
+.dx [data-k="started"] { background: var(--brand); }
+.dx [data-k="pending"] { background: color-mix(in srgb, var(--warn-fg) 70%, var(--surface)); }
+.dx [data-k="urgent"] { background: var(--danger); }
+.dx [data-k="high"] { background: color-mix(in srgb, var(--danger) 55%, var(--warn-fg)); }
+.dx [data-k="medium"] { background: var(--brand); }
+.dx [data-k="low"] { background: color-mix(in srgb, var(--muted) 45%, var(--surface)); }
+.dx-legend { display: grid; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; font-size: var(--fs-sm); }
+.dx-legend li { display: flex; align-items: center; gap: 8px; }
+.dx-legend li > i { width: 8px; height: 8px; border-radius: 2px; }
+.dx-legend b, .dx-rank b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.dx-rank { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; font-size: var(--fs-sm); }
+.dx-rank li { display: grid; grid-template-columns: 64px minmax(0, 1fr) 32px; align-items: center; gap: 10px; }
+.dx-rank b { text-align: right; }
+.dx-bar { height: 6px; border-radius: 4px; background: var(--dx-faint); overflow: hidden; }
+.dx-bar i { display: block; height: 100%; border-radius: inherit; transition: width .9s var(--settle, var(--ease)); }
+
+/* next deadline, team, completed */
+.dx-next { grid-column: span 4; display: flex; flex-direction: column; }
+.dx-count { margin: 14px 0 2px; font-size: var(--fs-3xl); font-weight: var(--fw-bold); letter-spacing: -0.02em; color: var(--brand); font-variant-numeric: tabular-nums; }
+.dx-next .pill-btn { margin-top: auto; }
+.dx-team { grid-column: span 5; }
+.dx-people { display: grid; margin: 8px 0 0; padding: 0; list-style: none; }
+.dx-people li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--dx-faint); }
+.dx-people li:first-child { border-top: 0; }
+.dx-people .who { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.dx-people .who small { overflow: hidden; color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; text-overflow: ellipsis; }
+.dx-load { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+.dx-load b { font-size: var(--fs-lg); font-variant-numeric: tabular-nums; } .dx-load small { color: var(--muted); font-size: var(--fs-3xs); }
+.dx-done { grid-column: span 3; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.dx-done .panel-head { align-self: stretch; }
+.dx-ring { --p: 0; position: relative; display: grid; place-content: center; width: 132px; aspect-ratio: 1; margin: 16px 0 12px; border-radius: 50%;
+  background: conic-gradient(var(--brand) calc(var(--p) * 1%), var(--dx-faint) 0); transition: --p 1s var(--settle, var(--ease)); }
+.dx-ring::before { content: ''; position: absolute; inset: 12px; border-radius: 50%; background: var(--surface); }
+.dx-ring > * { position: relative; }
+.dx-ring b { font-size: var(--fs-3xl); font-weight: var(--fw-bold); line-height: 1; font-variant-numeric: tabular-nums; }
+.dx-ring small { color: var(--muted); font-size: var(--fs-2xs); }
+.dx-done-line { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
+.dx-done-line b { color: var(--text); }
+@property --p { syntax: '<number>'; inherits: false; initial-value: 0; }
+
+@media (max-width: 1100px) {
+  .dx-stat { grid-column: span 6; }
+  .dx-chart, .dx-split { grid-column: span 12; }
+  .dx-next, .dx-team { grid-column: span 6; } .dx-done { grid-column: span 12; }
+}
+@media (max-width: 700px) {
+  .dx-grid-main > :not(.dx-stat) { grid-column: 1 / -1; }
+  .dx-grid-main { gap: 12px; }
+  .dx-stat { grid-column: span 6; min-height: 0; padding: 16px; }
+  .dx-fig { font-size: var(--fs-5xl); }
+  .dx-live { margin: 6px 0 0; display: flex; width: max-content; }
+}
+
+/* scrolling: cards rise in on load, one after another, then each settles in as it scrolls into view */
+@media (prefers-reduced-motion: no-preference) {
+  .dx-card { animation: dx-in .7s var(--settle, var(--ease)) backwards; animation-delay: calc(var(--n, 0) * 60ms); }
+  @supports (animation-timeline: view()) {
+    .content .dx-card { animation: dx-in .7s var(--settle, var(--ease)) backwards, dx-view linear both; animation-timeline: auto, view();
+      animation-range: normal, entry 0% entry 55%; animation-delay: calc(var(--n, 0) * 60ms), 0s; }
+  }
+  .dx-live i { animation: dx-pulse 2.4s ease-out infinite; }
+}
+@keyframes dx-in { from { opacity: 0; translate: 0 18px; } }
+@keyframes dx-view { from { scale: .97; filter: blur(2px); } }
+@keyframes dx-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 50%, transparent); } 70%, 100% { box-shadow: 0 0 0 6px transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  .dx-meter i, .dx-stack i, .dx-bar i, .dx-ring, .dx-stat { transition: none; }
+}

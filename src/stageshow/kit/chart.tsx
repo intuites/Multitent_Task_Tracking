@@ -42,6 +42,9 @@ export function chartPoints({ data, kind = 'line', width, height, dot = true, ma
 }
 
 /** A smooth path through the points (Catmull-Rom as cubic Béziers), never overshooting the ends. */
+// Taskify addition: control points stay within their segment's height, so the curve never dips below a real value (no false zero-crossings)
+const within = (v: number, a: number, b: number) => Math.min(Math.max(v, Math.min(a, b)), Math.max(a, b))
+
 function smooth(p: { x: number; y: number }[]) {
   if (!p.length) return ''
   let d = `M${p[0].x} ${p[0].y}`
@@ -50,7 +53,7 @@ function smooth(p: { x: number; y: number }[]) {
     const b = p[i]
     const c = p[i + 1]
     const e = p[i + 2] ?? c
-    d += `C${b.x + (c.x - a.x) / 6} ${b.y + (c.y - a.y) / 6} ${c.x - (e.x - b.x) / 6} ${c.y - (e.y - b.y) / 6} ${c.x} ${c.y}`
+    d += `C${b.x + (c.x - a.x) / 6} ${within(b.y + (c.y - a.y) / 6, b.y, c.y)} ${c.x - (e.x - b.x) / 6} ${within(c.y - (e.y - b.y) / 6, b.y, c.y)} ${c.x} ${c.y}`
   }
   return d
 }
@@ -100,8 +103,8 @@ function resample(p: { x: number; y: number }[]) {
     const c = p[i + 1]
     const e = p[i + 2] ?? c
     // The Bézier segment smooth() draws between b and c
-    const c1 = { x: b.x + (c.x - a.x) / 6, y: b.y + (c.y - a.y) / 6 }
-    const c2 = { x: c.x - (e.x - b.x) / 6, y: c.y - (e.y - b.y) / 6 }
+    const c1 = { x: b.x + (c.x - a.x) / 6, y: within(b.y + (c.y - a.y) / 6, b.y, c.y) }
+    const c2 = { x: c.x - (e.x - b.x) / 6, y: within(c.y - (e.y - b.y) / 6, b.y, c.y) }
     const m = 1 - t
     const k = (p0: number, p1: number, p2: number, p3: number) => m * m * m * p0 + 3 * m * m * t * p1 + 3 * m * t * t * p2 + t * t * t * p3
     out.push({ x: k(b.x, c1.x, c2.x, c.x), y: k(b.y, c1.y, c2.y, c.y) })

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlarmClock, AtSign, BadgeCheck, BellOff, CalendarClock, Check, CheckCheck, Eye, MessageSquare, PauseCircle, PlayCircle, RefreshCw, Settings2, UserPlus,
+  AlarmClock, AtSign, BadgeCheck, BellOff, CalendarClock, Check, CheckCheck, Eye, MessageSquare, PauseCircle, PlayCircle, RefreshCw, Settings, UserPlus,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -135,7 +135,7 @@ export default function Notifications() {
             <button type="button" aria-pressed={filter === 'unread'} onClick={() => { setFilter('unread'); setLimit(PAGE); }}>Unread{unread > 0 && <span className="seg-count">{unread}</span>}</button>
           </div>
           <button type="button" className="pill-btn ghost" disabled={!unread} onClick={() => markRead('all')}><CheckCheck size={16} aria-hidden="true" />Mark all read</button>
-          {orgId && <button type="button" className="icon-btn nf-gear" onClick={() => setSettings(true)} title="Notification settings" aria-label="Notification settings"><Settings2 size={18} aria-hidden="true" /></button>}
+          {orgId && <button type="button" className="icon-btn nf-gear" onClick={() => setSettings(true)} title="Notification settings" aria-label="Notification settings"><Settings size={18} aria-hidden="true" /></button>}
         </div>
       </div>
       {error && <p role="alert" className="card">{error}</p>}

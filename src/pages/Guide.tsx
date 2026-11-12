@@ -128,8 +128,6 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
       <section className="g-hero" data-fx>
         <LiquidBg tone="deep" />
         <span className="g-orb" aria-hidden="true" />
-        {/* cinematic: letterbox bars that open, film grain, vignette */}
-        <span className="g-cine" aria-hidden="true" />
         <div className="g-hero-copy">
           <p className="g-kicker"><span className="g-kdot" aria-hidden="true" />Product guide</p>
           <h1 aria-label={HEADLINE}>{HEADLINE.split(' ').map((w, i) => <span key={i} className="g-word" aria-hidden="true" style={css({ '--i': i })}>{w} </span>)}</h1>
@@ -190,7 +188,6 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
       <section className="g-end" data-fx>
         <LiquidBg />
         <span className="g-orb end" aria-hidden="true" />
-        <span className="g-cine end" aria-hidden="true" />
         <h2>Ready when you are.</h2>
         {standalone ? <a href="/" className="pill-btn light g-shine">Sign in to Taskify</a> : <Link to="/" className="pill-btn light g-shine">Go to dashboard</Link>}
       </section>

@@ -1,0 +1,65 @@
+/* Task templates: new/edit and "use" open in a side window (like New task) with a live preview, and every template shows its
+   plan as a timeline: each subtask's span in days from the start date, in steps (stageshow: show what it will do). */
+dialog.tpl-sheet { width: min(1080px, calc(100vw - 32px)); }
+.tp-form { display: grid; grid-template-columns: minmax(0, 1fr) 320px; column-gap: 28px; align-items: start; }
+.tp-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; padding-bottom: 14px; }
+.tp-span { grid-column: 1 / -1; }
+.tp-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.tp-main .nt-sec:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+
+/* the same numbered section heads as New task (newTask.css is only loaded with that form) */
+.tpl-sheet .nt-sec { display: flex; align-items: center; gap: 10px; margin: 10px 0 0; padding-top: 16px; border-top: 1px solid color-mix(in srgb, var(--text) 7%, transparent);
+  font-size: var(--fs-base); font-weight: var(--fw-title); letter-spacing: -0.01em; }
+.tpl-sheet .tp-main > .nt-sec:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.tpl-sheet .nt-sec span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: var(--brand-2); color: var(--brand-ink); font-size: var(--fs-xs); font-weight: var(--fw-bold); }
+
+/* departments as toggle chips */
+.tpl-sheet .tpl-depts { margin: 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.tpl-sheet .tpl-depts legend { margin-bottom: 8px; padding: 0; font-size: var(--fs-sm); font-weight: var(--fw-book); }
+.tpl-sheet .tpl-depts label.inline { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: var(--r-pill); cursor: pointer;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent); transition: background-color .2s var(--ease), box-shadow .2s var(--ease); }
+.tpl-sheet .tpl-depts label.inline:has(input:checked) { background: color-mix(in srgb, var(--brand) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 40%, transparent); }
+.tpl-sheet .tpl-subs { background: color-mix(in srgb, var(--text) 4%, transparent); }
+
+/* the preview */
+.tp-preview { position: sticky; top: 76px; display: grid; gap: 10px; padding-bottom: 8px; }
+.tpl-sheet .nt-pv-k { margin: 0; font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--muted); }
+.tpl-sheet .nt-pv-note { margin: 0; color: var(--muted); font-size: var(--fs-xs); line-height: 1.5; }
+.tpl-sheet .nt-pv-note .ss-count { color: var(--text); font-weight: var(--fw-semibold); }
+.tp-pv-card { display: grid; gap: 8px; padding: 16px; border-radius: 16px; background: var(--surface);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 9%, transparent), 0 18px 36px -24px rgb(0 0 0 / .45); }
+.tp-pv-name { font-size: var(--fs-lg); line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.tp-pv-name[data-empty] { color: var(--muted); font-weight: var(--fw-medium); }
+.tp-pv-title { font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* the plan timeline */
+.tp-plan { display: grid; gap: 6px; margin-top: 4px; padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--text) 7%, transparent); }
+.tp-scale { display: flex; justify-content: space-between; font-size: var(--fs-3xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.tp-none { margin: 0; font-size: var(--fs-xs); }
+.tp-steps { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.tp-steps li { display: grid; gap: 4px; animation: fade-in-up .3s var(--ease) both; animation-delay: calc(var(--i, 0) * 40ms); }
+.tp-step-name { display: flex; align-items: baseline; gap: 6px; min-width: 0; font-size: var(--fs-xs); }
+.tp-step-name i { display: grid; place-items: center; flex: none; width: 16px; height: 16px; border-radius: 5px; font-style: normal; font-size: 10px; font-weight: var(--fw-bold);
+  background: color-mix(in srgb, var(--brand) 12%, transparent); color: var(--brand); align-self: center; }
+.tp-step-name b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-semibold); }
+.tp-step-name small { flex: none; margin-left: auto; color: var(--muted); font-size: var(--fs-3xs); }
+.tp-track { position: relative; display: block; height: 6px; border-radius: 6px; background: color-mix(in srgb, var(--text) 6%, transparent); }
+.tp-bar { position: absolute; top: 0; bottom: 0; border-radius: 6px; background: var(--brand-2); transition: left .4s var(--settle, var(--ease)), width .4s var(--settle, var(--ease)); }
+.tp-due { margin: 2px 0 0; font-size: var(--fs-2xs); font-weight: var(--fw-semibold); color: var(--brand); }
+
+/* the cards */
+.tpl-card { gap: 6px; }
+.tpl-card .tp-plan { margin-top: 6px; }
+.tpl-card .tpl-meta { margin-top: 6px; }
+
+@media (max-width: 900px) { .tp-form { grid-template-columns: 1fr; } .tp-preview { display: none; } }
+@media (max-width: 560px) { .tp-row { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .tp-steps li { animation: none; } .tp-bar { transition: none; } }
+
+/* subtask rows fit the form column: the tracks may shrink, the day fields are compact */
+.tpl-sheet .tpl-subs { grid-template-columns: minmax(0, 1fr); }
+.tpl-sheet .sub-rows li { grid-template-columns: auto minmax(0, 2fr) minmax(0, 1.3fr) 76px 76px auto; }
+.tpl-sheet .sub-rows li > * { min-width: 0; }
+.tpl-sheet .sub-rows select, .tpl-sheet .sub-rows input { width: 100%; min-width: 0; }
+@media (max-width: 700px) { .tpl-sheet .sub-rows li { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .tpl-sheet .sub-rows li > svg { display: none; } }
+.tpl-sheet .nt-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }

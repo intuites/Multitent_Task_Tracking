@@ -92,10 +92,17 @@ function CompletedChart({ orgId, uid, tick, reports, period }: { orgId: string; 
     <div className="cc-head">
       <div><h3 id="an-h">{uid ? 'My completed tasks' : 'Completed by the team'}</h3><small className="muted">{dates === null ? 'Loading…' : `${total} in ${range === 'custom' ? title : title.toLowerCase()}`}</small></div>
       {/* employees can't open Reports; the link would only bounce them back here */}
-      {reports && <Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link>}
-    </div>
-    <div className="cc-ranges" role="group" aria-label="Date range">
-      {RANGES.map(([r, l]) => <button key={r} type="button" aria-pressed={range === r} onClick={() => setRange(r)}>{l}</button>)}
+      <span className="cc-tools">
+        {/* the same dropdown style as the page's period filter */}
+        <label className="dash-period cc-period">
+          <CalendarRange size={15} aria-hidden="true" />
+          <span className="sr-only">Date range</span>
+          <select value={range} onChange={(e) => setRange(e.target.value as Range)}>
+            {RANGES.map(([r, l]) => <option key={r} value={r}>{l}</option>)}
+          </select>
+        </label>
+        {reports && <Link to="/reports" className="mini-link"><BarChart3 size={15} aria-hidden="true" />Reports</Link>}
+      </span>
     </div>
     {range === 'custom' && (
       <div className="cc-custom">

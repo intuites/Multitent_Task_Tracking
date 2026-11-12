@@ -1827,6 +1827,11 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
 .dash-period svg { position: absolute; left: 16px; color: var(--brand); pointer-events: none; }
 .page-actions .dash-period select { min-height: 0; height: 100%; padding: 11px 40px 11px 42px; border-radius: var(--r-pill); font-weight: var(--fw-semibold); }
 @media (max-width: 640px) { .page-actions .dash-period { flex: 1 1 100%; } .page-actions .dash-period select { width: 100%; } }
+/* the completed-tasks card: the same dropdown, a little smaller, next to the Reports link */
+.cc-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.cc-period svg { left: 13px; }
+.cc-period select { min-height: 0; padding: 7px 34px 7px 36px; border-radius: var(--r-pill); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.cc-head + .cc-custom { margin-top: 12px; }
 .cc-ranges button[aria-pressed=true] { background: var(--brand-grad); color: var(--brand-ink); box-shadow: 0 4px 12px -4px color-mix(in srgb, color-mix(in oklab, var(--accent-n) 81%, var(--black)) 60%, transparent); }
 .cc-custom { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 2px; animation: fade-in-up .25s var(--ease) both; }
 .cc-custom label { display: grid; gap: 4px; font-size: var(--fs-xs); color: var(--muted); } .cc-custom input { min-height: 34px; padding: 4px 10px; font-size: var(--fs-sm); }

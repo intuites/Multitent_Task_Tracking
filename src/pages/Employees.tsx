@@ -167,8 +167,7 @@ export default function Employees() {
         )}
         {tab === 'invited' && admin && (
           <section className="card" aria-labelledby="wait-h">
-            <div className="panel-head"><h3 id="wait-h">Invited, waiting to join</h3>
-              <button type="button" className="pill-btn sm" onClick={() => setInviting(true)}><UserPlus size={15} aria-hidden="true" />Invite people</button></div>
+            <div className="panel-head"><h3 id="wait-h">Invited, waiting to join</h3></div>
             <p className="muted">Not members yet. Each person joins the moment they open the invitation email and set a password, and then moves to People. Until then they can't be assigned tasks and get no emails.</p>
             {invites === null ? (
               <p className="note">To keep invited people out of People until they set a password, run the database update (migration 0046). Until then they show as members straight away.</p>

@@ -69,9 +69,6 @@
 .cal-cell { border-radius: 12px; border-color: var(--rd-line); background: var(--surface); }
 .cal-cell.weekend { background: color-mix(in srgb, var(--surface) 60%, var(--panel)); }
 .cal-cell.today { background: color-mix(in srgb, var(--brand) 7%, var(--surface)); border-color: color-mix(in srgb, var(--brand) 45%, transparent); }
-/* past days read as past through the faded cell edge, not faded numbers (those fell to 2:1) */
-.cal-cell.past .cal-n { color: var(--muted); }
-.cal-cell.past { border-style: dashed; }
 .cal-cell.picked { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 16%, transparent); }
 
 /* ───── motion: tiles and list rows settle in, one after another, as they scroll into view */

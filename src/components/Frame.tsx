@@ -51,23 +51,40 @@ function useDismiss(ref: RefObject<HTMLElement>, open: boolean, close: () => voi
   }, [open, close, ref]);
 }
 
-// Active-page marker that flows between sidebar items: it first stretches across the old and new item,
-// then contracts onto the new one with a spring, so it reads as a droplet moving rather than a jump.
-function useLiquidMarker(navRef: RefObject<HTMLElement>, key: string) {
-  const [pos, setPos] = useState({ top: 0, height: 0, on: false, phase: 'settle' as 'stretch' | 'settle' });
-  const prev = useRef<{ top: number; height: number } | null>(null);
-  useLayoutEffect(() => {
+// The active page's pill. A new pick is a crossfade: the old pill fades out where it is, then the new one fades and settles in
+// on the picked item (never a band stretched across everything in between). Rows that move (the sidebar opening, a label
+// wrapping, text size, fonts) carry it along without animation, so it never lands between two items.
+type PillPhase = 'show' | 'hide' | 'snap';
+function useActivePill(navRef: RefObject<HTMLElement>, key: string) {
+  const [pos, setPos] = useState({ top: 0, height: 0, on: false, phase: 'snap' as PillPhase });
+  const measure = () => {
     const el = navRef.current?.querySelector<HTMLElement>('.side-link.active');
-    if (!el) { prev.current = null; setPos((p) => ({ ...p, on: false })); return; }
-    const next = { top: el.offsetTop, height: el.offsetHeight }; // the whole row: a pill behind the active item
-    const p = prev.current;
-    prev.current = next;
-    if (!p || p.top === next.top || reducedMotion()) { setPos({ ...next, on: true, phase: 'settle' }); return; }
-    const top = Math.min(p.top, next.top);
-    setPos({ top, height: Math.max(p.top + p.height, next.top + next.height) - top, on: true, phase: 'stretch' });
-    const t = setTimeout(() => setPos({ ...next, on: true, phase: 'settle' }), 160);
-    return () => clearTimeout(t);
-  }, [key, navRef]);
+    return el ? { top: el.offsetTop, height: el.offsetHeight } : null;
+  };
+  const shown = useRef(false);
+  useLayoutEffect(() => {
+    const next = measure();
+    if (!next) { shown.current = false; setPos((p) => ({ ...p, on: false })); return; }
+    // a timer, not animation frames: frames pause in a background tab, which would leave the pill hidden
+    let fade = 0;
+    const appear = (at: { top: number; height: number }) => {
+      setPos({ ...at, on: true, phase: 'snap' });
+      fade = window.setTimeout(() => setPos((p) => ({ ...p, phase: 'show' })), 20);
+    };
+    if (!shown.current || reducedMotion()) { shown.current = true; appear(next); return () => clearTimeout(fade); }
+    setPos((p) => ({ ...p, phase: 'hide' }));
+    const t = window.setTimeout(() => appear(measure() ?? next), 140);
+    return () => { clearTimeout(t); clearTimeout(fade); };
+  }, [key, navRef]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const follow = () => { const n = measure(); if (n) setPos((p) => (p.phase === 'hide' || (p.top === n.top && p.height === n.height) ? p : { ...p, ...n })); };
+    const ro = new ResizeObserver(follow);
+    ro.observe(nav);
+    nav.querySelectorAll('.side-link').forEach((l) => ro.observe(l));
+    return () => ro.disconnect();
+  }, [navRef]); // eslint-disable-line react-hooks/exhaustive-deps
   return pos;
 }
 
@@ -248,7 +265,7 @@ export default function Frame({ brand, timeZone, groups, footer, title, search, 
     document.addEventListener('keydown', key);
     return () => document.removeEventListener('keydown', key);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const marker = useLiquidMarker(navRef, `${closeKey}|${collapsed}`);
+  const marker = useActivePill(navRef, `${closeKey}|${collapsed}`);
   const [hover, onOver, onOut] = useHoverPill(navRef);
   usePointerLight();
   const confirmSignOut = async () => {
@@ -269,8 +286,8 @@ export default function Frame({ brand, timeZone, groups, footer, title, search, 
           : <div className="brand"><span className="mark" aria-hidden="true">{initials(brand).charAt(0)}</span><span>{brand}</span></div>}
         <nav aria-label="Main" ref={navRef} onPointerOver={onOver} onPointerLeave={onOut}>
           <span className="side-hover" aria-hidden="true" style={{ transform: `translateY(${hover.top}px)`, height: hover.height, opacity: hover.on ? 1 : 0 }} />
-          <span className={`side-flow ${marker.phase}`} aria-hidden="true"
-            style={{ transform: `translateY(${marker.top}px)`, height: marker.height, opacity: marker.on ? 1 : 0 }} />
+          <span className="side-flow" data-phase={marker.phase} aria-hidden="true"
+            style={{ top: marker.top, height: marker.height, display: marker.on ? undefined : 'none' }} />
           {groups.filter((g) => g.items.length).map((g) => (
             <div key={g.title} className="side-group">
               <p className="side-title">{g.title}</p>

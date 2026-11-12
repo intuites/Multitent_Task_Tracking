@@ -2497,3 +2497,10 @@ dialog:has(> .dp) { overflow: visible; }
   transition: transform .35s var(--settle), height .35s var(--settle), opacity .2s var(--ease); }
 .side.collapsed .side-flow::before { left: -10px; }
 @media (prefers-reduced-motion: reduce) { .side-hover, .side-ico { transition: none; } }
+
+/* active pill: positioned with top (Frame.tsx useActivePill), and a pick is a crossfade, not a stretch */
+.side-flow { transform: none; transition: opacity .22s var(--ease), scale .34s var(--settle, var(--ease)); }
+.side-flow[data-phase="hide"] { opacity: 0; scale: .97; }
+.side-flow[data-phase="snap"] { opacity: 0; scale: .97; transition: none; }
+.side-flow[data-phase="show"] { opacity: 1; scale: 1; }
+@media (prefers-reduced-motion: reduce) { .side-flow[data-phase] { transition: none; scale: 1; } }

@@ -95,3 +95,7 @@
 
 /* top bar: the date under the greeting and the role under the name sit on frosted glass, so they take a firmer grey */
 .topbar :is(.hello small, .me-text small) { color: color-mix(in srgb, var(--muted) 72%, var(--text)); }
+
+/* timelines (a person's activity, task history): long unbroken text, such as a task named "123456789+…", wraps instead of
+   pushing the whole page sideways */
+.timeline li, .timeline li > span, .timeline p { min-width: 0; overflow-wrap: anywhere; }

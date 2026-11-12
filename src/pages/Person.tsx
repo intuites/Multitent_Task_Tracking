@@ -26,6 +26,8 @@ import './person.css';
 type Tab = 'overview' | 'tasks' | 'look' | 'activity';
 const DONE = ['completed', 'completed_cycle'];
 const isDone = (s: string) => DONE.includes(s);
+// a very long task name reads as its first 60 characters; the full name is on hover and on the task
+const short = (t: string) => (t.length > 60 ? `${t.slice(0, 57).trimEnd()}…` : t);
 
 /** One member's page, for admins: everything about them on Overview, and every change made where it's read. */
 export default function PersonPage() {
@@ -394,7 +396,7 @@ export default function PersonPage() {
               <ul className="timeline">{acts.map((a) => {
                 const s = describe(a, nameOf, titleOf);
                 return (
-                  <li key={a.id}><span className="tl-dot" aria-hidden="true" /><span>{first} {s.verb}{s.target && <> {s.target.to ? <Link to={s.target.to}>{s.target.text}</Link> : s.target.text}</>}{s.rest}
+                  <li key={a.id}><span className="tl-dot" aria-hidden="true" /><span>{first} {s.verb}{s.target && <> {s.target.to ? <Link to={s.target.to} title={s.target.text}>{short(s.target.text)}</Link> : short(s.target.text)}</>}{s.rest}
                     <small className="muted"> · {fmtTime(a.created_at)}</small></span></li>);
               })}</ul>)}
           </section>

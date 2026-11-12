@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, BarChart3, CalendarClock, CalendarRange, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -53,6 +53,35 @@ function buckets(from: Date, to: Date) {
   return out;
 }
 
+/** Scroll effect: which cards have come into view (once each). Their figures count up from 0 and their bars and lines draw in
+ *  the first time they're seen; after that they follow live updates. */
+function useSeen() {
+  const [seen, setSeen] = useState<Set<string>>(() => new Set());
+  const io = useRef<IntersectionObserver | null>(null);
+  // one stable ref callback per card, so React attaches each once instead of on every render
+  const refs = useRef(new Map<string, (el: HTMLElement | null) => void>());
+  useEffect(() => () => io.current?.disconnect(), []);
+  const reg = useCallback((key: string) => {
+    let cb = refs.current.get(key);
+    if (!cb) {
+      cb = (el: HTMLElement | null) => {
+        if (!el) return;
+        io.current ??= new IntersectionObserver((es) => es.forEach((e) => {
+          if (!e.isIntersecting) return;
+          io.current!.unobserve(e.target);
+          const k = (e.target as HTMLElement).dataset.seen!;
+          setSeen((v) => (v.has(k) ? v : new Set(v).add(k)));
+        }), { threshold: 0.2 });
+        el.dataset.seen = key;
+        io.current.observe(el);
+      };
+      refs.current.set(key, cb);
+    }
+    return cb;
+  }, []);
+  return [seen, reg] as const;
+}
+
 /** Width of an element, kept current as the layout changes (the kit's Chart draws at a fixed size). */
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
@@ -68,7 +97,7 @@ function useWidth<T extends HTMLElement>() {
 }
 
 // Completed tasks over a chosen range, as a line you can scrub: the signed-in person's, or (uid null) the whole organization's.
-function CompletedChart({ orgId, uid, tick, reports, period }: { orgId: string; uid: string | null; tick: number; reports: boolean; period: Period }) {
+function CompletedChart({ orgId, uid, tick, reports, period, seen }: { orgId: string; uid: string | null; tick: number; reports: boolean; period: Period; seen: boolean }) {
   const [range, setRange] = useState<Range>('this_week');
   const [cFrom, setCFrom] = useState(''), [cTo, setCTo] = useState('');
   // the dashboard filter moves the chart to the same period (all time: the last 12 months, one point per month); its own menu still works
@@ -116,7 +145,7 @@ function CompletedChart({ orgId, uid, tick, reports, period }: { orgId: string; 
     <div className="dx-head">
       <div>
         <h3 id="an-h">{uid ? 'My completed tasks' : 'Completed by the team'}</h3>
-        <p className="dx-big"><Count value={dates === null ? 0 : hover === null ? total : counts[at] ?? 0} /><span>{hover === null ? `in ${range === 'custom' ? title : title.toLowerCase()}` : past[at]?.title}</span></p>
+        <p className="dx-big"><Count value={dates === null || !seen ? 0 : hover === null ? total : counts[at] ?? 0} /><span>{hover === null ? `in ${range === 'custom' ? title : title.toLowerCase()}` : past[at]?.title}</span></p>
       </div>
       <span className="dx-tools">
         <label className="dash-period cc-period">
@@ -138,7 +167,7 @@ function CompletedChart({ orgId, uid, tick, reports, period }: { orgId: string; 
     <div className="dx-plot" ref={box} onPointerMove={scrub} onPointerLeave={() => setHover(null)}
       role="img" aria-label={`Tasks completed, ${title}: ${past.map((b, i) => `${b.title} ${counts[i]}`).join(', ')}`}>
       <span className="dx-grid" aria-hidden="true"><i /><i /><i /><i /></span>
-      {w > 0 && <Chart key={`${bs.length}-${data.length}`} data={data} width={cw} height={H} max={top} show={dates !== null} />}
+      {w > 0 && <Chart key={`${bs.length}-${data.length}`} data={data} width={cw} height={H} max={top} show={dates !== null && seen} />}
       {hover !== null && pts[at] && (
         <span className="dx-scrub" aria-hidden="true" style={{ left: pts[at].x }}>
           <i style={{ top: pts[at].y }} />
@@ -174,7 +203,6 @@ export default function Dashboard() {
   const [d, setD] = useState<any>(null);
   const [error, setError] = useState('');
   const [tick, setTick] = useState(0);
-  const [updated, setUpdated] = useState<Date | null>(null);
   // remembered per browser
   const [period, setPeriodState] = useState<Period>(() => { try { const v = localStorage.getItem('tt-dash-period'); return v === 'week' || v === 'month' ? v : 'all'; } catch { return 'all'; } });
   const setPeriod = (p: Period) => { setPeriodState(p); try { localStorage.setItem('tt-dash-period', p); } catch { /* storage blocked */ } };
@@ -215,7 +243,6 @@ export default function Dashboard() {
           // every number is the signed-in person's own tasks (a platform admin's: the organization's), counted for the period below
           rows: myAll.data ?? [],
         });
-        setUpdated(new Date());
       } catch (x) { setError((x as Error).message); }
     })();
   }, [orgId, uid, tick, all]);
@@ -234,6 +261,7 @@ export default function Dashboard() {
     return { s, p };
   }, [d, period]);
   const left = useCountdown(d?.next?.due_date);
+  const [seen, reg] = useSeen();
   if (error) return <div className="card"><p role="alert">{error}</p></div>;
   if (!d) return <DashSkeleton />;
   const span = period === 'week' ? 'this week' : period === 'month' ? 'this month' : '';
@@ -253,7 +281,6 @@ export default function Dashboard() {
           <h2 className="page-title">Dashboard</h2>
           <p className="page-sub">
             {all ? `How ${membership!.org_name} is doing today, across every task.` : 'What needs your attention today.'}
-            {updated && <span className="dx-live" title="Updates by itself when a task changes"><i aria-hidden="true" />Live · {updated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>}
           </p>
         </div>
         <div className="page-actions">
@@ -272,31 +299,31 @@ export default function Dashboard() {
 
       <div className="dx-grid-main">
         {stats.map(([title, v, note, share, to], i) => (
-          <Link key={title} to={to} className="dx-card dx-stat" data-lead={i === 0 || undefined} data-alert={(i === 1 && v > 0) || undefined} style={{ '--n': i } as React.CSSProperties}>
+          <Link key={title} ref={reg(`s${i}`)} to={to} className="dx-card dx-stat" data-lead={i === 0 || undefined} data-alert={(i === 1 && v > 0) || undefined} style={{ '--n': i } as React.CSSProperties}>
             <span className="dx-stat-head">{title}<ArrowUpRight size={16} aria-hidden="true" /></span>
-            <b className="dx-fig"><Count value={v} /></b>
-            <span className="dx-meter" aria-hidden="true"><i style={{ width: `${share}%` }} /></span>
+            <b className="dx-fig"><Count value={seen.has(`s${i}`) ? v : 0} /></b>
+            <span className="dx-meter" aria-hidden="true"><i style={{ width: `${seen.has(`s${i}`) ? share : 0}%` }} /></span>
             <small>{note}</small>
           </Link>
         ))}
 
-        <section className="dx-card dx-chart" aria-labelledby="an-h" style={{ '--n': 4 } as React.CSSProperties}>
-          <CompletedChart orgId={orgId} uid={all ? null : uid} tick={tick} reports={can(membership!.role, 'report:read')} period={period} />
+        <section ref={reg('chart')} className="dx-card dx-chart" aria-labelledby="an-h" style={{ '--n': 4 } as React.CSSProperties}>
+          <CompletedChart orgId={orgId} uid={all ? null : uid} tick={tick} reports={can(membership!.role, 'report:read')} period={period} seen={seen.has('chart')} />
         </section>
 
-        <section className="dx-card dx-split" aria-labelledby="sp-h" style={{ '--n': 5 } as React.CSSProperties}>
+        <section ref={reg('split')} className="dx-card dx-split" aria-labelledby="sp-h" style={{ '--n': 5 } as React.CSSProperties}>
           <h3 id="sp-h">Open work</h3>
-          <p className="dx-big"><Count value={c.open} /><span>{span ? `due ${span}` : 'tasks'}</span></p>
+          <p className="dx-big"><Count value={seen.has('split') ? c.open : 0} /><span>{span ? `due ${span}` : 'tasks'}</span></p>
           <span className="dx-stack" role="img" aria-label={STATUS_PARTS.map(([k, l]) => `${l} ${split.s[k] ?? 0}`).join(', ')}>
-            {STATUS_PARTS.map(([k]) => <i key={k} data-k={k} style={{ flexGrow: split.s[k] ?? 0 }} />)}
+            {STATUS_PARTS.map(([k]) => <i key={k} data-k={k} style={{ flexGrow: seen.has('split') ? split.s[k] ?? 0 : 0 }} />)}
           </span>
           <ul className="dx-legend">
-            {STATUS_PARTS.map(([k, l]) => <li key={k}><i data-k={k} />{l}<b><Count value={split.s[k] ?? 0} /></b></li>)}
+            {STATUS_PARTS.map(([k, l]) => <li key={k}><i data-k={k} />{l}<b><Count value={seen.has('split') ? split.s[k] ?? 0 : 0} /></b></li>)}
           </ul>
           <h4>By priority</h4>
           <ul className="dx-rank">
             {PRIORITIES.map(([k, l]) => (
-              <li key={k}><span>{l}</span><span className="dx-bar" aria-hidden="true"><i data-k={k} style={{ width: `${((split.p[k] ?? 0) / maxP) * 100}%` }} /></span><b><Count value={split.p[k] ?? 0} /></b></li>
+              <li key={k}><span>{l}</span><span className="dx-bar" aria-hidden="true"><i data-k={k} style={{ width: `${seen.has('split') ? ((split.p[k] ?? 0) / maxP) * 100 : 0}%` }} /></span><b><Count value={seen.has('split') ? split.p[k] ?? 0 : 0} /></b></li>
             ))}
           </ul>
         </section>
@@ -329,12 +356,12 @@ export default function Dashboard() {
           </>)}
         </section>
 
-        <section className="dx-card dx-done" aria-labelledby="es-h" style={{ '--n': 8 } as React.CSSProperties}>
+        <section ref={reg('done')} className="dx-card dx-done" aria-labelledby="es-h" style={{ '--n': 8 } as React.CSSProperties}>
           <div className="panel-head"><h3 id="es-h">Completed</h3><Link to={`${tasks}?view=completed`} className="mini-link" aria-label={all ? 'Open completed tasks' : 'Open my completed tasks'}>View<ArrowUpRight size={14} aria-hidden="true" /></Link></div>
-          <div className="dx-ring" role="img" aria-label={`${rate}% of tasks done`} style={{ '--p': rate } as React.CSSProperties}>
-            <b><Count value={rate} />%</b><small>done</small>
+          <div className="dx-ring" role="img" aria-label={`${rate}% of tasks done`} style={{ '--p': seen.has('done') ? rate : 0 } as React.CSSProperties}>
+            <b><Count value={seen.has('done') ? rate : 0} />%</b><small>done</small>
           </div>
-          <p className="dx-done-line"><b><Count value={c.done} /></b> {span ? `finished ${span}` : 'finished'} · {c.cycle} this cycle · {c.done - c.cycle} permanently</p>
+          <p className="dx-done-line"><b><Count value={seen.has('done') ? c.done : 0} /></b> {span ? `finished ${span}` : 'finished'} · {c.cycle} this cycle · {c.done - c.cycle} permanently</p>
         </section>
       </div>
     </div>

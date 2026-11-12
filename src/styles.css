@@ -1948,7 +1948,7 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
   .side.collapsed :is(.org-name, .org-chev, .side-title, .brand > span:not(.mark)) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .side.collapsed .side-group + .side-group { padding-top: var(--space-3); border-top: 1px solid var(--line); }
   .side.collapsed .side-link { justify-content: center; padding-inline: 0; }
-  .side.collapsed .side-link > span:not(.count) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .side.collapsed .side-link > span:not(.count):not(.side-ico) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .side.collapsed .side-link .count { position: absolute; top: 2px; right: 6px; margin: 0; padding: 0 5px; font-size: var(--fs-3xs); line-height: 16px; }
   .side.collapsed .side-card { display: none; }
 }
@@ -1957,7 +1957,7 @@ a.pf-chip { color: inherit; text-decoration: none; } a.pf-chip:hover { backgroun
    The rail opens and closes smoothly when the top-bar switch is pressed, names slide in as it opens, the menu settles in on first load, and the selected item springs when it changes. */
 @media (prefers-reduced-motion: no-preference) and (min-width: 861px) {
   .side { transition: width .28s var(--ease), padding .28s var(--ease); }
-  .side:not(.collapsed) :is(.side-link > span:not(.count), .side-title, .org-name) { animation: side-label .32s var(--ease) .12s both; }
+  .side:not(.collapsed) :is(.side-link > span:not(.count):not(.side-ico), .side-title, .org-name) { animation: side-label .32s var(--ease) .12s both; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .side nav .side-link { animation: side-in .5s var(--settle) both; animation-delay: calc(var(--k, 0) * 35ms + 60ms); }
@@ -2465,3 +2465,35 @@ dialog:has(> .dp) { overflow: visible; }
   dialog[open]::backdrop { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
   @keyframes cine-dialog { from { opacity: 0; transform: translateY(24px) scale(.94); filter: blur(8px); } }
 }
+
+/* ───────── sidebar, redesigned: a quiet panel with a hint of the organization's colour at the top, icons in tiles, sentence-case
+   section names, one pill that glides to the active page (Frame.tsx useLiquidMarker) and a lighter one that follows the mouse
+   (useHoverPill). Colours stay on the palette's tested pairs: --brand-ink on --brand-2 for the active tile and counts. */
+.side { background: radial-gradient(130% 34% at 0% 0%, color-mix(in srgb, var(--brand-2) 11%, transparent), transparent 72%), var(--panel);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent); gap: 18px; }
+:is(.brand, .org-btn) .mark { width: 34px; height: 34px; border: 0; border-radius: 10px; background: var(--brand-2); color: var(--brand-ink);
+  box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--brand-2) 70%, transparent), inset 0 1px 0 color-mix(in srgb, var(--white) 22%, transparent); }
+.org-btn { padding: 8px; border-radius: 14px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); background: color-mix(in srgb, var(--surface) 60%, transparent); }
+.org-btn:hover, .org-btn[aria-expanded=true] { background: var(--surface); }
+.org-name { font-size: var(--fs-base); }
+.side nav { gap: 18px; }
+.side-title { margin: 0 0 6px; padding: 0 10px; font-size: var(--fs-xs); font-weight: var(--fw-semibold); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.side-group { gap: 2px; }
+.side-link { z-index: 1; gap: 11px; padding: 5px 8px; min-height: 40px; border-radius: 12px; color: var(--muted); font-weight: var(--fw-medium); background: none; }
+.side-link:hover { background: none; color: var(--text); }
+.side-link:hover svg { transform: none; }
+.side-link.active { background: none; box-shadow: none; color: var(--text); font-weight: var(--fw-semibold); }
+.side-ico { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 9px; color: var(--muted);
+  background: color-mix(in srgb, var(--text) 5%, transparent); transition: background-color .3s var(--ease), color .3s var(--ease), transform .35s var(--settle), box-shadow .3s var(--ease); }
+.side-link:hover .side-ico { color: var(--text); transform: translateY(-1px); }
+.side-link.active .side-ico, .side-link.active svg { color: var(--brand-ink); }
+.side-link.active .side-ico { background: var(--brand-2); box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--brand-2) 75%, transparent); }
+.side-link .count, :root[data-theme="dark"] .side-link .count { background: var(--brand-2); color: var(--brand-ink); padding: 1px 8px; font-variant-numeric: tabular-nums; }
+/* the active pill, with a short edge mark on the panel's border */
+.side-flow { left: 0; right: 0; width: auto; border-radius: 12px; background: color-mix(in srgb, var(--brand) 11%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 20%, transparent); }
+.side-flow::before { content: ''; position: absolute; left: -14px; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--brand); }
+.side-hover { position: absolute; left: 0; right: 0; top: 0; border-radius: 12px; pointer-events: none; background: color-mix(in srgb, var(--text) 6%, transparent);
+  transition: transform .35s var(--settle), height .35s var(--settle), opacity .2s var(--ease); }
+.side.collapsed .side-flow::before { left: -10px; }
+@media (prefers-reduced-motion: reduce) { .side-hover, .side-ico { transition: none; } }

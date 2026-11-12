@@ -59,7 +59,7 @@ function useLiquidMarker(navRef: RefObject<HTMLElement>, key: string) {
   useLayoutEffect(() => {
     const el = navRef.current?.querySelector<HTMLElement>('.side-link.active');
     if (!el) { prev.current = null; setPos((p) => ({ ...p, on: false })); return; }
-    const next = { top: el.offsetTop + 8, height: el.offsetHeight - 16 };
+    const next = { top: el.offsetTop, height: el.offsetHeight }; // the whole row: a pill behind the active item
     const p = prev.current;
     prev.current = next;
     if (!p || p.top === next.top || reducedMotion()) { setPos({ ...next, on: true, phase: 'settle' }); return; }
@@ -92,8 +92,20 @@ function usePointerLight() {
   }, []);
 }
 
+/** A lighter pill that glides to whichever item the pointer is over (mouse only; touch has no hover). */
+function useHoverPill(navRef: RefObject<HTMLElement>) {
+  const [pos, setPos] = useState({ top: 0, height: 0, on: false });
+  const over = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return;
+    const el = (e.target as Element).closest<HTMLElement>('.side-link');
+    if (!el || !navRef.current?.contains(el)) return;
+    setPos({ top: el.offsetTop, height: el.offsetHeight, on: true });
+  };
+  return [pos, over, () => setPos((p) => ({ ...p, on: false }))] as const;
+}
+
 function Item({ i }: { i: FrameItem }) {
-  const body = (<><i.icon size={18} aria-hidden="true" /><span>{i.label}</span>{!!i.badge && <span className="count">{i.badge > 99 ? '99+' : i.badge}</span>}</>);
+  const body = (<><span className="side-ico" aria-hidden="true"><i.icon size={17} /></span><span>{i.label}</span>{!!i.badge && <span className="count">{i.badge > 99 ? '99+' : i.badge}</span>}</>);
   // title shows the name as a tooltip when the sidebar is collapsed to icons
   if (i.to) return <NavLink to={i.to} end={i.to === '/'} className="side-link" title={i.label}>{body}</NavLink>;
   return <button type="button" className={i.active ? 'side-link active' : 'side-link'} title={i.label} aria-current={i.active ? 'page' : undefined} onClick={i.onClick}>{body}</button>;
@@ -237,6 +249,7 @@ export default function Frame({ brand, timeZone, groups, footer, title, search, 
     return () => document.removeEventListener('keydown', key);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const marker = useLiquidMarker(navRef, `${closeKey}|${collapsed}`);
+  const [hover, onOver, onOut] = useHoverPill(navRef);
   usePointerLight();
   const confirmSignOut = async () => {
     if ((await ask({ title: 'Log out?', message: 'You will need to sign in again to get back to your workspace.', confirmLabel: 'Log out' })).ok) onSignOut();
@@ -254,7 +267,8 @@ export default function Frame({ brand, timeZone, groups, footer, title, search, 
       <aside id="side" className={`side${open ? ' open' : ''}${collapsed ? ' collapsed' : ''}`}>
         {orgs && onSwitchOrg ? <OrgSwitcher brand={brand} orgs={orgs} current={currentOrg} onSwitch={onSwitchOrg} onCreate={onCreateOrg} />
           : <div className="brand"><span className="mark" aria-hidden="true">{initials(brand).charAt(0)}</span><span>{brand}</span></div>}
-        <nav aria-label="Main" ref={navRef}>
+        <nav aria-label="Main" ref={navRef} onPointerOver={onOver} onPointerLeave={onOut}>
+          <span className="side-hover" aria-hidden="true" style={{ transform: `translateY(${hover.top}px)`, height: hover.height, opacity: hover.on ? 1 : 0 }} />
           <span className={`side-flow ${marker.phase}`} aria-hidden="true"
             style={{ transform: `translateY(${marker.top}px)`, height: marker.height, opacity: marker.on ? 1 : 0 }} />
           {groups.filter((g) => g.items.length).map((g) => (
@@ -263,7 +277,7 @@ export default function Frame({ brand, timeZone, groups, footer, title, search, 
               {g.items.map((i) => <Item key={i.label} i={i} />)}
             </div>
           ))}
-          <button type="button" className="side-link" title="Log out" onClick={confirmSignOut}><LogOut size={18} aria-hidden="true" /><span>Log out</span></button>
+          <button type="button" className="side-link" title="Log out" onClick={confirmSignOut}><span className="side-ico" aria-hidden="true"><LogOut size={17} /></span><span>Log out</span></button>
         </nav>
         {footer}
       </aside>

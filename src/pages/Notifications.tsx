@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlarmClock, AtSign, BadgeCheck, BellOff, CalendarClock, Check, CheckCheck, Eye, MessageSquare, PauseCircle, PlayCircle, RefreshCw, UserPlus,
+  AlarmClock, AtSign, BadgeCheck, BellOff, CalendarClock, Check, CheckCheck, Eye, MessageSquare, PauseCircle, PlayCircle, RefreshCw, Settings2, UserPlus,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -9,6 +9,10 @@ import { useAuth } from '../lib/auth';
 import { ListSkeleton } from '../components/Skeleton';
 import { useLive } from '../lib/live';
 import { NO_ESC } from '../lib/ui';
+import Sheet from '../components/Sheet';
+import TabThumb from '../components/TabThumb';
+import { Count } from '../stageshow/kit/motion';
+import './notifications.css';
 
 type Tone = 'brand' | 'warn' | 'bad' | 'ok';
 interface TypeInfo { label: string; hint: string; icon: LucideIcon; tone: Tone }
@@ -70,6 +74,7 @@ export default function Notifications() {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [prefs, setPrefs] = useState<Record<string, { in_app: boolean; email: boolean }>>({});
   const [error, setError] = useState('');
+  const [settings, setSettings] = useState(false);
 
   const load = useCallback(async () => {
     let q = supabase.from('tt_notifications').select('*').eq('user_id', uid).not('type', 'like', NO_ESC).order('created_at', { ascending: false }).limit(limit + 1);
@@ -121,19 +126,21 @@ export default function Notifications() {
       <div className="page-head">
         <div>
           <h2 className="page-title">Notifications</h2>
-          <p className="page-sub">{unread ? `${unread} unread ${unread === 1 ? 'notification' : 'notifications'}` : 'You are all caught up.'}</p>
+          <p className="page-sub">{unread ? <><Count value={unread} /> unread {unread === 1 ? 'notification' : 'notifications'}</> : 'You are all caught up.'}</p>
         </div>
         <div className="page-actions">
-          <div className="seg" role="group" aria-label="Show">
+          <div className="seg nf-seg" role="group" aria-label="Show">
+            <TabThumb />
             <button type="button" aria-pressed={filter === 'all'} onClick={() => { setFilter('all'); setLimit(PAGE); }}>All</button>
             <button type="button" aria-pressed={filter === 'unread'} onClick={() => { setFilter('unread'); setLimit(PAGE); }}>Unread{unread > 0 && <span className="seg-count">{unread}</span>}</button>
           </div>
           <button type="button" className="pill-btn ghost" disabled={!unread} onClick={() => markRead('all')}><CheckCheck size={16} aria-hidden="true" />Mark all read</button>
+          {orgId && <button type="button" className="icon-btn nf-gear" onClick={() => setSettings(true)} title="Notification settings" aria-label="Notification settings"><Settings2 size={18} aria-hidden="true" /></button>}
         </div>
       </div>
       {error && <p role="alert" className="card">{error}</p>}
 
-      <div className={orgId ? 'notif-layout' : ''}>
+      <div className="nf">
         <section className="card inbox" aria-label="Notifications">
           {rows === null ? <ListSkeleton rows={5} /> : shown.length === 0 ? (
             <div className="inbox-empty">
@@ -143,21 +150,21 @@ export default function Notifications() {
             </div>
           ) : groups.map(([day, items]) => (
             <div key={day} className="inbox-day">
-              <h3 className="inbox-day-title">{day}</h3>
-              <ul className="inbox-list">{items.map((n) => {
+              <h3 className="inbox-day-title">{day}<small>{items.length}</small></h3>
+              <ul className="inbox-list">{items.map((n, i) => {
                 const t = TYPES[n.type] ?? fallback;
                 return (
-                  <li key={n.id} className={n.read_at ? 'inbox-item' : 'inbox-item new'}>
+                  <li key={n.id} className={n.read_at ? 'inbox-item' : 'inbox-item new'} style={{ '--i': Math.min(i, 12) } as React.CSSProperties}>
                     <span className={`inbox-ico t-${t.tone}`} aria-hidden="true"><t.icon size={17} /></span>
                     <button type="button" className="inbox-main" onClick={() => open(n)}>
                       <span className="inbox-title" title={n.title}>{n.title}</span>
                       {n.body && <span className="inbox-body">{n.body}</span>}
-                      <span className="inbox-meta">{t.label} · {ago(n.created_at)}</span>
+                      <span className={`nf-kind t-${t.tone}`}>{t.label}</span>
                     </button>
-                    {!n.read_at && (<>
-                      <span className="inbox-dot" aria-label="Unread" />
-                      <button type="button" className="icon-btn sm" onClick={() => markRead([n.id])} title="Mark as read"><Check size={15} aria-hidden="true" /><span className="sr-only">Mark as read</span></button>
-                    </>)}
+                    <span className="nf-side">
+                      <time dateTime={n.created_at}>{ago(n.created_at)}</time>
+                      {!n.read_at && <button type="button" className="nf-read" onClick={() => markRead([n.id])} title="Mark as read"><Check size={14} aria-hidden="true" /><span className="sr-only">Mark as read</span></button>}
+                    </span>
                   </li>
                 );
               })}</ul>
@@ -166,9 +173,8 @@ export default function Notifications() {
           {(rows?.length ?? 0) > limit && <button type="button" className="pill-btn ghost wide" onClick={() => setLimit(limit + PAGE)}>Show older</button>}
         </section>
 
-        {orgId && (
-          <aside className="card prefs" aria-labelledby="prefs-h">
-            <h3 id="prefs-h">What to notify me about</h3>
+        {orgId && settings && (
+          <Sheet size="sm" title="What to notify me about" onClose={() => setSettings(false)} className="nf-sheet">
             <p className="muted prefs-sub">Choose what reaches you in Taskify and by email, for {membership?.org_name || 'this organization'}. Changes save right away.</p>
             <div className="prefs-cols" aria-hidden="true"><span>In app</span><span>Email</span></div>
             {GROUPS.map(([g, types]) => (
@@ -187,7 +193,8 @@ export default function Notifications() {
                 })}
               </div>
             ))}
-          </aside>
+            <div className="nt-actions"><button type="button" onClick={() => setSettings(false)}>Done</button></div>
+          </Sheet>
         )}
       </div>
     </>

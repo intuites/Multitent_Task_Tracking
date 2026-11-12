@@ -1,0 +1,50 @@
+/* Notifications: the inbox takes the page; "What to notify me about" lives behind the settings button in a side window.
+   Unread rows carry the organization's colour on their edge; the type is a small chip in its own tone; time sits on the right.
+   All / Unread is the stageshow segmented control (TabThumb slides); the unread count rolls. */
+.nf .inbox { padding: 6px 18px 18px; }
+.nf .inbox-day-title { display: flex; align-items: center; gap: 8px; margin: 16px 6px 8px; font-size: var(--fs-sm); color: var(--text); }
+.nf .inbox-day-title small { padding: 1px 8px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--muted); font-size: var(--fs-2xs); font-variant-numeric: tabular-nums; }
+.nf .inbox-list { gap: 6px; }
+.nf .inbox-item { gap: 14px; padding: 12px 14px; border-radius: 14px; background: none; box-shadow: none; transition: background-color .2s var(--ease), box-shadow .2s var(--ease); }
+.nf .inbox-item:hover { background: color-mix(in srgb, var(--text) 4%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); }
+.nf .inbox-item.new { background: color-mix(in srgb, var(--brand) 7%, transparent); box-shadow: inset 3px 0 0 var(--brand); }
+.nf .inbox-item.new:hover { background: color-mix(in srgb, var(--brand) 11%, transparent); }
+.nf .inbox-ico { width: 38px; height: 38px; border-radius: 11px; }
+.nf .inbox-main { gap: 4px; }
+.nf .inbox-title { font-size: var(--fs-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nf .inbox-item:not(.new) .inbox-title { font-weight: var(--fw-medium); }
+.nf .inbox-body { font-size: var(--fs-sm); }
+.nf-kind { justify-self: start; margin-top: 2px; padding: 1px 8px; border-radius: 6px; font-size: var(--fs-2xs); font-weight: var(--fw-semibold); background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--muted); }
+.nf-kind.t-brand { background: color-mix(in srgb, var(--brand) 10%, transparent); color: var(--brand); }
+.nf-kind.t-warn { background: var(--warn-bg); color: var(--warn-fg); }
+.nf-kind.t-bad { background: var(--bad-bg); color: var(--bad-fg); }
+.nf-kind.t-ok { background: var(--ok-bg); color: var(--ok-fg); }
+.nf-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; align-self: stretch; }
+.nf-side time { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.nf-read { display: grid; place-items: center; width: 30px; height: 30px; min-height: 0; padding: 0; border-radius: 9px; background: none; color: var(--brand);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 30%, transparent); transition: background-color .2s var(--ease); }
+.nf-read:hover { filter: none; background: color-mix(in srgb, var(--brand) 12%, transparent); }
+
+/* All / Unread: segmented, the thumb slides */
+.page-actions .nf-seg { position: relative; gap: 2px; padding: 4px; border-radius: 14px; background: color-mix(in srgb, var(--text) 6%, transparent); box-shadow: none; }
+.page-actions .nf-seg button { position: relative; z-index: 1; min-height: 34px; padding: 6px 14px; border-radius: 10px; background: none; color: color-mix(in srgb, var(--muted) 78%, var(--text)); }
+.page-actions .nf-seg button[aria-pressed="true"] { background: none; color: var(--text); font-weight: var(--fw-semibold); }
+.page-actions .nf-seg button[aria-pressed="true"] .seg-count { background: var(--brand-2); color: var(--brand-ink); }
+.nf-gear { width: 44px; height: 44px; }
+
+/* settings in the side window */
+.nf-sheet .prefs-sub { margin: 0 0 14px; }
+.nf-sheet .prefs-cols { position: sticky; top: 64px; z-index: 1; padding: 8px 0; background: var(--surface); }
+.nf-sheet .nt-actions button { width: 100%; }
+.nf-sheet .nt-actions { grid-template-columns: 1fr; }
+
+@media (max-width: 640px) {
+  .nf .inbox { padding: 4px 8px 12px; }
+  .nf .inbox-item { gap: 10px; padding: 10px; }
+  .nf .inbox-title { white-space: normal; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nf .inbox-list > li { animation: rd-in .45s var(--settle, var(--ease)) backwards; animation-delay: calc(var(--i, 0) * 30ms); }
+}
+/* the brand tone was mixed with white, so the tile glared in dark mode: a tint of the brand over the surface reads in both */
+.nf .inbox-ico.t-brand { background: color-mix(in srgb, var(--brand) 13%, var(--surface)); color: var(--brand); }

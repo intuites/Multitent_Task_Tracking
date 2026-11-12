@@ -99,3 +99,6 @@
 /* timelines (a person's activity, task history): long unbroken text, such as a task named "123456789+…", wraps instead of
    pushing the whole page sideways */
 .timeline li, .timeline li > span, .timeline p { min-width: 0; overflow-wrap: anywhere; }
+
+/* side windows (components/Sheet.tsx): the small one, for a short form */
+dialog.sheet-sm { width: min(560px, calc(100vw - 32px)); }

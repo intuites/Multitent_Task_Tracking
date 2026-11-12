@@ -63,7 +63,8 @@ export function loadPeople(orgId: string, fresh = false): Promise<Person[]> {
 
 /** People invited to the organization who haven't opened the email and set a password yet (migration 0046). */
 export async function loadInvites(orgId: string): Promise<{ id: string; email: string; role: string; invited: string }[]> {
-  const { data } = await supabase.from('tt_org_members').select('*').eq('org_id', orgId).is('joined_at', null);
+  const { data, error } = await supabase.from('tt_org_members').select('*').eq('org_id', orgId).is('joined_at', null);
+  if (error) throw new Error(error.message); // before migration 0046 there is no joined_at column
   const rows = data ?? [];
   const { data: p } = rows.length ? await supabase.from('tt_profiles').select('user_id, email').in('user_id', rows.map((r: any) => r.user_id)) : { data: [] as any[] };
   const em = new Map((p ?? []).map((x: any) => [x.user_id, x.email]));

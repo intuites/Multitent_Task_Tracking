@@ -12,7 +12,7 @@ import { ListSkeleton } from '../components/Skeleton';
 
 interface Perf { assigned: number; open: number; done: number; overdue: number; onTime: number | null; last30: number }
 export type Msg = { kind: 'ok' | 'error'; text: string } | null;
-type Tab = 'people' | 'performance' | 'departments';
+type Tab = 'people' | 'performance' | 'departments' | 'invited';
 const ROLES = ['admin', 'employee'];
 
 export default function Employees() {
@@ -30,10 +30,11 @@ export default function Employees() {
   const [msg, setMsg] = useState<Msg>(null);
   const [tasks, setTasks] = useState<any[]>([]);
 
-  const [invites, setInvites] = useState<Awaited<ReturnType<typeof loadInvites>>>([]);
+  // null: the database can't tell invited people apart yet (migration 0046 not run)
+  const [invites, setInvites] = useState<Awaited<ReturnType<typeof loadInvites>> | null>([]);
   const refresh = useCallback(async () => {
     setPeople(await loadPeople(orgId, true));
-    if (admin) loadInvites(orgId).then(setInvites, () => setInvites([]));
+    if (admin) loadInvites(orgId).then(setInvites, () => setInvites(null));
     const day = new Date(); day.setHours(0, 0, 0, 0);
     const [sum, tk] = await Promise.all([
       rpc('tt_org_summary', { p_org: orgId, p_day_start: day.toISOString(), p_day_end: new Date(day.getTime() + 864e5).toISOString() }),
@@ -62,7 +63,7 @@ export default function Employees() {
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return fail(j.error ?? 'Invite failed');
-    setMsg({ kind: 'ok', text: `Invitation sent to ${f.get('email')}. They'll appear here once they set their password.` }); form.reset(); setInviting(false); refresh();
+    setMsg({ kind: 'ok', text: `Invitation sent to ${f.get('email')}. They wait under Invited until they set their password, then join People.` }); form.reset(); setInviting(false); setTab('invited'); refresh();
   }
   async function cancelInvite(i: { id: string; email: string }) {
     if (!(await ask({ title: `Cancel the invitation to ${i.email}?`, message: 'They won\'t join this organization. You can invite them again later.', confirmLabel: 'Cancel invitation', danger: true })).ok) return;
@@ -104,7 +105,7 @@ export default function Employees() {
 
   const shown = (people ?? []).filter((p) => (!roleFilter || p.role === roleFilter) && (!q || `${p.name} ${p.email}`.toLowerCase().includes(q.toLowerCase())));
   const TABS: { id: Tab; name: string; n?: number }[] = [{ id: 'people', name: 'People', n: people?.length ?? 0 }, ...(admin ? [{ id: 'performance' as Tab, name: 'Performance' }] : []),
-    { id: 'departments', name: 'Departments' }];
+    { id: 'departments', name: 'Departments' }, ...(admin ? [{ id: 'invited' as Tab, name: 'Invited', n: invites?.length ?? 0 }] : [])];
   const perfRows = (people ?? []).map((p) => ({ p, s: perfOf(p.id) }));
   const sumOf = (rows: typeof perfRows) => {
     const done = rows.reduce((n, { s }) => n + s.done, 0), ok = rows.reduce((n, { s }) => n + (s.onTime === null ? 0 : Math.round((s.onTime / 100) * s.done)), 0);
@@ -164,13 +165,18 @@ export default function Employees() {
               </table>)}
           </section>
         )}
-        {tab === 'people' && admin && invites.length > 0 && (
+        {tab === 'invited' && admin && (
           <section className="card" aria-labelledby="wait-h">
-            <h3 id="wait-h">Invited, waiting to join ({invites.length})</h3>
-            <p className="muted">Not members yet: they join once they open the invitation email and set a password. Until then they can't be assigned and get no emails.</p>
-            <ul className="help-list">{invites.map((i) => (
-              <li key={i.id}><span className="grow"><b>{i.email}</b><small className="muted">{label(i.role)}, invited {new Date(i.invited).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small></span>
-                <button type="button" className="link danger-text" onClick={() => cancelInvite(i)}>Cancel invitation</button></li>))}</ul>
+            <div className="panel-head"><h3 id="wait-h">Invited, waiting to join</h3>
+              <button type="button" className="pill-btn sm" onClick={() => setInviting(true)}><UserPlus size={15} aria-hidden="true" />Invite people</button></div>
+            <p className="muted">Not members yet. Each person joins the moment they open the invitation email and set a password, and then moves to People. Until then they can't be assigned tasks and get no emails.</p>
+            {invites === null ? (
+              <p className="note">To keep invited people out of People until they set a password, run the database update (migration 0046). Until then they show as members straight away.</p>
+            ) : invites.length === 0 ? <p className="muted">No one is waiting. Everyone you invited has joined.</p> : (
+              <ul className="help-list">{invites.map((i) => (
+                <li key={i.id}><span className="grow"><b>{i.email}</b><small className="muted">{label(i.role === 'owner' ? 'admin' : i.role)}, invited {new Date(i.invited).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</small></span>
+                  <span className="prio">Waiting</span>
+                  <button type="button" className="link danger-text" onClick={() => cancelInvite(i)}>Cancel invitation</button></li>))}</ul>)}
           </section>
         )}
 

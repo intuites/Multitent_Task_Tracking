@@ -2483,31 +2483,3 @@ dialog:has(> .dp) { overflow: visible; }
 .pf-cam.rm { right: auto; left: -4px; border: 0; padding: 0; min-height: 0; background: var(--white); }
 .pf-cam.rm:disabled { opacity: .6; cursor: default; }
 .pf-photo.busy .pf-avatar { opacity: .5; transition: opacity .2s; }
-
-/* ───── sidebar sci-fi hover: scan line, holographic edge, energy bar, and the label decoding (Frame.tsx) ───── */
-.side-link { overflow: hidden; }
-/* energy bar: charges up the left edge and leaves a soft glow trail */
-.side-link { background-image: linear-gradient(var(--brand), var(--brand)), linear-gradient(90deg, color-mix(in srgb, var(--brand) 16%, transparent), transparent);
-  background-repeat: no-repeat; background-position: left center, left center; background-size: 3px 0%, 0% 100%;
-  transition: color .25s var(--ease), background-color .25s var(--ease), background-size .45s var(--ease); }
-.side-link:hover { background-color: var(--surface-2);
-  background-image: linear-gradient(var(--brand), var(--brand)), linear-gradient(90deg, color-mix(in srgb, var(--brand) 16%, transparent), transparent);
-  background-repeat: no-repeat; background-position: left center, left center; background-size: 3px 64%, 70% 100%; }
-/* holographic edge: the outline shimmers in moving shades of the person's color */
-.side-link::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none; opacity: 0;
-  background: linear-gradient(110deg, transparent 20%, var(--brand) 40%, color-mix(in srgb, var(--brand) 40%, var(--white)) 50%, var(--brand) 60%, transparent 80%) 0 0 / 250% 100%;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; transition: opacity .3s var(--ease); }
-.side-link:hover::before { opacity: 1; animation: side-holo 1.6s linear infinite; }
-@keyframes side-holo { to { background-position: -250% 0; } }
-/* scan line: one beam of light sweeps across */
-.side-link::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; pointer-events: none; transform: translateX(-120%) skewX(-18deg);
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--brand) 30%, transparent) 45%, color-mix(in srgb, var(--white) 55%, transparent) 50%, color-mix(in srgb, var(--brand) 30%, transparent) 55%, transparent); }
-.side-link:hover::after { animation: side-scan .7s var(--ease) both; }
-@keyframes side-scan { to { transform: translateX(320%) skewX(-18deg); } }
-/* the label decoding: random characters drawn over the real text until it resolves */
-.side-link > span[data-decode] { position: relative; color: transparent; }
-.side-link > span[data-decode]::after { content: attr(data-decode); position: absolute; inset: 0; color: var(--brand); white-space: nowrap; overflow: hidden; }
-@media (prefers-reduced-motion: reduce) {
-  .side-link, .side-link:hover { transition: none; }
-  .side-link:hover::before, .side-link:hover::after { animation: none; } .side-link::after { display: none; }
-}

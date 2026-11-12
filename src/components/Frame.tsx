@@ -92,33 +92,6 @@ function usePointerLight() {
   }, []);
 }
 
-// Sidebar hover: the link's label scrambles into random characters and decodes back into the word, letter by letter.
-// It only sets data-decode (CSS draws it over the real text), so the text React rendered is never touched.
-const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&*+<>/';
-function useDecodeHover() {
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !window.matchMedia('(pointer: fine)').matches) return;
-    let last: Element | null = null;
-    const over = (e: PointerEvent) => {
-      const link = (e.target as Element).closest?.('.side-link');
-      if (link === last) return;
-      last = link;
-      const span = link?.querySelector<HTMLElement>(':scope > span:not(.count)');
-      if (!span || span.dataset.decode !== undefined) return;
-      const word = span.textContent ?? '', t0 = performance.now(), dur = 420;
-      const tick = (t: number) => {
-        const p = Math.min(1, (t - t0) / dur), done = Math.floor(p * word.length);
-        if (p >= 1) { delete span.dataset.decode; return; }
-        span.dataset.decode = [...word].map((c, i) => (i < done || c === ' ' ? c : GLYPHS[(Math.random() * GLYPHS.length) | 0])).join('');
-        requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    };
-    document.addEventListener('pointerover', over, { passive: true });
-    return () => document.removeEventListener('pointerover', over);
-  }, []);
-}
-
 function Item({ i }: { i: FrameItem }) {
   const body = (<><i.icon size={18} aria-hidden="true" /><span>{i.label}</span>{!!i.badge && <span className="count">{i.badge > 99 ? '99+' : i.badge}</span>}</>);
   // title shows the name as a tooltip when the sidebar is collapsed to icons
@@ -240,7 +213,6 @@ export default function Frame({ brand, timeZone, groups, footer, title, search, 
   user: FrameUser; menu: MenuEntry[]; onSignOut: () => void; closeKey: string; children: ReactNode;
   orgs?: OrgOption[]; currentOrg?: string; onSwitchOrg?: (id: string) => void; onCreateOrg?: () => void;
 }) {
-  useDecodeHover();
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [closeKey]);
   // the phone menu closes on Escape too (clicks outside it land on the scrim below)

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { LiquidBg, reducedMotion } from '../components/Liquid';
 import { ThemeToggle } from '../components/Frame';
+import GuideHeroDemo from '../components/GuideHeroDemo';
 
 interface Feature { id: string; icon: LucideIcon; name: string; line: string; steps: string[]; visual: ReactNode }
 const css = (v: Record<string, string | number>) => v as React.CSSProperties;
@@ -137,18 +138,7 @@ export default function Guide({ standalone = false }: { standalone?: boolean }) 
             {standalone ? <a href="/" className="pill-btn g-ghost">Sign in</a> : <Link to="/" className="pill-btn g-ghost">Back to dashboard</Link>}
           </div>
         </div>
-        <div className="g-hero-art" aria-hidden="true">
-          <div className="g-scene"><div className="g-scene-in">
-            <div className="g-board">
-              <span className="gb-bar"><i /><i /><i /></span>
-              <span className="gb-kpis"><i className="on" /><i /><i /></span>
-              <span className="gb-chart">{[40, 70, 55, 90, 65, 35, 50].map((h, i) => <i key={i} style={css({ height: `${h}%`, '--i': i })} />)}</span>
-            </div>
-            <div className="g-float f1"><span className="dot ev-ms" />Task completed<small>Design landing page</small></div>
-            <div className="g-float f2"><span className="dot ev-due" />Due tomorrow<small>QA sign-off</small></div>
-            <div className="g-float f3"><span className="dot ev-start" />Assigned to Priya<small>Finance department</small></div>
-          </div></div>
-        </div>
+        <div className="g-hero-art" aria-hidden="true"><GuideHeroDemo /></div>
       </section>
 
       <nav className="g-nav" aria-label="Features" ref={navRef}>

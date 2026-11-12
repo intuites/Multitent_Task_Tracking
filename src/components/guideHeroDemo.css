@@ -1,0 +1,72 @@
+/* Guide hero demo (stageshow). Taskify's own tokens mapped onto the kit's, so the demo follows the
+   organization's colour and light/dark like the rest of the app. Corner bleed: the window sits in from
+   the top and left and runs off the hero's right and bottom edges, which round and mask it. */
+.tk-demo {
+  & .ss-stage {
+    overflow: visible;
+    background: transparent;
+    --ss-font: var(--font-sans);
+    --ss-accent: var(--brand);
+    --ss-accent-soft: var(--brand-tint);
+    --ss-accent-text: var(--brand-on-white);
+    --ss-surface: var(--surface);
+    --ss-raised: var(--surface);
+    --ss-chrome: var(--surface);
+    --ss-canvas: var(--panel);
+    --ss-text-strong: var(--text);
+    --ss-text: var(--muted);
+    --ss-text-faint: color-mix(in srgb, var(--muted) 70%, var(--surface));
+    --ss-icon: var(--muted);
+    --ss-line: var(--line);
+    --ss-success-soft: var(--ok-bg); --ss-success-text: var(--ok-fg);
+    --ss-warning-soft: var(--warn-bg); --ss-warning-text: var(--warn-fg);
+    --ss-ink-2: var(--neutral-bg);
+    --ss-radius-window: 14px;
+    --ss-radius-md: var(--r-control);
+  }
+
+  .tk-win { position: absolute; left: 64px; top: 36px; width: 680px; height: 500px; box-shadow: var(--ss-shadow-hero); }
+  .ss-stage[data-layout="compact"] .tk-win { left: 20px; top: 24px; width: 420px; height: 460px; }
+
+  /* sidebar, as the app draws it: the ring mark, then nav with the active page in brand ink */
+  .tk-side { display: flex; flex-direction: column; gap: 2px; padding: 4px 10px; }
+  .tk-brand { display: flex; align-items: center; gap: 8px; margin: 2px 4px 14px; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
+  .tk-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--brand); color: var(--brand); font-size: 11px; font-weight: 800; }
+  .tk-nav { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: 8px; color: var(--muted); font-size: 13px; }
+  .tk-nav[data-on] { background: var(--surface); color: var(--text); font-weight: 600; }
+  .tk-nav[data-on] svg { color: var(--brand); }
+
+  .tk-main { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
+  .tk-title { font-size: 18px; font-weight: 700; letter-spacing: -0.015em; color: var(--text); line-height: 1.3; }
+  .tk-tools { display: flex; align-items: center; gap: 10px; }
+  /* labels never change here, so they skip the kit's measured roll (it measured before the web font loaded and clipped) */
+  .ss-button { font-weight: 600; }
+
+  /* one grid for every row, so names, people and statuses line up */
+  .tk-list { display: flex; flex-direction: column; }
+  .tk-row { display: grid; grid-template-columns: 176px 24px 112px minmax(0, 1fr); align-items: center; column-gap: 14px; padding: 10px 4px; border-top: 1px solid var(--line); }
+  .ss-stage[data-layout="compact"] .tk-row { grid-template-columns: 146px 24px 112px minmax(0, 1fr); column-gap: 12px; }
+  .tk-row.head { border-top: 0; padding-top: 0; }
+  .tk-name { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .tk-t { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.3; }
+  .tk-sub { font-size: 11.5px; color: var(--muted); line-height: 1.3; }
+  .ss-badge { justify-self: start; border-radius: 6px; font-weight: 600; }
+  .ss-badge[data-tone="neutral"] { background: var(--neutral-bg); color: var(--neutral-fg); }
+
+  /* the new-task form */
+  .tk-form { position: absolute; width: 286px; padding: 14px; display: flex; flex-direction: column; gap: 12px; --ss-popover-bg: var(--surface); }
+  .tk-form-head { font-size: 14px; font-weight: 700; color: var(--text); }
+  .tk-form-foot { display: flex; justify-content: flex-end; }
+  .tk-people { position: absolute; padding: 4px; --ss-popover-bg: var(--surface); }
+  .tk-person { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
+
+  /* the email, a satellite straddling the window's left edge over its sidebar */
+  .tk-note { position: absolute; left: 12px; top: 300px; width: 236px; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start;
+    padding: 12px 14px; border-radius: 14px; background: var(--surface); box-shadow: var(--ss-shadow-satellite);
+    opacity: 0; transform: translateY(10px) scale(.98); transition: opacity .5s cubic-bezier(.25, .8, .25, 1), transform .7s cubic-bezier(.25, .8, .25, 1); }
+  .tk-note[data-show] { opacity: 1; transform: none; }
+  .tk-note-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; line-height: 1.3; }
+  .tk-note b { font-size: 13px; font-weight: 700; color: var(--text); }
+  .tk-note-text span { font-size: 12px; color: var(--text); }
+  .tk-note small { font-size: 11px; color: var(--muted); }
+}

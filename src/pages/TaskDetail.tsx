@@ -1,3 +1,4 @@
+import BackLink from '../components/BackLink';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Archive, ArchiveRestore, ArrowLeft, CalendarClock, Layers, PauseCircle, Pencil, PlayCircle, Plus, Send, Trash2, X } from 'lucide-react';
@@ -193,7 +194,7 @@ export default function TaskDetail() {
   return (
     <div className="td">
       {d.parent ? <Link to={`/tasks/${d.parent.id}`} className="back-link"><ArrowLeft size={16} aria-hidden="true" />Subtask of {d.parent.title}</Link>
-        : <Link to={canAssign ? '/tasks' : '/my-tasks'} className="back-link"><ArrowLeft size={16} aria-hidden="true" />{canAssign ? 'All tasks' : 'My tasks'}</Link>}
+        : <BackLink to={canAssign ? '/tasks' : '/my-tasks'} label={canAssign ? 'All tasks' : 'My tasks'} />}
 
       <header className={`card td-hero ${overdue ? 'is-overdue' : ''}`}>
         <div className="td-hero-top">

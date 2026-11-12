@@ -100,3 +100,6 @@
 }
 @keyframes tl-row { from { opacity: 0; translate: 0 8px; } }
 @media (prefers-reduced-motion: reduce) { .tl-bulk, .tl-bulk[data-show] { transition: none; } }
+
+/* the view tabs scroll sideways on phones; a rolling count's digit strip must not widen the page past the screen */
+.tl { overflow-x: clip; }

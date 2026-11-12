@@ -1,8 +1,9 @@
+import BackLink from '../components/BackLink';
 import TabThumb from '../components/TabThumb';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  Activity, AlertTriangle, ArrowLeft, Building, Camera, CheckCircle2, ChevronDown, Clock, Gauge, ListChecks, Mail, MapPin, Palette, Pencil, Phone, Plus, ShieldCheck,
+  Activity, AlertTriangle, Building, Camera, CheckCircle2, ChevronDown, Clock, Gauge, ListChecks, Mail, MapPin, Palette, Pencil, Phone, Plus, ShieldCheck,
   Trash2, UserMinus, X,
 } from 'lucide-react';
 import { deleteAccount } from '../lib/deleteAccount';
@@ -198,7 +199,7 @@ export default function PersonPage() {
 
   return (
     <div className="person ps2">
-      <Link to="/employees" className="back-link"><ArrowLeft size={16} aria-hidden="true" />All people</Link>
+      <BackLink to="/employees" label="All people" />
 
       <header className="card pf-hero ps-hero">
         <LiquidBg tone="deep" />

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarDays, CopyPlus, GripVertical, ListTree, Mail, Pencil, Play, Plus, Trash2, UserRound, X } from 'lucide-react';
 import { Count } from '../stageshow/kit/motion';
 import './templates.css';
+import SheetBase from '../components/Sheet';
+const Sheet = (p: { title: string; onClose: () => void; children: ReactNode }) => <SheetBase {...p} className="tpl-sheet" />;
 import { supabase } from '../lib/supabase';
 import { pickName } from '../lib/names';
 import { useAuth } from '../lib/auth';
@@ -19,18 +21,6 @@ const EMPTY: Tpl = { name: '', title: '', description: '', priority: 'medium', d
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const emails = (s: string) => s.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
 const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
-
-/** A side window over the page (native modal dialog: focus stays inside, Esc closes), like New task. */
-function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => { const d = ref.current; if (d && !d.open) d.showModal(); }, []);
-  return (
-    <dialog ref={ref} className="nt-sheet tpl-sheet" aria-label={title} onCancel={(e) => { e.preventDefault(); onClose(); }}>
-      <div className="nt-sheet-head"><h3>{title}</h3><button type="button" className="icon-btn" aria-label="Close" onClick={onClose}><X size={18} aria-hidden="true" /></button></div>
-      {children}
-    </dialog>
-  );
-}
 
 /** The template's plan as a timeline: the task's due day and each subtask's start-to-due span, in days from the start date. */
 function Plan({ t, people }: { t: Tpl; people: (id?: string | null) => string }) {

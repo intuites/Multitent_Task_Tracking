@@ -1,3 +1,4 @@
+import BackLink from '../components/BackLink';
 import { useState, type FormEvent } from "react";
 import { Building2 } from "lucide-react";
 import { rpc, ZoneSelect } from "../lib/ui";
@@ -50,6 +51,7 @@ export default function NewOrg() {
     );
   return (
     <>
+      <BackLink to="/" label="Dashboard" />
       <div className="page-head">
         <div>
           <h2 className="page-title">Create organization</h2>

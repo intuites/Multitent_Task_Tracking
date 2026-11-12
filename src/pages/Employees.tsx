@@ -9,6 +9,9 @@ import { Badge, fetchAll, label, loadInvites, loadPeople, rpc, type Person } fro
 import { Link, useLocation } from 'react-router-dom';
 import { ask } from '../components/Dialog';
 import { Avatar } from '../components/Frame';
+import Sheet from '../components/Sheet';
+import { ROLE_TEXT } from '../lib/roles';
+import './employees.css';
 import { ListSkeleton } from '../components/Skeleton';
 
 interface Perf { assigned: number; open: number; done: number; overdue: number; onTime: number | null; last30: number }
@@ -120,22 +123,26 @@ export default function Employees() {
     <>
       <div className="page-head">
         <div><h2 className="page-title">Employees</h2><p className="page-sub">Who is in {membership!.org_name}, which departments they belong to, and what they’re working on.</p></div>
-        {admin && <div className="page-actions"><button type="button" className="pill-btn" onClick={() => setInviting(!inviting)} aria-expanded={inviting}><UserPlus size={16} aria-hidden="true" />{inviting ? 'Close' : 'Invite people'}</button></div>}
+        {admin && <div className="page-actions"><button type="button" className="pill-btn" onClick={() => { setMsg(null); setInviting(true); }}><UserPlus size={16} aria-hidden="true" />Invite people</button></div>}
       </div>
 
       {inviting && (
-        <section className="card tpl-edit" aria-labelledby="inv-h">
-          <div className="panel-head"><h3 id="inv-h"><UserPlus size={16} aria-hidden="true" /> Invite someone</h3><button type="button" className="icon-btn sm" aria-label="Close" onClick={() => setInviting(false)}><X size={16} aria-hidden="true" /></button></div>
-          <form className="inv-form" onSubmit={invite}>
+        <Sheet size="sm" title="Invite someone" onClose={() => { setInviting(false); setMsg(null); }}>
+          <form className="iv-form" onSubmit={invite}>
             <label>Email<input name="email" type="email" required placeholder="name@company.com" autoFocus /></label>
-            <label>Full name<input name="full_name" placeholder="Optional" /></label>
-            <label>Role<select name="role" defaultValue="employee">{['employee', 'admin'].map((r) => <option key={r} value={r}>{label(r)}</option>)}</select></label>
-            <button type="submit">Send invite</button>
+            <label><span>Full name <small className="muted">(optional)</small></span><input name="full_name" placeholder="Priya Shah" /></label>
+            <fieldset className="iv-roles"><legend>Role</legend>
+              {(['employee', 'admin'] as const).map((r) => (
+                <label key={r} className="iv-role"><input type="radio" name="role" value={r} defaultChecked={r === 'employee'} />
+                  <span><b>{label(r)}</b><small>{ROLE_TEXT[r].blurb}</small></span></label>))}
+            </fieldset>
+            <ol className="iv-steps"><li>They get an email to set a password.</li><li>They wait under Invited until they do.</li><li>Then they join People.</li></ol>
+            {msg?.kind === 'error' && <p role="alert" className="form-alert">{msg.text}</p>}
+            <div className="nt-actions"><button type="submit"><UserPlus size={15} aria-hidden="true" />Send invite</button><button type="button" className="pill-btn ghost" onClick={() => { setInviting(false); setMsg(null); }}>Cancel</button></div>
           </form>
-          <p className="muted tpl-note">They get an email to set a password. They become a member, and appear in the list, once they've done that.</p>
-        </section>
+        </Sheet>
       )}
-      {msg && <p key={msg.text} role={msg.kind === 'error' ? 'alert' : 'status'} className={`auth-msg ${msg.kind}`}>{msg.kind === 'error' ? <X size={17} aria-hidden="true" /> : <Check size={17} aria-hidden="true" />}<span>{msg.text}</span></p>}
+      {msg && !(inviting && msg.kind === 'error') && <p key={msg.text} role={msg.kind === 'error' ? 'alert' : 'status'} className={`auth-msg ${msg.kind}`}>{msg.kind === 'error' ? <X size={17} aria-hidden="true" /> : <Check size={17} aria-hidden="true" />}<span>{msg.text}</span></p>}
 
       <div className="rp-tabs" role="tablist" aria-label="Sections">
         <TabThumb />

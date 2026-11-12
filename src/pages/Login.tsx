@@ -1,12 +1,14 @@
 import { useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { AlertCircle, ArrowBigUp, ArrowLeft, ArrowRight, Check, CheckCircle2, Eye, EyeOff, Loader2, LockKeyhole, Mail, MailCheck, UserRound } from 'lucide-react';
+import { BellRing, FileSpreadsheet, ShieldCheck, AlertCircle, ArrowBigUp, ArrowLeft, ArrowRight, Check, CheckCircle2, Eye, EyeOff, Loader2, LockKeyhole, Mail, MailCheck, UserRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { ThemeToggle, initials } from '../components/Frame';
 import Captcha, { captchaOn } from '../components/Captcha';
 import { applyLook } from '../lib/theme';
 import { firstName, forgetLastUser, readLastUser, saveLastUser } from '../lib/lastUser';
 import { strength } from '../lib/password';
+import AuthDemo from '../components/AuthDemo';
+import './auth.css';
 
 type Msg = { kind: 'error' | 'ok'; text: string; n: number } | null;
 type Mode = 'in' | 'up';
@@ -107,7 +109,7 @@ export default function Login() {
 
   // after sign-up: the card becomes a "check your inbox" note
   if (sentTo) return (
-    <AuthLayout>
+    <AuthLayout showcase>
       <div className="login auth-sent" role="status">
         <span className="auth-sent-ico" aria-hidden="true"><MailCheck size={30} /></span>
         <h1 className="auth-title">Check your inbox</h1>
@@ -119,7 +121,7 @@ export default function Login() {
   );
 
   return (
-    <AuthLayout>
+    <AuthLayout showcase>
       <form className={`login${bad ? ` shake-${msg!.n % 2}` : ''}${done ? ' auth-done' : ''}`} onSubmit={submit}>
         <div className="auth-seg" role="group" aria-label="Sign in or create an account" data-mode={mode}>
           <span className="auth-seg-pill" aria-hidden="true" />
@@ -189,10 +191,25 @@ export default function Login() {
 }
 
 // Shared shell for sign-in, password setup, two-factor and onboarding: one centered card on a soft brand-tinted page.
-export function AuthLayout({ children }: { children: ReactNode }) {
+export function AuthLayout({ children, showcase = false }: { children: ReactNode; showcase?: boolean }) {
   return (
-    <div className="auth">
+    <div className={showcase ? 'auth split' : 'auth'}>
       <div className="auth-glow" aria-hidden="true"><i /><i /></div>
+      {showcase && (
+        <aside className="auth-show" aria-label="About Taskify">
+          <span className="auth-show-brand"><span className="mark" aria-hidden="true">T</span>Taskify</span>
+          <div>
+            <h2>Every task, every team, on time.</h2>
+            <p>Assign work to departments and people, follow every status, and let reminders keep it moving.</p>
+          </div>
+          <div className="auth-show-demo" aria-hidden="true"><AuthDemo /></div>
+          <ul>
+            <li><BellRing size={16} aria-hidden="true" />Email reminders</li>
+            <li><ShieldCheck size={16} aria-hidden="true" />Each organization sees only its own data</li>
+            <li><FileSpreadsheet size={16} aria-hidden="true" />Excel and PDF reports</li>
+          </ul>
+        </aside>
+      )}
       <div className="auth-top">
         <a href="/guide" className="pill-btn ghost">How Taskify works</a>
         <ThemeToggle />

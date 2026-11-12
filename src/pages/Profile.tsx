@@ -1,3 +1,4 @@
+import TabThumb from '../components/TabThumb';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
@@ -184,6 +185,7 @@ export default function Profile() {
       </div>
 
       <div className="rp-tabs" role="tablist" aria-label="Profile sections">
+        <TabThumb />
         {TABS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => { setTab(t.id); setMsg(null); }}>{t.name}</button>)}
       </div>
       {msg && <p key={msg.text} role={msg.kind === 'error' ? 'alert' : 'status'} className={`auth-msg ${msg.kind}`}>{msg.kind === 'error' ? <AlertTriangle size={17} aria-hidden="true" /> : <Check size={17} aria-hidden="true" />}<span>{msg.text}</span></p>}

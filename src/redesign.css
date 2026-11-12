@@ -1,0 +1,100 @@
+/* ═════════ Site-wide redesign (after styles.css, so it wins). One language for every page, the same as the Dashboard and Tasks:
+   quiet surfaces with hairline edges, segmented tabs whose highlight slides (TabThumb), tinted sticky table headers, figures that
+   roll (CountUp → stageshow Count), stat tiles on one pattern, and content that settles in as it scrolls into view.
+   Every size comes from the --fs-* tokens and every colour from the palette tokens, so Profile → Appearance (colour, font,
+   style, text size, light/dark) restyles all of it. Text colours stay on pairs palette.test.ts checks. */
+:root {
+  --rd-line: color-mix(in srgb, var(--text) 8%, transparent);
+  --rd-faint: color-mix(in srgb, var(--text) 4%, transparent);
+  --rd-head: color-mix(in srgb, var(--surface-2) 70%, var(--surface));
+  --rd-lift: 0 18px 34px -24px color-mix(in srgb, var(--black) 45%, transparent);
+}
+
+/* ───── surfaces: one card for every page (beats the older light-theme ring rule on specificity) */
+:root:is([data-theme]) .content :is(.card, .sk-card):not(.esc-card):not(.feature),
+:root .content :is(.card, .sk-card):not(.esc-card):not(.feature) {
+  /* only the edge: each card keeps its own background and radius (the Profile header and other hero cards are coloured) */
+  box-shadow: inset 0 0 0 1px var(--rd-line), 0 1px 2px rgb(0 0 0 / .04);
+}
+.content .card { padding: 22px 24px; }
+.content .card > h3:first-child, .content .panel-head h3, .content .card > h2:first-child { font-size: var(--fs-base); font-weight: var(--fw-title); letter-spacing: -0.01em; }
+.content .card > h3:first-child { margin-bottom: 14px; }
+.content .panel-head { padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--rd-faint); }
+.content .card + .card { margin-top: 16px; }
+.page-head { margin-bottom: 22px; }
+.page-sub { max-width: 70ch; }
+
+/* ───── segmented tabs (Employees, Reports, Profile, a person's page): the raised thumb slides to the chosen tab */
+.rp-tabs { position: relative; gap: 2px; padding: 4px; border-radius: 14px; background: color-mix(in srgb, var(--text) 6%, transparent); box-shadow: none; }
+.rp-tabs button { position: relative; z-index: 1; min-height: 36px; padding: 7px 14px; border-radius: 10px; background: none; color: color-mix(in srgb, var(--muted) 78%, var(--text)); font-weight: var(--fw-medium); box-shadow: none; }
+.rp-tabs button:hover { background: none; color: var(--text); }
+.rp-tabs button.on, .rp-tabs button[aria-selected="true"] { background: none; color: var(--text); font-weight: var(--fw-semibold); box-shadow: none; }
+.rp-tabs .tab-n { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); font-variant-numeric: tabular-nums; }
+.rp-tabs button.on .tab-n { background: var(--brand-2); color: var(--brand-ink); }
+.tab-thumb { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; border-radius: 10px; pointer-events: none; background: var(--surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / .12), 0 0 0 1px var(--rd-line); transition: transform .38s var(--settle, var(--ease)), width .38s var(--settle, var(--ease)), opacity .2s; }
+
+/* ───── tables: tinted sticky header with rounded ends, hairline rows, a soft hover (Tasks has its own .tl-table) */
+.content table:not(.tl-table) { border-collapse: separate; border-spacing: 0; }
+.content table:not(.tl-table) thead th { position: sticky; top: 0; z-index: 1; padding: 10px 12px; background: var(--rd-head); border-bottom: 1px solid var(--rd-line);
+  color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-semibold); white-space: nowrap; }
+.content table:not(.tl-table) thead th:first-child { border-radius: 10px 0 0 10px; }
+.content table:not(.tl-table) thead th:last-child { border-radius: 0 10px 10px 0; }
+.content table:not(.tl-table) td { padding: 12px; border-bottom: 1px solid var(--rd-faint); font-variant-numeric: tabular-nums; }
+.content table:not(.tl-table) tbody tr { transition: background-color .2s var(--ease); }
+.content table:not(.tl-table) tbody tr:hover { background: var(--rd-faint); }
+.content table:not(.tl-table) tbody tr:last-child td { border-bottom: 0; }
+
+/* ───── stat tiles (Reports, Profile, a person's page, Employees → Performance, Admin): one pattern */
+.rp-kpi, .pf-stat, .perf-kpi { border-radius: var(--r-card); background: var(--surface); box-shadow: inset 0 0 0 1px var(--rd-line), 0 1px 2px rgb(0 0 0 / .04);
+  transition: transform .35s var(--ease), box-shadow .35s var(--ease); }
+.rp-kpi:hover, .pf-stat:hover, .perf-kpi:hover { transform: translateY(-3px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 35%, transparent), var(--rd-lift); }
+.rp-kpi b, .pf-stat b, .perf-kpi b, .rp-tile b { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.rp-tile { background: var(--rd-faint); box-shadow: inset 0 0 0 1px var(--rd-line); }
+.rp-ico { border-radius: 11px; }
+
+/* ───── lists, inbox and small parts */
+.inbox-item { border-radius: 12px; transition: background-color .2s var(--ease); }
+.inbox-item.new { background: color-mix(in srgb, var(--brand) 8%, transparent); box-shadow: inset 3px 0 0 var(--brand); }
+.inbox-item.new:hover { background: color-mix(in srgb, var(--brand) 12%, transparent); }
+.inbox-ico { border-radius: 10px; }
+.empty-ico { background: color-mix(in srgb, var(--brand) 10%, transparent); color: var(--brand); }
+.plist li, .team li { transition: background-color .2s var(--ease); }
+.content .badge { border-radius: 7px; letter-spacing: .01em; }
+.content :is(input, select, textarea):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]) { border-radius: 11px; }
+.pill-btn.ghost { border-color: color-mix(in srgb, var(--brand) 55%, transparent); }
+.pill-btn.ghost:hover { background: color-mix(in srgb, var(--brand) 8%, var(--surface)); filter: none; }
+
+/* ───── calendar: day cells as quiet tiles, today and the picked day in the organization's colour */
+.cal-cell { border-radius: 12px; border-color: var(--rd-line); background: var(--surface); }
+.cal-cell.weekend { background: color-mix(in srgb, var(--surface) 60%, var(--panel)); }
+.cal-cell.today { background: color-mix(in srgb, var(--brand) 7%, var(--surface)); border-color: color-mix(in srgb, var(--brand) 45%, transparent); }
+/* past days read as past through the faded cell edge, not faded numbers (those fell to 2:1) */
+.cal-cell.past .cal-n { color: var(--muted); }
+.cal-cell.past { border-style: dashed; }
+.cal-cell.picked { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 16%, transparent); }
+
+/* ───── motion: tiles and list rows settle in, one after another, as they scroll into view */
+@media (prefers-reduced-motion: no-preference) {
+  .rp-kpis > *, .pf-stats > *, .perf-kpis > *, .rp-tiles > * { animation: rd-in .6s var(--settle, var(--ease)) backwards; }
+  :is(.rp-kpis, .pf-stats, .perf-kpis, .rp-tiles) > :nth-child(2) { animation-delay: 60ms; }
+  :is(.rp-kpis, .pf-stats, .perf-kpis, .rp-tiles) > :nth-child(3) { animation-delay: 120ms; }
+  :is(.rp-kpis, .pf-stats, .perf-kpis, .rp-tiles) > :nth-child(4) { animation-delay: 180ms; }
+  :is(.rp-kpis, .pf-stats, .perf-kpis, .rp-tiles) > :nth-child(n+5) { animation-delay: 240ms; }
+  .inbox-list > li, .plist > li, .team > li { animation: rd-in .5s var(--settle, var(--ease)) backwards; }
+  .inbox-list > li:nth-child(2), .plist > li:nth-child(2), .team > li:nth-child(2) { animation-delay: 40ms; }
+  .inbox-list > li:nth-child(3), .plist > li:nth-child(3), .team > li:nth-child(3) { animation-delay: 80ms; }
+  .inbox-list > li:nth-child(4), .plist > li:nth-child(4), .team > li:nth-child(4) { animation-delay: 120ms; }
+  .inbox-list > li:nth-child(n+5), .plist > li:nth-child(n+5), .team > li:nth-child(n+5) { animation-delay: 160ms; }
+  @supports (animation-timeline: view()) {
+    .content .card:not(.esc-card):not(.prefs) { animation: rd-view linear both; animation-timeline: view(); animation-range: entry 0% entry 45%; }
+  }
+}
+@keyframes rd-in { from { opacity: 0; translate: 0 10px; } }
+@keyframes rd-view { from { opacity: 0; translate: 0 24px; scale: .985; } }
+@media (prefers-reduced-motion: reduce) {
+  .tab-thumb, .rp-kpi, .pf-stat, .perf-kpi, .inbox-item { transition: none; }
+}
+
+/* top bar: the date under the greeting and the role under the name sit on frosted glass, so they take a firmer grey */
+.topbar :is(.hello small, .me-text small) { color: color-mix(in srgb, var(--muted) 72%, var(--text)); }

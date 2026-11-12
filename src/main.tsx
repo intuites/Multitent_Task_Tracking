@@ -40,6 +40,7 @@ const Settings = lazy(() => import('./pages/OrgSettings'));
 const ShortcutsPage = lazy(() => import('./components/Shortcuts'));
 const TwoFactor = lazy(() => import('./pages/TwoFactor'));
 import './styles.css';
+import './redesign.css';
 import { Boot, PageSkeleton } from './components/Skeleton';
 
 function Shell() {

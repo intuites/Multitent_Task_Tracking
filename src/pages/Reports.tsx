@@ -1,3 +1,4 @@
+import TabThumb from '../components/TabThumb';
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CheckCircle2, Clock, Download, Hourglass, Layers, PieChart, Repeat, Users, X, type LucideIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -189,6 +190,7 @@ export default function Reports() {
       </section>
 
       <div className="rp-tabs" role="tablist" aria-label="Report">
+        <TabThumb />
         {REPORTS.map((r) => (
           <button key={r.id} type="button" role="tab" aria-selected={report === r.id} className={report === r.id ? 'on' : ''} onClick={() => setReport(r.id)}>
             <r.icon size={16} aria-hidden="true" />{r.name}

@@ -1,3 +1,4 @@
+import TabThumb from '../components/TabThumb';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -212,6 +213,7 @@ export default function PersonPage() {
       </div>
 
       <div className="rp-tabs" role="tablist" aria-label="Profile sections">
+        <TabThumb />
         {TABS.map((t) => (
           <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
             <t.icon size={15} aria-hidden="true" />{t.name}{t.n !== undefined && <span className="tab-n">{t.n}</span>}

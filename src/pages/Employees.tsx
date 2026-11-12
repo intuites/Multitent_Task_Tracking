@@ -1,3 +1,4 @@
+import TabThumb from '../components/TabThumb';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Building2, Check, Layers, Pencil, Plus, Search, Trash2, UserPlus, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -137,6 +138,7 @@ export default function Employees() {
       {msg && <p key={msg.text} role={msg.kind === 'error' ? 'alert' : 'status'} className={`auth-msg ${msg.kind}`}>{msg.kind === 'error' ? <X size={17} aria-hidden="true" /> : <Check size={17} aria-hidden="true" />}<span>{msg.text}</span></p>}
 
       <div className="rp-tabs" role="tablist" aria-label="Sections">
+        <TabThumb />
         {TABS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>{t.name}{t.n !== undefined && <span className="tab-n">{t.n}</span>}</button>)}
       </div>
 

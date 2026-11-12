@@ -1,3 +1,4 @@
+import { Count } from '../stageshow/kit/motion';
 import { useEffect, useState } from 'react';
 
 export const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -32,4 +33,9 @@ export function useCountUp(target: number, ms = 900) {
   return v;
 }
 
-export const CountUp = ({ value }: { value: number }) => <>{useCountUp(value)}</>;
+/** A figure that rolls up from 0 when it first shows, then rolls to each new value (stageshow's Count). */
+export function CountUp({ value }: { value: number }) {
+  const [v, setV] = useState(() => (reducedMotion() ? value : 0));
+  useEffect(() => { const id = requestAnimationFrame(() => setV(value)); return () => cancelAnimationFrame(id); }, [value]);
+  return <Count value={v} />;
+}

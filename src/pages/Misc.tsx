@@ -11,6 +11,9 @@ import { Building2, FolderKanban, History, ListChecks, Users } from 'lucide-reac
 import { byDay, describe, fold, FILTERS, type Category, type LogRow } from '../lib/activityText';
 import { safeZone } from '../lib/greeting';
 import { isNewOrg, markOrgsSeen, NEW_DAYS, onOrgsSeen, seenOrgs } from '../lib/newOrgs';
+import TabThumb from '../components/TabThumb';
+import { Count } from '../stageshow/kit/motion';
+import './activity.css';
 
 const PAGE = 50;
 const CAT_ICON: Record<Category, typeof ListChecks> = { task: ListChecks, people: Users, org: Building2, work: FolderKanban };
@@ -67,6 +70,7 @@ export function ActivityLogs() {
         </label>
       </div>
       <div className="seg al-filters" role="group" aria-label="Show">
+        <TabThumb />
         {FILTERS.map((f) => <button key={f.key} type="button" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>{f.name}</button>)}
       </div>
 
@@ -76,17 +80,24 @@ export function ActivityLogs() {
             <p className="muted">{who || filter ? 'Nothing matches these filters. Try Everyone or All.' : 'Changes to tasks, people and settings will show up here.'}</p></div>
         ) : days.map((g) => (
           <section key={g.key} className="al-day" aria-labelledby={`d-${g.key}`}>
-            <h3 id={`d-${g.key}`}>{g.title}<small>{g.items.reduce((n, f) => n + f.count, 0)}</small></h3>
-            <ol>{g.items.map(({ row: r, count }) => {
+            <h3 id={`d-${g.key}`}>{g.title}<small><Count value={g.items.reduce((n, f) => n + f.count, 0)} /> {g.items.reduce((n, f) => n + f.count, 0) === 1 ? 'change' : 'changes'}</small></h3>
+            <ol>{g.items.map(({ row: r, count }, i) => {
               const s = describe(r, name, (id) => titles[id]);
               const Icon = CAT_ICON[s.category];
               const actor = r.actor_id ? name(r.actor_id).replace(/^a /, 'A ') : 'Taskify';
               return (
-                <li key={r.id} className={`al-item c-${s.category}`}>
-                  <span className="avatar sm al-av" aria-hidden="true">{photo(r.actor_id) ? <img src={photo(r.actor_id)!} alt="" /> : initials(actor)}<i><Icon size={11} /></i></span>
-                  <p><b>{actor}</b> {s.verb}{s.target && <> {s.target.to ? <Link to={s.target.to}>{s.target.text}</Link> : s.target.text}</>}{s.rest}
-                    {count > 1 && <span className="al-count" title={`${count} times in a row`}>×{count}</span>}</p>
-                  <small className="al-meta"><time dateTime={r.created_at}>{time(r.created_at)}</time><span>{CAT_NAME[s.category]}</span></small>
+                <li key={r.id} className={`al-item c-${s.category}`} style={{ '--i': Math.min(i, 12) } as React.CSSProperties}>
+                  {/* the photo is clipped by its own circle; the category badge sits beside it, so neither spills into the next row */}
+                  <span className="al-face" aria-hidden="true">
+                    <span className="al-av">{photo(r.actor_id) ? <img src={photo(r.actor_id)!} alt="" /> : initials(actor)}</span>
+                    <i className="al-kind"><Icon size={11} /></i>
+                  </span>
+                  <div className="al-main">
+                    <p><b>{actor}</b> {s.verb}{s.target && <> {s.target.to ? <Link to={s.target.to}>{s.target.text}</Link> : s.target.text}</>}{s.rest}
+                      {count > 1 && <span className="al-count" title={`${count} times in a row`}>×{count}</span>}</p>
+                    <span className="al-cat">{CAT_NAME[s.category]}</span>
+                  </div>
+                  <time className="al-time" dateTime={r.created_at}>{time(r.created_at)}</time>
                 </li>);
             })}</ol>
           </section>))}
